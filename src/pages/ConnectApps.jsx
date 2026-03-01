@@ -7,7 +7,12 @@ import { integrations, catLabels, catIcons } from "../data/integrations";
 import { apiFetch, getToken } from "../lib/api";
 
 // Apps that support real OAuth connect
-const OAUTH_APPS = { Strava: "/api/auth/connect/strava", Whoop: "/api/auth/connect/whoop" };
+const OAUTH_APPS = {
+  Strava: "/api/auth/connect/strava",
+  Whoop: "/api/auth/connect/whoop",
+  "Oura Ring": "/api/auth/connect/oura",
+  Withings: "/api/auth/connect/withings",
+};
 
 // ── APP CARD COMPONENT ──
 function AppCard({ app, isConnected, onToggle }) {
