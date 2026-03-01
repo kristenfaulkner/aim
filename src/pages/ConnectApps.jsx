@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { T, font } from "../theme/tokens";
 import { btn, inputStyle } from "../theme/styles";
 import { Check, ArrowRight, MessageCircle } from "lucide-react";
 import { integrations, catLabels, catIcons } from "../data/integrations";
+import { apiFetch } from "../lib/api";
 
 // ── APP CARD COMPONENT ──
 function AppCard({ app, isConnected, onToggle }) {
@@ -46,12 +47,39 @@ export default function ConnectApps() {
   const [showRequest, setShowRequest] = useState(false);
   const [requestText, setRequestText] = useState("");
   const [requestSent, setRequestSent] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Load saved integrations on mount
+  useEffect(() => {
+    apiFetch("/user/integrations")
+      .then((data) => {
+        const map = {};
+        (data.integrations || []).forEach((name) => { map[name] = true; });
+        setConnected(map);
+      })
+      .catch(() => {});
+  }, []);
 
   const toggleConnect = (name) => {
     setConnected(prev => ({ ...prev, [name]: !prev[name] }));
   };
 
   const connectedCount = Object.values(connected).filter(Boolean).length;
+  const connectedNames = Object.entries(connected).filter(([, v]) => v).map(([k]) => k);
+
+  const handleContinue = async () => {
+    setSaving(true);
+    try {
+      await apiFetch("/user/integrations", {
+        method: "POST",
+        body: JSON.stringify({ integrations: connectedNames }),
+      });
+    } catch {
+      // Continue even if save fails
+    }
+    setSaving(false);
+    navigate("/dashboard");
+  };
 
   const filtered = integrations.filter(app => {
     const matchesCat = filter === "all" || app.category === filter;
@@ -87,7 +115,8 @@ export default function ConnectApps() {
             </div>
           ))}
         </div>
-        <button onClick={() => navigate("/")} style={{ ...btn(connectedCount > 0), padding: connectedCount > 0 ? "10px 24px" : "10px 24px", fontSize: 13 }}>
+        <button onClick={handleContinue} disabled={saving}
+          style={{ ...btn(connectedCount > 0), padding: "10px 24px", fontSize: 13, opacity: saving ? 0.7 : 1 }}>
           {connectedCount > 0 ? `Continue (${connectedCount} connected)` : "Skip for now"} <ArrowRight size={16} />
         </button>
       </div>
@@ -99,7 +128,7 @@ export default function ConnectApps() {
             Connect your <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>data sources</span>
           </h1>
           <p style={{ fontSize: 15, color: T.textSoft, margin: "0 0 4px" }}>The more you connect, the smarter AIM gets. You can always add more later.</p>
-          <p style={{ fontSize: 12, color: T.textDim }}>🔒 Your data is encrypted and never sold. See our <a href="#" style={{ color: T.accent, textDecoration: "none" }}>Privacy Policy</a>.</p>
+          <p style={{ fontSize: 12, color: T.textDim }}>🔒 Your data is encrypted and never sold. See our <a href="/privacy" style={{ color: T.accent, textDecoration: "none" }}>Privacy Policy</a>.</p>
         </div>
 
         {/* Search + filters */}

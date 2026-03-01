@@ -2,15 +2,41 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { T, font } from "../theme/tokens";
 import { btn, inputStyle } from "../theme/styles";
-import { User, Mail, Lock, Eye, EyeOff, ArrowRight, Brain, BarChart3, Heart, Shield } from "lucide-react";
+import { User, Mail, Lock, Eye, EyeOff, ArrowRight, Brain, BarChart3, Heart, Shield, Loader2 } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 export default function Auth({ mode }) {
   const navigate = useNavigate();
+  const { signup, signin } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [showPw, setShowPw] = useState(false);
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const isSignup = mode === "signup";
+
+  const handleSubmit = async () => {
+    setError("");
+    if (isSignup && !name.trim()) return setError("Name is required");
+    if (!email.trim()) return setError("Email is required");
+    if (!password) return setError("Password is required");
+    if (isSignup && password.length < 8) return setError("Password must be at least 8 characters");
+
+    setSubmitting(true);
+    try {
+      if (isSignup) {
+        await signup(name, email, password);
+      } else {
+        await signin(email, password);
+      }
+      navigate("/connect");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const socialBtn = (label, icon) => (
     <button style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "13px 16px", background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, fontSize: 14, fontWeight: 600, color: T.text, cursor: "pointer", fontFamily: font, transition: "all 0.2s" }}
@@ -49,6 +75,12 @@ export default function Auth({ mode }) {
             <div style={{ flex: 1, height: 1, background: T.border }} />
           </div>
 
+          {error && (
+            <div style={{ padding: "10px 14px", marginBottom: 14, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 10, fontSize: 13, color: "#ef4444" }}>
+              {error}
+            </div>
+          )}
+
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {isSignup && (
               <div style={{ position: "relative" }}>
@@ -62,7 +94,9 @@ export default function Auth({ mode }) {
             </div>
             <div style={{ position: "relative" }}>
               <Lock size={18} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: T.textDim }} />
-              <input type={showPw ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" style={inputStyle} />
+              <input type={showPw ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="Password"
+                style={inputStyle}
+                onKeyDown={e => { if (e.key === "Enter") handleSubmit(); }} />
               <button onClick={() => setShowPw(!showPw)} style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: T.textDim, cursor: "pointer", padding: 0 }}>
                 {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -71,7 +105,7 @@ export default function Auth({ mode }) {
 
           {isSignup && (
             <p style={{ fontSize: 12, color: T.textDim, marginTop: 12, lineHeight: 1.5 }}>
-              By creating an account, you agree to our <a href="#" style={{ color: T.accent, textDecoration: "none" }}>Terms of Service</a> and <a href="#" style={{ color: T.accent, textDecoration: "none" }}>Privacy Policy</a>.
+              By creating an account, you agree to our <a href="/terms" style={{ color: T.accent, textDecoration: "none" }}>Terms of Service</a> and <a href="/privacy" style={{ color: T.accent, textDecoration: "none" }}>Privacy Policy</a>.
             </p>
           )}
 
@@ -81,7 +115,9 @@ export default function Auth({ mode }) {
             </div>
           )}
 
-          <button onClick={() => navigate("/connect")} style={{ ...btn(true), width: "100%", justifyContent: "center", marginTop: 20, fontSize: 16, padding: "15px 32px" }}>
+          <button onClick={handleSubmit} disabled={submitting}
+            style={{ ...btn(true), width: "100%", justifyContent: "center", marginTop: 20, fontSize: 16, padding: "15px 32px", opacity: submitting ? 0.7 : 1, cursor: submitting ? "not-allowed" : "pointer" }}>
+            {submitting ? <Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} /> : null}
             {isSignup ? "Create Account" : "Sign In"} <ArrowRight size={18} />
           </button>
 
