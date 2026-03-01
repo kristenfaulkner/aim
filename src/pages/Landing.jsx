@@ -85,21 +85,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── EMOTIONAL SECTION (scroll down) ── */}
-      <section style={{ padding: "100px 40px", maxWidth: 800, margin: "0 auto", textAlign: "center" }}>
-        <p style={{ fontSize: 14, color: T.accent, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 20 }}>The Philosophy</p>
-        <h2 style={{ fontSize: 44, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 20px", lineHeight: 1.15 }}>
-          Your health is your greatest asset.<br />
-          <span style={{ color: T.textSoft }}>Treat it that way.</span>
-        </h2>
-        <p style={{ fontSize: 18, color: T.textSoft, lineHeight: 1.7, margin: "0 0 20px" }}>
-          You train hard. You deserve to know exactly what's working.
-        </p>
-        <p style={{ fontSize: 16, color: T.textDim, lineHeight: 1.7, maxWidth: 640, margin: "0 auto" }}>
-          AIM connects everything — power, sleep, recovery, blood panels, DEXA scans, body composition — and tells you exactly what to do next. Every insight is actionable. Every recommendation is specific. No more guessing why you're plateauing when the answer is sitting across 8 different apps.
-        </p>
-      </section>
-
       {/* ── A MESSAGE FROM THE FOUNDER ── */}
       <section style={{ padding: "80px 40px", background: T.surface, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}` }}>
         <div style={{ maxWidth: 1000, margin: "0 auto" }}>
@@ -109,11 +94,7 @@ export default function Landing() {
             <div style={{ flexShrink: 0, width: 320 }}>
               <div style={{ width: 320, height: 400, borderRadius: 20, overflow: "hidden", position: "relative", background: `linear-gradient(180deg, ${T.card} 0%, ${T.surface} 100%)`, border: `1px solid ${T.border}` }}>
                 {/* Replace this div with: <img src="YOUR_HOSTED_IMAGE_URL" alt="Kristen Faulkner" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> */}
-                <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, background: `linear-gradient(135deg, rgba(0,229,160,0.03), rgba(59,130,246,0.03))` }}>
-                  <div style={{ width: 80, height: 80, borderRadius: "50%", background: T.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, fontWeight: 800, color: T.bg }}>KF</div>
-                  <span style={{ fontSize: 11, color: T.textDim }}>Photo: Kristen in EF kit</span>
-                  <span style={{ fontSize: 10, color: T.textDim }}>Replace with EF2026-headshot</span>
-                </div>
+                <img src="/kristen.jpg" alt="Kristen Faulkner" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               </div>
               <div style={{ textAlign: "center", marginTop: 16 }}>
                 <p style={{ fontSize: 16, fontWeight: 800, margin: "0 0 2px" }}>Kristen Faulkner</p>
