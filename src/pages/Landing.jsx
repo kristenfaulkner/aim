@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Activity, Zap, Brain, Target, Heart, TrendingUp, ArrowRight, Check, Star } from "lucide-react";
 import { T, font, mono } from "../theme/tokens";
 import { btn } from "../theme/styles";
+import NeuralBackground from "../components/NeuralBackground";
 
 export default function Landing() {
   const navigate = useNavigate();
@@ -21,7 +22,7 @@ export default function Landing() {
     { name: "Sarah K.", role: "Cat 2 Road Racer", text: "AIM told me my VO2 was my limiter before my coach did. The prescribed workouts raised my 5-min power by 22W in 8 weeks.", stars: 5 },
     { name: "Marcus T.", role: "Masters 45+ Champion", text: "The sleep-to-performance correlation blew my mind. I changed my bedtime and my EF improved by 8%. Data doesn't lie.", stars: 5 },
     { name: "Elena R.", role: "Pro Triathlete", text: "The menstrual cycle tracking with my Oura Ring is a game-changer. Finally, a platform that treats female physiology as a feature, not an afterthought.", stars: 5 },
-    { name: "Jake W.", role: "SF Cycling Club", text: "I was spending $400/month on a coach who looked at the same data I could see myself. AIM gives me better analysis for a fraction of the cost.", stars: 5 },
+    { name: "Jake W.", role: "Cat 3 Road Racer", text: "AIM flagged a left-right power imbalance that got worse on climbs. I started the single-leg gym protocol it prescribed and gained 14W at threshold in six weeks. My coach never caught it.", stars: 5 },
   ];
 
   const plans = [
@@ -50,9 +51,8 @@ export default function Landing() {
 
       {/* ── CLEAN HERO (above the fold — same as original) ── */}
       <section style={{ paddingTop: 160, paddingBottom: 100, textAlign: "center", position: "relative", overflow: "hidden" }}>
-        <div style={{ position: "absolute", top: -200, left: "50%", transform: "translateX(-50%)", width: 800, height: 800, background: "radial-gradient(circle, rgba(0,229,160,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", top: 100, right: -100, width: 400, height: 400, background: "radial-gradient(circle, rgba(59,130,246,0.04) 0%, transparent 70%)", pointerEvents: "none" }} />
-        <div style={{ position: "relative", zIndex: 1, maxWidth: 800, margin: "0 auto", padding: "0 24px" }}>
+        <NeuralBackground />
+        <div style={{ position: "relative", zIndex: 10, maxWidth: 800, margin: "0 auto", padding: "0 24px" }}>
           <h1 style={{ fontSize: 64, fontWeight: 800, lineHeight: 1.05, letterSpacing: "-0.04em", margin: "0 0 24px" }}>
             Your AI<br />
             <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Performance Coach</span>
@@ -76,7 +76,7 @@ export default function Landing() {
       {/* Metrics strip */}
       <section style={{ borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, padding: "32px 0", background: T.surface }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", justifyContent: "space-around", textAlign: "center" }}>
-          {[{ n: "50+", l: "Metrics Auto-Calculated" }, { n: "18+", l: "App Integrations" }, { n: "9", l: "Biomarkers Tracked" }, { n: "24/7", l: "AI Analysis" }].map(s => (
+          {[{ n: "100+", l: "Metrics Tracked" }, { n: "18+", l: "App Integrations" }, { n: "40+", l: "Blood Biomarkers" }, { n: "24/7", l: "AI Analysis" }].map(s => (
             <div key={s.l}>
               <div style={{ fontSize: 36, fontWeight: 800, fontFamily: mono, background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{s.n}</div>
               <div style={{ fontSize: 13, color: T.textSoft, marginTop: 4 }}>{s.l}</div>
@@ -99,20 +99,20 @@ export default function Landing() {
               <div style={{ textAlign: "center", marginTop: 16 }}>
                 <p style={{ fontSize: 16, fontWeight: 800, margin: "0 0 2px" }}>Kristen Faulkner</p>
                 <p style={{ fontSize: 13, color: T.accent, margin: "0 0 2px", fontWeight: 600 }}>Founder & CEO</p>
-                <p style={{ fontSize: 12, color: T.textDim, margin: 0, lineHeight: 1.5 }}>2x Olympic Gold Medalist, Cycling<br />EF Education–Oatly Pro Team</p>
+                <p style={{ fontSize: 12, color: T.textDim, margin: 0, lineHeight: 1.5 }}>2x Olympic Gold Medalist, Cycling</p>
               </div>
             </div>
             {/* Quote */}
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 48, color: T.accent, fontWeight: 800, lineHeight: 1, marginBottom: 8, opacity: 0.3 }}>"</div>
               <p style={{ fontSize: 20, color: T.text, lineHeight: 1.7, margin: "0 0 20px", fontWeight: 500 }}>
-                Throughout my career — from Venture Capital in Silicon Valley to the Olympic podium — I was always searching for insights that didn't exist. I had power files, blood work, sleep data, body comp scans, and a hormone cycle that affected everything. But no tool could connect them.
+                I went from Venture Capital in Silicon Valley to the Olympic podium, and the whole way I was searching for insights that didn't exist. I had power files, blood work, sleep data, body comp scans, and a hormone cycle that affected everything. But no tool could connect them.
               </p>
               <p style={{ fontSize: 20, color: T.text, lineHeight: 1.7, margin: "0 0 20px", fontWeight: 500 }}>
-                I built AIM because I wanted the analysis I couldn't find anywhere else. Everything I learned racing at the highest level — the biomarker patterns, the recovery protocols, the performance boosters, the training frameworks that actually won races — I've put into this platform.
+                I built AIM because I wanted the analysis I couldn't find anywhere else. The biomarker patterns, the recovery protocols, the performance boosters, the training frameworks that actually won races. Everything I learned racing at the highest level, I've put into this platform.
               </p>
               <p style={{ fontSize: 20, color: T.text, lineHeight: 1.7, margin: "0 0 20px", fontWeight: 500 }}>
-                Our health is our most valuable asset. I want to make world-class performance intelligence accessible to every athlete — not just those with a pro team behind them.
+                Our health is our most valuable asset. I want to make world-class performance intelligence accessible to every athlete, not just those with a pro team behind them.
               </p>
               <div style={{ width: 48, height: 2, background: T.gradient, marginBottom: 16 }} />
               <p style={{ fontSize: 14, fontWeight: 700, color: T.text, margin: 0 }}>Kristen Faulkner</p>
@@ -132,7 +132,7 @@ export default function Landing() {
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }}>
           {[
-            { emoji: "\u{1F9EC}", title: "Cross-domain intelligence no one else has", desc: "AIM is the only platform that reasons across your blood work, training data, sleep, body composition, nutrition, and menstrual cycle simultaneously. Your ferritin trend explains your power plateau. Your DEXA changes reveal whether weight loss is fat or muscle.", highlight: "Other apps: here's your data. AIM: here's what it means together." },
+            { emoji: "\u{1F9EC}", title: "Cross-domain intelligence no one else has", desc: "AIM is the only platform that reasons across your blood work, training data, sleep, body composition, nutrition, and menstrual cycle simultaneously. Your ferritin trend explains your power plateau. Your DEXA changes reveal whether weight loss is fat or muscle.", highlight: "Other apps: here's your data. AIM: here's what it means together and what to do about it." },
             { emoji: "\u{1F3C5}", title: "Built by a 2x Olympic Champion", desc: "The analysis frameworks, biomarker ranges, and training prescriptions in AIM come from the same system used to win Olympic gold — refined through years of world-class competition, sports science research, and elite coaching.", highlight: "Every recommendation is grounded in what actually works at the highest level." },
             { emoji: "\u{1FA78}", title: "Your blood work and DEXA scans, decoded", desc: "Upload your lab results and body scans. AIM uses athlete-optimal ranges (not clinical ranges designed to catch disease) to flag what matters for performance. It tracks trends over time, cross-references with your training load, and tells you exactly when to retest.", highlight: "43% of female athletes are iron-deficient. Clinical labs say they're \"normal.\"" },
           ].map((d, i) => (
