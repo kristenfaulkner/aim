@@ -17,11 +17,13 @@ export async function createSession(userId) {
 }
 
 export async function verifySession(req) {
+  // Accept token from Authorization header or ?token= query param (for OAuth redirects)
   const auth = req.headers["authorization"];
-  if (!auth?.startsWith("Bearer ")) return null;
+  const raw = auth?.startsWith("Bearer ") ? auth.slice(7) : req.query?.token;
+  if (!raw) return null;
 
   try {
-    const { payload } = await jwtVerify(auth.slice(7), SECRET);
+    const { payload } = await jwtVerify(raw, SECRET);
     const stored = await redis.get(`session:${payload.jti}`);
     if (!stored) return null;
     return { userId: payload.sub, jti: payload.jti };

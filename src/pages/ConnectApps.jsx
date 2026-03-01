@@ -1,10 +1,13 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { T, font } from "../theme/tokens";
 import { btn, inputStyle } from "../theme/styles";
 import { Check, ArrowRight, MessageCircle } from "lucide-react";
 import { integrations, catLabels, catIcons } from "../data/integrations";
-import { apiFetch } from "../lib/api";
+import { apiFetch, getToken } from "../lib/api";
+
+// Apps that support real OAuth connect
+const OAUTH_APPS = { Strava: "/api/auth/connect/strava", Whoop: "/api/auth/connect/whoop" };
 
 // ── APP CARD COMPONENT ──
 function AppCard({ app, isConnected, onToggle }) {
@@ -41,6 +44,7 @@ function AppCard({ app, isConnected, onToggle }) {
 
 export default function ConnectApps() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [connected, setConnected] = useState({});
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
@@ -48,6 +52,24 @@ export default function ConnectApps() {
   const [requestText, setRequestText] = useState("");
   const [requestSent, setRequestSent] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState("");
+
+  // Handle OAuth return query params
+  useEffect(() => {
+    const justConnected = searchParams.get("connected");
+    const error = searchParams.get("error");
+    if (justConnected) {
+      setToast(`${justConnected.charAt(0).toUpperCase() + justConnected.slice(1)} connected successfully!`);
+      setSearchParams({}, { replace: true });
+    } else if (error) {
+      setToast(`Connection failed: ${error.replace(/_/g, " ")}`);
+      setSearchParams({}, { replace: true });
+    }
+    if (justConnected || error) {
+      const timer = setTimeout(() => setToast(""), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams, setSearchParams]);
 
   // Load saved integrations on mount
   useEffect(() => {
@@ -61,6 +83,12 @@ export default function ConnectApps() {
   }, []);
 
   const toggleConnect = (name) => {
+    // If this app has real OAuth and isn't connected yet, redirect to OAuth
+    if (OAUTH_APPS[name] && !connected[name]) {
+      const token = getToken();
+      window.location.href = `${OAUTH_APPS[name]}?token=${encodeURIComponent(token)}`;
+      return;
+    }
     setConnected(prev => ({ ...prev, [name]: !prev[name] }));
   };
 
@@ -120,6 +148,16 @@ export default function ConnectApps() {
           {connectedCount > 0 ? `Continue (${connectedCount} connected)` : "Skip for now"} <ArrowRight size={16} />
         </button>
       </div>
+
+      {/* Toast notification */}
+      {toast && (
+        <div style={{ position: "fixed", top: 80, left: "50%", transform: "translateX(-50%)", padding: "12px 24px", borderRadius: 12, fontSize: 14, fontWeight: 600, zIndex: 100,
+          background: toast.includes("failed") ? "rgba(239,68,68,0.12)" : "rgba(0,229,160,0.12)",
+          border: `1px solid ${toast.includes("failed") ? "rgba(239,68,68,0.3)" : "rgba(0,229,160,0.3)"}`,
+          color: toast.includes("failed") ? "#ef4444" : T.accent }}>
+          {toast}
+        </div>
+      )}
 
       {/* Main content */}
       <div style={{ flex: 1, padding: "40px", maxWidth: 1000, margin: "0 auto", width: "100%" }}>
