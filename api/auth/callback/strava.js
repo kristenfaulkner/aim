@@ -1,3 +1,4 @@
+import { supabaseAdmin } from "../../_lib/supabase.js";
 import { redis } from "../../_lib/redis.js";
 
 export default async function handler(req, res) {
@@ -12,7 +13,6 @@ export default async function handler(req, res) {
   if (!userId) return res.redirect(302, "/connect?error=strava_invalid_state");
   await redis.del(`oauth:state:${state}`);
 
-  // Exchange code for tokens
   const tokenRes = await fetch("https://www.strava.com/oauth/token", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -28,20 +28,17 @@ export default async function handler(req, res) {
 
   const data = await tokenRes.json();
 
-  await redis.hset(`user:${userId}:tokens:strava`, {
-    accessToken: data.access_token,
-    refreshToken: data.refresh_token,
-    expiresAt: String(data.expires_at),
-    athleteId: String(data.athlete?.id || ""),
-  });
-
-  // Add Strava to user's integrations list
-  const raw = await redis.get(`user:${userId}:integrations`);
-  const list = Array.isArray(raw) ? raw : (typeof raw === "string" ? JSON.parse(raw) : []);
-  if (!list.includes("Strava")) {
-    list.push("Strava");
-    await redis.set(`user:${userId}:integrations`, JSON.stringify(list));
-  }
+  await supabaseAdmin.from("integrations").upsert({
+    user_id: userId,
+    provider: "strava",
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+    token_expires_at: new Date(data.expires_at * 1000).toISOString(),
+    provider_user_id: String(data.athlete?.id || ""),
+    scopes: ["read", "activity:read_all", "profile:read_all"],
+    is_active: true,
+    sync_status: "pending",
+  }, { onConflict: "user_id,provider" });
 
   res.redirect(302, "/connect?connected=strava");
 }

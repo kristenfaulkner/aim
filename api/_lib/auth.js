@@ -1,20 +1,4 @@
-import { SignJWT, jwtVerify } from "jose";
-import { redis } from "./redis.js";
-
-const SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
-const SESSION_TTL = 60 * 60 * 24 * 7; // 7 days
-
-export async function createSession(userId) {
-  const jti = crypto.randomUUID();
-  const token = await new SignJWT({ sub: userId, jti })
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt()
-    .setExpirationTime("7d")
-    .sign(SECRET);
-
-  await redis.set(`session:${jti}`, userId, { ex: SESSION_TTL });
-  return token;
-}
+import { supabaseAdmin } from "./supabase.js";
 
 export async function verifySession(req) {
   // Accept token from Authorization header or ?token= query param (for OAuth redirects)
@@ -23,10 +7,9 @@ export async function verifySession(req) {
   if (!raw) return null;
 
   try {
-    const { payload } = await jwtVerify(raw, SECRET);
-    const stored = await redis.get(`session:${payload.jti}`);
-    if (!stored) return null;
-    return { userId: payload.sub, jti: payload.jti };
+    const { data: { user }, error } = await supabaseAdmin.auth.getUser(raw);
+    if (error || !user) return null;
+    return { userId: user.id };
   } catch {
     return null;
   }

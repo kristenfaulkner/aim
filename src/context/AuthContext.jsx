@@ -1,56 +1,120 @@
 import { createContext, useContext, useState, useEffect } from "react";
-import { apiFetch, setToken, clearToken, getToken } from "../lib/api";
+import { supabase } from "../lib/supabase";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  async function fetchProfile(userId) {
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
+      .single();
+    setProfile(data);
+    return data;
+  }
+
   useEffect(() => {
-    const token = getToken();
-    if (!token) {
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const u = session?.user ?? null;
+      setUser(u);
+      if (u) fetchProfile(u.id);
       setLoading(false);
-      return;
-    }
-    apiFetch("/auth/me")
-      .then((data) => setUser(data.user))
-      .catch(() => clearToken())
-      .finally(() => setLoading(false));
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        const u = session?.user ?? null;
+        setUser(u);
+        if (u) {
+          await fetchProfile(u.id);
+        } else {
+          setProfile(null);
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  async function signup(name, email, password) {
-    const data = await apiFetch("/auth/signup", {
-      method: "POST",
-      body: JSON.stringify({ name, email, password }),
+  async function signup(email, password, fullName) {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: fullName } },
     });
-    setToken(data.token);
-    setUser(data.user);
+    if (error) throw error;
     return data;
   }
 
   async function signin(email, password) {
-    const data = await apiFetch("/auth/signin", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
     });
-    setToken(data.token);
-    setUser(data.user);
+    if (error) throw error;
+    return data;
+  }
+
+  async function signInWithGoogle() {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/connect` },
+    });
+    if (error) throw error;
+    return data;
+  }
+
+  async function signInWithApple() {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "apple",
+      options: { redirectTo: `${window.location.origin}/connect` },
+    });
+    if (error) throw error;
     return data;
   }
 
   async function signout() {
-    try {
-      await apiFetch("/auth/signout", { method: "POST" });
-    } catch {
-      // Clear locally even if server call fails
-    }
-    clearToken();
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
     setUser(null);
+    setProfile(null);
+  }
+
+  async function updateProfile(updates) {
+    if (!user) return;
+    const { data, error } = await supabase
+      .from("profiles")
+      .update(updates)
+      .eq("id", user.id)
+      .select()
+      .single();
+    if (error) throw error;
+    setProfile(data);
+    return data;
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, signup, signin, signout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        profile,
+        loading,
+        signup,
+        signin,
+        signInWithGoogle,
+        signInWithApple,
+        signout,
+        updateProfile,
+        fetchProfile,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

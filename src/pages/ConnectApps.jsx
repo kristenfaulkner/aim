@@ -4,7 +4,7 @@ import { T, font } from "../theme/tokens";
 import { btn, inputStyle } from "../theme/styles";
 import { Check, ArrowRight, MessageCircle } from "lucide-react";
 import { integrations, catLabels, catIcons } from "../data/integrations";
-import { apiFetch, getToken } from "../lib/api";
+import { supabase } from "../lib/supabase";
 
 // Apps that support real OAuth connect
 const OAUTH_APPS = {
@@ -56,7 +56,6 @@ export default function ConnectApps() {
   const [showRequest, setShowRequest] = useState(false);
   const [requestText, setRequestText] = useState("");
   const [requestSent, setRequestSent] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
 
   // Handle OAuth return query params
@@ -78,39 +77,37 @@ export default function ConnectApps() {
 
   // Load saved integrations on mount
   useEffect(() => {
-    apiFetch("/user/integrations")
-      .then((data) => {
+    supabase.from("integrations")
+      .select("provider")
+      .eq("is_active", true)
+      .then(({ data }) => {
         const map = {};
-        (data.integrations || []).forEach((name) => { map[name] = true; });
+        // Map provider names back to display names
+        const providerToName = { strava: "Strava", whoop: "Whoop", oura: "Oura Ring", withings: "Withings" };
+        (data || []).forEach(row => {
+          const display = providerToName[row.provider] || row.provider;
+          map[display] = true;
+        });
         setConnected(map);
-      })
-      .catch(() => {});
+      });
   }, []);
 
-  const toggleConnect = (name) => {
+  const toggleConnect = async (name) => {
     // If this app has real OAuth and isn't connected yet, redirect to OAuth
     if (OAUTH_APPS[name] && !connected[name]) {
-      const token = getToken();
-      window.location.href = `${OAUTH_APPS[name]}?token=${encodeURIComponent(token)}`;
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (token) {
+        window.location.href = `${OAUTH_APPS[name]}?token=${encodeURIComponent(token)}`;
+      }
       return;
     }
     setConnected(prev => ({ ...prev, [name]: !prev[name] }));
   };
 
   const connectedCount = Object.values(connected).filter(Boolean).length;
-  const connectedNames = Object.entries(connected).filter(([, v]) => v).map(([k]) => k);
 
-  const handleContinue = async () => {
-    setSaving(true);
-    try {
-      await apiFetch("/user/integrations", {
-        method: "POST",
-        body: JSON.stringify({ integrations: connectedNames }),
-      });
-    } catch {
-      // Continue even if save fails
-    }
-    setSaving(false);
+  const handleContinue = () => {
     navigate("/dashboard");
   };
 
@@ -148,8 +145,8 @@ export default function ConnectApps() {
             </div>
           ))}
         </div>
-        <button onClick={handleContinue} disabled={saving}
-          style={{ ...btn(connectedCount > 0), padding: "10px 24px", fontSize: 13, opacity: saving ? 0.7 : 1 }}>
+        <button onClick={handleContinue}
+          style={{ ...btn(connectedCount > 0), padding: "10px 24px", fontSize: 13 }}>
           {connectedCount > 0 ? `Continue (${connectedCount} connected)` : "Skip for now"} <ArrowRight size={16} />
         </button>
       </div>

@@ -7,7 +7,7 @@ import { useAuth } from "../context/AuthContext";
 
 export default function Auth({ mode }) {
   const navigate = useNavigate();
-  const { signup, signin } = useAuth();
+  const { signup, signin, signInWithGoogle, signInWithApple } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -26,11 +26,11 @@ export default function Auth({ mode }) {
     setSubmitting(true);
     try {
       if (isSignup) {
-        await signup(name, email, password);
+        await signup(email, password, name.trim());
       } else {
         await signin(email, password);
       }
-      navigate("/connect");
+      navigate(isSignup ? "/onboarding" : "/dashboard");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -38,8 +38,16 @@ export default function Auth({ mode }) {
     }
   };
 
-  const socialBtn = (label, icon) => (
-    <button style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "13px 16px", background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, fontSize: 14, fontWeight: 600, color: T.text, cursor: "pointer", fontFamily: font, transition: "all 0.2s" }}
+  const handleGoogle = async () => {
+    try { await signInWithGoogle(); } catch (err) { setError(err.message); }
+  };
+
+  const handleApple = async () => {
+    try { await signInWithApple(); } catch (err) { setError(err.message); }
+  };
+
+  const socialBtn = (label, icon, onClick) => (
+    <button onClick={onClick} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "13px 16px", background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, fontSize: 14, fontWeight: 600, color: T.text, cursor: "pointer", fontFamily: font, transition: "all 0.2s" }}
       onMouseOver={e => e.currentTarget.style.borderColor = T.borderHover}
       onMouseOut={e => e.currentTarget.style.borderColor = T.border}>
       <span style={{ fontSize: 18 }}>{icon}</span> {label}
@@ -64,9 +72,9 @@ export default function Auth({ mode }) {
           </p>
 
           <div style={{ display: "flex", gap: 10, marginBottom: 24 }}>
-            {socialBtn("Google", "G")}
-            {socialBtn("Strava", "S")}
-            {socialBtn("Apple", "\uF8FF")}
+            {socialBtn("Google", "G", handleGoogle)}
+            {socialBtn("Strava", "S", () => {})}
+            {socialBtn("Apple", "\uF8FF", handleApple)}
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>

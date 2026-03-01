@@ -1,3 +1,4 @@
+import { supabaseAdmin } from "../../_lib/supabase.js";
 import { redis } from "../../_lib/redis.js";
 
 export default async function handler(req, res) {
@@ -28,18 +29,16 @@ export default async function handler(req, res) {
 
   const data = await tokenRes.json();
 
-  await redis.hset(`user:${userId}:tokens:oura`, {
-    accessToken: data.access_token,
-    refreshToken: data.refresh_token || "",
-    expiresAt: String(Math.floor(Date.now() / 1000) + data.expires_in),
-  });
-
-  const raw = await redis.get(`user:${userId}:integrations`);
-  const list = Array.isArray(raw) ? raw : (typeof raw === "string" ? JSON.parse(raw) : []);
-  if (!list.includes("Oura Ring")) {
-    list.push("Oura Ring");
-    await redis.set(`user:${userId}:integrations`, JSON.stringify(list));
-  }
+  await supabaseAdmin.from("integrations").upsert({
+    user_id: userId,
+    provider: "oura",
+    access_token: data.access_token,
+    refresh_token: data.refresh_token || "",
+    token_expires_at: new Date((Math.floor(Date.now() / 1000) + data.expires_in) * 1000).toISOString(),
+    scopes: ["personal", "daily", "heartrate", "workout", "session", "sleep"],
+    is_active: true,
+    sync_status: "pending",
+  }, { onConflict: "user_id,provider" });
 
   res.redirect(302, "/connect?connected=oura");
 }

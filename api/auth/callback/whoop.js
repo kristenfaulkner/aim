@@ -1,3 +1,4 @@
+import { supabaseAdmin } from "../../_lib/supabase.js";
 import { redis } from "../../_lib/redis.js";
 
 export default async function handler(req, res) {
@@ -12,7 +13,6 @@ export default async function handler(req, res) {
   if (!userId) return res.redirect(302, "/connect?error=whoop_invalid_state");
   await redis.del(`oauth:state:${state}`);
 
-  // Exchange code for tokens
   const tokenRes = await fetch("https://api.prod.whoop.com/oauth/oauth2/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -29,19 +29,16 @@ export default async function handler(req, res) {
 
   const data = await tokenRes.json();
 
-  await redis.hset(`user:${userId}:tokens:whoop`, {
-    accessToken: data.access_token,
-    refreshToken: data.refresh_token,
-    expiresAt: String(Math.floor(Date.now() / 1000) + data.expires_in),
-  });
-
-  // Add Whoop to user's integrations list
-  const raw = await redis.get(`user:${userId}:integrations`);
-  const list = Array.isArray(raw) ? raw : (typeof raw === "string" ? JSON.parse(raw) : []);
-  if (!list.includes("Whoop")) {
-    list.push("Whoop");
-    await redis.set(`user:${userId}:integrations`, JSON.stringify(list));
-  }
+  await supabaseAdmin.from("integrations").upsert({
+    user_id: userId,
+    provider: "whoop",
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+    token_expires_at: new Date((Math.floor(Date.now() / 1000) + data.expires_in) * 1000).toISOString(),
+    scopes: ["read:recovery", "read:sleep", "read:workout", "read:profile", "read:body_measurement"],
+    is_active: true,
+    sync_status: "pending",
+  }, { onConflict: "user_id,provider" });
 
   res.redirect(302, "/connect?connected=whoop");
 }

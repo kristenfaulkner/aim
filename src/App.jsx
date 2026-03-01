@@ -11,6 +11,8 @@ import Terms from "./pages/legal/Terms";
 import CookiePolicy from "./pages/legal/CookiePolicy";
 import DataProcessing from "./pages/legal/DataProcessing";
 import GDPR from "./pages/legal/GDPR";
+import Settings from "./pages/Settings";
+import Onboarding from "./pages/Onboarding";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 export default function App() {
@@ -19,10 +21,12 @@ export default function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/signup" element={<Auth mode="signup" />} />
       <Route path="/signin" element={<Auth mode="signin" />} />
+      <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
       <Route path="/connect" element={<ProtectedRoute><ConnectApps /></ProtectedRoute>} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/boosters" element={<ProtectedRoute><Boosters /></ProtectedRoute>} />
       <Route path="/health-lab" element={<ProtectedRoute><HealthLab /></ProtectedRoute>} />
+      <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/contact" element={<Contact />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/terms" element={<Terms />} />
