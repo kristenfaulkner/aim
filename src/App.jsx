@@ -15,6 +15,7 @@ import Settings from "./pages/Settings";
 import Onboarding from "./pages/Onboarding";
 import ActivityDetail from "./pages/ActivityDetail";
 import ResetPassword from "./pages/ResetPassword";
+import AcceptTerms from "./pages/AcceptTerms";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 export default function App() {
@@ -24,6 +25,7 @@ export default function App() {
       <Route path="/signup" element={<Auth mode="signup" />} />
       <Route path="/signin" element={<Auth mode="signin" />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/accept-terms" element={<ProtectedRoute><AcceptTerms /></ProtectedRoute>} />
       <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
       <Route path="/connect" element={<ProtectedRoute><ConnectApps /></ProtectedRoute>} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />

@@ -5,7 +5,7 @@ import { btn, inputStyle } from "../theme/styles";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabase";
 import { computePowerZones, computeHRZones } from "../lib/zones";
-import { ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight, Loader2, Shield } from "lucide-react";
 
 const RIDING_LEVELS = ["Recreational", "Competitive", "Professional"];
 const WEEKLY_HOURS = ["1-5", "5-10", "11-15", "16+"];
@@ -26,6 +26,7 @@ export default function Onboarding() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  const [healthDataConsent, setHealthDataConsent] = useState(false);
   const [form, setForm] = useState({
     full_name: "",
     date_of_birth: "",
@@ -47,7 +48,8 @@ export default function Onboarding() {
   const isMetric = form.units === "metric";
 
   const canAdvance = () => {
-    if (step === 1) return form.full_name && form.date_of_birth && form.sex;
+    if (step === 1) return healthDataConsent;
+    if (step === 2) return form.full_name && form.date_of_birth && form.sex;
     return true;
   };
 
@@ -89,6 +91,7 @@ export default function Onboarding() {
         hr_zones: computeHRZones(maxHrVal),
         uses_cycle_tracking: form.uses_cycle_tracking,
         hormonal_contraception: form.hormonal_contraception || null,
+        health_data_consent_at: new Date().toISOString(),
         onboarding_completed: true,
       });
 
@@ -133,7 +136,7 @@ export default function Onboarding() {
 
         {/* Progress */}
         <div style={{ display: "flex", gap: 8, marginBottom: 32 }}>
-          {[1, 2].map(s => (
+          {[1, 2, 3].map(s => (
             <div key={s} style={{ flex: 1, height: 4, borderRadius: 2, background: s <= step ? T.accent : T.border, transition: "background 0.3s" }} />
           ))}
         </div>
@@ -144,8 +147,54 @@ export default function Onboarding() {
           </div>
         )}
 
-        {/* Step 1: Basic Info */}
+        {/* Step 1: Health Data Consent */}
         {step === 1 && (
+          <div>
+            <div style={{ width: 48, height: 48, borderRadius: 14, background: T.accentDim, border: `1px solid ${T.accentMid}`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
+              <Shield size={24} style={{ color: T.accent }} />
+            </div>
+            <h1 style={{ fontSize: 26, fontWeight: 800, margin: "0 0 8px", letterSpacing: "-0.03em" }}>Your data, your control</h1>
+            <p style={{ fontSize: 15, color: T.textSoft, margin: "0 0 24px", lineHeight: 1.6 }}>
+              AIM processes health and fitness data to provide personalized insights. Before we collect any data, we need your explicit consent.
+            </p>
+
+            <div style={{ padding: 20, background: T.card, borderRadius: 14, border: `1px solid ${T.border}`, marginBottom: 20 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 12 }}>Data we process:</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {[
+                  "Heart rate, power, cadence, and training metrics from connected devices",
+                  "Sleep data including duration, stages, HRV, and resting heart rate",
+                  "Body composition data (weight, body fat %, DEXA scans)",
+                  "Blood panel biomarkers that you upload",
+                  "Menstrual cycle data (only if you opt in)",
+                ].map((item, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12, color: T.textSoft, lineHeight: 1.5 }}>
+                    <span style={{ color: T.accent, marginTop: 1, flexShrink: 0 }}>-</span>
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ padding: 20, background: T.card, borderRadius: 14, border: `1px solid ${T.border}`, marginBottom: 24 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 8 }}>How we use it:</div>
+              <div style={{ fontSize: 12, color: T.textSoft, lineHeight: 1.6 }}>
+                Your data is analyzed by AI (powered by Anthropic's Claude) to generate personalized training insights, recovery recommendations, and cross-domain pattern detection. Your data is <strong style={{ color: T.text }}>never sold</strong> and is <strong style={{ color: T.text }}>not used to train AI models</strong>. You can withdraw consent and delete your data at any time in Settings.
+              </div>
+            </div>
+
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 12, cursor: "pointer", padding: "14px 16px", borderRadius: 10, background: healthDataConsent ? "rgba(0,229,160,0.04)" : "transparent", border: `1px solid ${healthDataConsent ? T.accentMid : T.border}`, transition: "all 0.2s" }}>
+              <input type="checkbox" checked={healthDataConsent} onChange={e => setHealthDataConsent(e.target.checked)}
+                style={{ marginTop: 2, accentColor: T.accent, width: 18, height: 18, flexShrink: 0 }} />
+              <span style={{ fontSize: 13, color: T.text, lineHeight: 1.6, fontWeight: 600 }}>
+                I explicitly consent to AIM processing my health and fitness data as described above
+              </span>
+            </label>
+          </div>
+        )}
+
+        {/* Step 2: Basic Info */}
+        {step === 2 && (
           <div>
             <h1 style={{ fontSize: 26, fontWeight: 800, margin: "0 0 8px", letterSpacing: "-0.03em" }}>Tell us about yourself</h1>
             <p style={{ fontSize: 15, color: T.textSoft, margin: "0 0 32px" }}>This helps AIM personalize your insights.</p>
@@ -186,8 +235,8 @@ export default function Onboarding() {
           </div>
         )}
 
-        {/* Step 2: Athlete Profile */}
-        {step === 2 && (
+        {/* Step 3: Athlete Profile */}
+        {step === 3 && (
           <div>
             <h1 style={{ fontSize: 26, fontWeight: 800, margin: "0 0 8px", letterSpacing: "-0.03em" }}>Your athlete profile</h1>
             <p style={{ fontSize: 15, color: T.textSoft, margin: "0 0 32px" }}>This calibrates your benchmarks and training recommendations.</p>
@@ -262,7 +311,7 @@ export default function Onboarding() {
           {step > 1 ? (
             <button onClick={() => setStep(step - 1)} style={{ ...btn(false), fontSize: 14, padding: "12px 24px" }}>Back</button>
           ) : <div />}
-          {step < 2 ? (
+          {step < 3 ? (
             <button onClick={() => canAdvance() && setStep(step + 1)} disabled={!canAdvance()}
               style={{ ...btn(true), fontSize: 14, padding: "12px 28px", opacity: canAdvance() ? 1 : 0.4, cursor: canAdvance() ? "pointer" : "not-allowed" }}>
               Next <ArrowRight size={16} />

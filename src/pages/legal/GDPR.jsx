@@ -305,17 +305,17 @@ export default function GDPR() {
           As AIM is established outside the European Union and processes Personal Data of Data Subjects within the EU, AIM has appointed an EU Representative in accordance with Article 27 of the GDPR. The EU Representative serves as a point of contact for Data Subjects and supervisory authorities within the EU.
         </p>
         <ul style={ul}>
-          <li style={li}><strong style={{ color: T.text }}>EU Representative:</strong> [EU Representative Name]</li>
-          <li style={li}><strong style={{ color: T.text }}>Address:</strong> [EU Representative Address, EU Member State]</li>
-          <li style={li}><strong style={{ color: T.text }}>Email:</strong> [eu-representative@aim.ai]</li>
+          <li style={li}><strong style={{ color: T.text }}>EU Representative:</strong> To be appointed prior to commercial launch in the EU</li>
+          <li style={li}><strong style={{ color: T.text }}>Address:</strong> To be confirmed</li>
+          <li style={li}><strong style={{ color: T.text }}>Email:</strong> privacy@aim.ai (interim contact)</li>
         </ul>
         <p style={p}>
           AIM has similarly appointed a UK Representative for the purposes of the UK GDPR:
         </p>
         <ul style={ul}>
-          <li style={li}><strong style={{ color: T.text }}>UK Representative:</strong> [UK Representative Name]</li>
-          <li style={li}><strong style={{ color: T.text }}>Address:</strong> [UK Representative Address, United Kingdom]</li>
-          <li style={li}><strong style={{ color: T.text }}>Email:</strong> [uk-representative@aim.ai]</li>
+          <li style={li}><strong style={{ color: T.text }}>UK Representative:</strong> To be appointed prior to commercial launch in the UK</li>
+          <li style={li}><strong style={{ color: T.text }}>Address:</strong> To be confirmed</li>
+          <li style={li}><strong style={{ color: T.text }}>Email:</strong> privacy@aim.ai (interim contact)</li>
         </ul>
         <p style={p}>
           You may contact the EU or UK Representative with respect to any matter related to the processing of your Personal Data under the GDPR or UK GDPR, including to exercise your Data Subject rights.

@@ -258,7 +258,7 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 - Project setup (Vite + React + React Router + Supabase)
 - Design system (theme tokens, dark theme, NeuralBackground animation)
 - Auth (email/password, Google SSO, magic link, password reset, protected routes)
-- Onboarding (profile, FTP/HR zone setup with power zones Z1-Z7 and HR zones Z1-Z5)
+- Onboarding (3-step: health data consent → profile → FTP/HR zone setup with power zones Z1-Z7 and HR zones Z1-Z5)
 - **Strava** integration (full: OAuth, sync, backfill, metrics, streams, webhook, cross-source dedup)
 - **EightSleep** integration (credential auth with password visibility toggle, trends API, sleep metrics + extended metrics sync)
 - **Wahoo** integration (OAuth + webhook receiver for workout summaries)
@@ -274,9 +274,12 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 - DEXA scan tracking
 - Boosters page (searchable/filterable protocol library)
 - Connect Apps page with integration management, sync buttons, feature request form
-- Settings page (profile, SMS opt-in, notification preferences)
+- Settings page (profile, SMS opt-in, notification preferences, Account & Data tab with data export + account deletion)
 - Landing page with pricing, founder section, neural background
-- Legal pages (privacy, terms, GDPR, cookie policy, data processing)
+- Legal pages (privacy, terms, GDPR, cookie policy, data processing) with named sub-processors (Anthropic, Twilio), Washington MHMDA section
+- Legal compliance: Terms acceptance on signup, AcceptTerms interstitial for SSO/existing users, GDPR Article 9 health data consent in onboarding, consent gate in ProtectedRoute
+- Account management: full data export (JSON), account deletion with confirmation, consent withdrawal
+- EightSleep credential encryption (AES-256-GCM via `api/_lib/crypto.js`)
 - Source priority system (`_lib/source-priority.js`: device > TrainingPeaks > Strava)
 - Supabase storage: `health-files` bucket (blood/DEXA), `import-files` bucket (TrainingPeaks uploads)
 - Vercel deployment with GitHub auto-deploy

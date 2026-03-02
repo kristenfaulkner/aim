@@ -579,6 +579,8 @@ export default function PrivacyPolicy() {
           <li style={liStyle}><strong style={strongStyle}>Analytics providers</strong> — Privacy-focused analytics services that help us understand aggregate usage patterns. We do not use analytics providers that build cross-site advertising profiles.</li>
           <li style={liStyle}><strong style={strongStyle}>Email delivery services</strong> — For transactional emails and, where you have opted in, product communications.</li>
           <li style={liStyle}><strong style={strongStyle}>Customer support tools</strong> — To manage and respond to your support inquiries.</li>
+          <li style={liStyle}><strong style={strongStyle}>Anthropic, PBC</strong> — AI model provider. We transmit your health and fitness data to Anthropic's Claude API to generate personalized AI-powered analysis, insights, and coaching recommendations. Data is processed under Anthropic's commercial API data processing terms and is <strong style={strongStyle}>not used to train their AI models</strong>. Anthropic operates a zero-retention policy for commercial API usage.</li>
+          <li style={liStyle}><strong style={strongStyle}>Twilio, Inc.</strong> — SMS messaging provider. For users who opt in to SMS coaching, Twilio processes your phone number and message content solely for the purpose of delivering and receiving text messages. Twilio does not use your data for any other purpose.</li>
         </ul>
 
         <h3 style={h3Style}>6.3 Connected Third-Party Services</h3>
@@ -873,6 +875,23 @@ export default function PrivacyPolicy() {
           We do not offer financial incentives or price or service differences in
           exchange for the retention or disclosure of personal information.
         </p>
+
+        {/* ──────────────────────────────────────────────────────────────────── */}
+        {/* 10B. WASHINGTON MY HEALTH MY DATA ACT */}
+        {/* ──────────────────────────────────────────────────────────────────── */}
+        <h2 style={h2Style}>10B. Washington My Health My Data Act</h2>
+        <p style={pStyle}>
+          If you are a Washington state resident, you have additional rights under
+          the Washington My Health My Data Act (MHMDA), RCW 19.373. This section
+          supplements the information in this Policy as required by the MHMDA.
+        </p>
+        <ul style={ulStyle}>
+          <li style={liStyle}><strong style={strongStyle}>Consent before collection:</strong> We obtain your explicit consent before collecting or sharing consumer health data, including through the health data consent flow during account onboarding.</li>
+          <li style={liStyle}><strong style={strongStyle}>No sale of health data:</strong> We do not sell, as defined under the MHMDA, any consumer health data.</li>
+          <li style={liStyle}><strong style={strongStyle}>Right to delete:</strong> You may request deletion of your consumer health data at any time through your account settings or by contacting privacy@aim.ai. We will delete your health data and direct our processors to do the same within thirty (30) days.</li>
+          <li style={liStyle}><strong style={strongStyle}>Processor agreements:</strong> We maintain written agreements with all processors of consumer health data, including Anthropic, PBC (AI analysis) and Twilio, Inc. (SMS messaging), that restrict their use of health data to the services they provide to AIM.</li>
+          <li style={liStyle}><strong style={strongStyle}>Geofencing prohibition:</strong> We do not use geofencing technology to collect consumer health data within the boundaries of a health care facility.</li>
+        </ul>
 
         {/* ──────────────────────────────────────────────────────────────────── */}
         {/* 11. CHILDREN'S PRIVACY */}

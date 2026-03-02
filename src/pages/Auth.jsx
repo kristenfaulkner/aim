@@ -16,6 +16,7 @@ export default function Auth({ mode }) {
   const [submitting, setSubmitting] = useState(false);
   const [view, setView] = useState("form"); // "form" | "magic-link" | "forgot-password" | "sent"
   const [sentMessage, setSentMessage] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const isSignup = mode === "signup";
 
   const handleSubmit = async () => {
@@ -24,11 +25,20 @@ export default function Auth({ mode }) {
     if (!email.trim()) return setError("Email is required");
     if (!password) return setError("Password is required");
     if (isSignup && password.length < 8) return setError("Password must be at least 8 characters");
+    if (isSignup && !acceptedTerms) return setError("You must accept the Terms of Service and Privacy Policy");
 
     setSubmitting(true);
     try {
       if (isSignup) {
-        await signup(email, password, name.trim());
+        const { session: newSession } = await signup(email, password, name.trim());
+        // Record terms acceptance (fire-and-forget)
+        if (newSession?.access_token) {
+          fetch("/api/user/accept-terms", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${newSession.access_token}` },
+            body: JSON.stringify({ terms: true, privacy: true }),
+          }).catch(() => {});
+        }
       } else {
         await signin(email, password);
       }
@@ -226,9 +236,13 @@ export default function Auth({ mode }) {
           </div>
 
           {isSignup && (
-            <p style={{ fontSize: 12, color: T.textDim, marginTop: 12, lineHeight: 1.5 }}>
-              By creating an account, you agree to our <a href="/terms" style={{ color: T.accent, textDecoration: "none" }}>Terms of Service</a> and <a href="/privacy" style={{ color: T.accent, textDecoration: "none" }}>Privacy Policy</a>.
-            </p>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 10, marginTop: 16, cursor: "pointer" }}>
+              <input type="checkbox" checked={acceptedTerms} onChange={e => setAcceptedTerms(e.target.checked)}
+                style={{ marginTop: 2, accentColor: T.accent, width: 16, height: 16, flexShrink: 0 }} />
+              <span style={{ fontSize: 12, color: T.textDim, lineHeight: 1.5 }}>
+                I agree to the <a href="/terms" target="_blank" style={{ color: T.accent, textDecoration: "none" }}>Terms of Service</a> and <a href="/privacy" target="_blank" style={{ color: T.accent, textDecoration: "none" }}>Privacy Policy</a>.
+              </span>
+            </label>
           )}
 
           {!isSignup && (
@@ -242,8 +256,8 @@ export default function Auth({ mode }) {
             </div>
           )}
 
-          <button onClick={handleSubmit} disabled={submitting}
-            style={{ ...btn(true), width: "100%", justifyContent: "center", marginTop: 20, fontSize: 16, padding: "15px 32px", opacity: submitting ? 0.7 : 1, cursor: submitting ? "not-allowed" : "pointer" }}>
+          <button onClick={handleSubmit} disabled={submitting || (isSignup && !acceptedTerms)}
+            style={{ ...btn(true), width: "100%", justifyContent: "center", marginTop: 20, fontSize: 16, padding: "15px 32px", opacity: (submitting || (isSignup && !acceptedTerms)) ? 0.5 : 1, cursor: (submitting || (isSignup && !acceptedTerms)) ? "not-allowed" : "pointer" }}>
             {submitting ? <Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} /> : null}
             {isSignup ? "Create Account" : "Sign In"} <ArrowRight size={18} />
           </button>

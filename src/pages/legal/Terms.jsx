@@ -101,9 +101,15 @@ export default function Terms() {
           <li style={li}><span style={bold}>AI-Powered Analysis:</span> Application of proprietary artificial intelligence and machine learning models to analyze your aggregated performance, health, recovery, and training data;</li>
           <li style={li}><span style={bold}>Insights & Recommendations:</span> Generation of personalized performance insights, training recommendations, recovery assessments, and trend analyses based on your data;</li>
           <li style={li}><span style={bold}>Dashboard & Reporting:</span> Interactive dashboards, visualizations, and reports to track your athletic performance metrics over time.</li>
+          <li style={li}><span style={bold}>SMS AI Coaching:</span> Optional text message-based workout summaries, training insights, and conversational coaching delivered via Twilio, Inc. You may opt in or out of SMS features at any time in your account settings.</li>
         </ul>
         <p style={p}>
           The specific features available to you will depend on your subscription tier, as described in Section 6. AIM reserves the right to modify, update, or discontinue any aspect of the Service at any time, with or without notice, subject to applicable law.
+        </p>
+
+        <h3 style={h3}>4.2 Third-Party Data Processing</h3>
+        <p style={p}>
+          By using the Service, you acknowledge that your health and fitness data may be transmitted to <span style={bold}>Anthropic, PBC</span> ("Anthropic"), the provider of the Claude AI model that powers AIM's analysis engine. Your data transmitted to Anthropic is processed solely to generate your personalized insights and is <span style={bold}>not used by Anthropic to train their AI models</span>. Anthropic operates under a commercial API data processing agreement with AIM. For users who opt in to SMS features, your phone number and message content are processed by <span style={bold}>Twilio, Inc.</span> ("Twilio") solely for message delivery. Please refer to our <Link to="/privacy">Privacy Policy</Link> for full details on our sub-processors.
         </p>
 
         {/* ─── 5. MEDICAL DISCLAIMER ─── */}

@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "../../_lib/supabase.js";
 import { verifySession, cors } from "../../_lib/auth.js";
 import { authenticateEightSleep } from "../../_lib/eightsleep.js";
+import { encrypt } from "../../_lib/crypto.js";
 
 /**
  * POST /api/auth/connect/eightsleep
@@ -33,7 +34,7 @@ export default async function handler(req, res) {
       scopes: ["sleep", "temperature", "presence"],
       is_active: true,
       sync_status: "pending",
-      metadata: { email, password }, // Needed for token re-authentication (no refresh token mechanism)
+      metadata: { email: encrypt(email), password: encrypt(password), encrypted: true }, // Encrypted; needed for token re-auth
     }, { onConflict: "user_id,provider" });
 
     return res.status(200).json({ ok: true, provider: "eightsleep" });

@@ -19,8 +19,13 @@ export default function ProtectedRoute({ children }) {
 
   if (!user) return <Navigate to="/signin" replace />;
 
+  // Redirect to accept-terms if consent not recorded (but don't loop if already there)
+  if (profile && !profile.terms_accepted_at && location.pathname !== "/accept-terms") {
+    return <Navigate to="/accept-terms" replace />;
+  }
+
   // Redirect to onboarding if profile not completed (but don't loop if already there)
-  if (profile && !profile.onboarding_completed && location.pathname !== "/onboarding") {
+  if (profile && !profile.onboarding_completed && location.pathname !== "/onboarding" && location.pathname !== "/accept-terms") {
     return <Navigate to="/onboarding" replace />;
   }
 

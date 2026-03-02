@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "./supabase.js";
+import { decrypt } from "./crypto.js";
 
 const AUTH_URL = "https://auth-api.8slp.net/v1/tokens";
 const BASE_URL = "https://client-api.8slp.net/v1";
@@ -90,8 +91,12 @@ export async function getEightSleepToken(userId) {
     return null;
   }
 
+  // Decrypt credentials if they were stored encrypted
+  const email = creds.encrypted ? decrypt(creds.email) : creds.email;
+  const password = creds.encrypted ? decrypt(creds.password) : creds.password;
+
   try {
-    const auth = await authenticateEightSleep(creds.email, creds.password);
+    const auth = await authenticateEightSleep(email, password);
     await supabaseAdmin
       .from("integrations")
       .update({

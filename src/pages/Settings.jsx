@@ -4,7 +4,7 @@ import { T, font, mono } from "../theme/tokens";
 import { btn, inputStyle } from "../theme/styles";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabase";
-import { ArrowLeft, User, Bell, Ruler, Palette, LogOut, MessageSquare, Check, Loader } from "lucide-react";
+import { ArrowLeft, User, Bell, Ruler, Palette, LogOut, MessageSquare, Check, Loader, Shield, Download, Trash2, AlertTriangle } from "lucide-react";
 
 function formatPhoneDisplay(value) {
   const digits = value.replace(/\D/g, "");
@@ -31,6 +31,13 @@ export default function Settings() {
   const [smsConsent, setSmsConsent] = useState(false);
   const [smsSaving, setSmsSaving] = useState(false);
   const [smsSaved, setSmsSaved] = useState(false);
+  // Account deletion state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
   const [smsPrefs, setSmsPrefs] = useState({
     sms_workout_summary: true,
     sms_morning_readiness: true,
@@ -105,6 +112,7 @@ export default function Settings() {
     { id: "notifications", label: "Notifications", icon: <Bell size={16} /> },
     { id: "units", label: "Units & Display", icon: <Ruler size={16} /> },
     { id: "appearance", label: "Appearance", icon: <Palette size={16} /> },
+    { id: "account", label: "Account & Data", icon: <Shield size={16} /> },
   ];
 
   const toggleStyle = (active) => ({
@@ -297,6 +305,117 @@ export default function Settings() {
               <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 8px", letterSpacing: "-0.02em" }}>Appearance</h2>
               <p style={{ fontSize: 14, color: T.textSoft, margin: "0 0 32px" }}>Customize how AIM looks.</p>
               <p style={{ fontSize: 14, color: T.textDim }}>Coming soon — dashboard layout, widget arrangement.</p>
+            </div>
+          )}
+
+          {activeTab === "account" && (
+            <div>
+              <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 8px", letterSpacing: "-0.02em" }}>Account & Data</h2>
+              <p style={{ fontSize: 14, color: T.textSoft, margin: "0 0 32px" }}>Export your data or delete your account.</p>
+
+              {/* Export Data */}
+              <div style={{ padding: 24, background: T.card, borderRadius: 16, border: `1px solid ${T.border}`, marginBottom: 24 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                  <Download size={18} color={T.accent} />
+                  <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Export Your Data</h3>
+                </div>
+                <p style={{ fontSize: 13, color: T.textSoft, margin: "0 0 16px", lineHeight: 1.5 }}>
+                  Download all your data in JSON format — activities, daily metrics, blood panels, DEXA scans, power profiles, AI conversations, and settings.
+                </p>
+                <button onClick={async () => {
+                  setExporting(true);
+                  try {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    const res = await fetch("/api/user/export", {
+                      headers: { Authorization: `Bearer ${session.access_token}` },
+                    });
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `aim-data-export-${new Date().toISOString().split("T")[0]}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  } catch (err) {
+                    console.error("Export failed:", err);
+                  } finally {
+                    setExporting(false);
+                  }
+                }} disabled={exporting} style={{ ...btn(true), fontSize: 13, padding: "10px 24px", opacity: exporting ? 0.6 : 1 }}>
+                  {exporting ? <Loader size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Download size={14} />}
+                  {exporting ? "Exporting..." : "Download My Data"}
+                </button>
+              </div>
+
+              {/* Delete Account */}
+              <div style={{ padding: 24, background: T.card, borderRadius: 16, border: "1px solid rgba(239,68,68,0.2)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                  <AlertTriangle size={18} color="#ef4444" />
+                  <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: "#ef4444" }}>Delete Account</h3>
+                </div>
+                <p style={{ fontSize: 13, color: T.textSoft, margin: "0 0 16px", lineHeight: 1.5 }}>
+                  Permanently delete your account and all associated data including activities, health metrics, blood panels, AI conversations, and connected integrations. This action cannot be undone.
+                </p>
+                <button onClick={() => setShowDeleteModal(true)}
+                  style={{ ...btn(false), fontSize: 13, padding: "10px 24px", color: "#ef4444", borderColor: "rgba(239,68,68,0.3)" }}>
+                  <Trash2 size={14} /> Delete My Account
+                </button>
+              </div>
+
+              {/* Delete Confirmation Modal */}
+              {showDeleteModal && (
+                <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}
+                  onClick={() => { setShowDeleteModal(false); setDeleteConfirm(""); setDeleteError(""); }}>
+                  <div style={{ background: T.surface, borderRadius: 20, padding: 32, width: "100%", maxWidth: 440, border: `1px solid ${T.border}` }}
+                    onClick={e => e.stopPropagation()}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+                      <AlertTriangle size={24} color="#ef4444" />
+                      <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Are you sure?</h3>
+                    </div>
+                    <p style={{ fontSize: 13, color: T.textSoft, lineHeight: 1.6, marginBottom: 20 }}>
+                      This will permanently delete your account and all data. Type <strong style={{ color: "#ef4444" }}>DELETE</strong> below to confirm.
+                    </p>
+                    {deleteError && (
+                      <div style={{ padding: "10px 14px", marginBottom: 14, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 10, fontSize: 13, color: "#ef4444" }}>
+                        {deleteError}
+                      </div>
+                    )}
+                    <input value={deleteConfirm} onChange={e => setDeleteConfirm(e.target.value)}
+                      placeholder='Type "DELETE" to confirm'
+                      style={{ ...inputStyle, paddingLeft: 16, marginBottom: 20, borderColor: "rgba(239,68,68,0.3)" }} />
+                    <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+                      <button onClick={() => { setShowDeleteModal(false); setDeleteConfirm(""); setDeleteError(""); }}
+                        style={{ ...btn(false), fontSize: 13, padding: "10px 20px" }}>
+                        Cancel
+                      </button>
+                      <button onClick={async () => {
+                        setDeleting(true);
+                        setDeleteError("");
+                        try {
+                          const { data: { session } } = await supabase.auth.getSession();
+                          const res = await fetch("/api/user/delete", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+                            body: JSON.stringify({ confirmation: deleteConfirm }),
+                          });
+                          const data = await res.json();
+                          if (!res.ok) throw new Error(data.error || "Deletion failed");
+                          await signout();
+                          navigate("/");
+                        } catch (err) {
+                          setDeleteError(err.message);
+                        } finally {
+                          setDeleting(false);
+                        }
+                      }} disabled={deleteConfirm !== "DELETE" || deleting}
+                        style={{ ...btn(false), fontSize: 13, padding: "10px 20px", color: "#ef4444", borderColor: "rgba(239,68,68,0.3)", background: deleteConfirm === "DELETE" ? "rgba(239,68,68,0.1)" : "transparent", opacity: (deleteConfirm !== "DELETE" || deleting) ? 0.4 : 1, cursor: (deleteConfirm !== "DELETE" || deleting) ? "not-allowed" : "pointer" }}>
+                        {deleting ? <Loader size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Trash2 size={14} />}
+                        Delete Permanently
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
