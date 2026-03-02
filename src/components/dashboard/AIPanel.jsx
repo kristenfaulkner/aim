@@ -128,7 +128,7 @@ export default function AIPanel({
   const tabs = [
     { id: "analysis", label: "AI Analysis" },
     { id: "summary", label: "Summary" },
-    { id: "chat", label: "Ask AI" },
+    { id: "chat", label: "Ask Claude" },
   ];
 
   return (
