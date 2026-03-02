@@ -19,44 +19,58 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
-    let resolved = false;
+    let initialLoad = true;
 
-    function finishLoading(session) {
-      if (resolved) return;
-      resolved = true;
-      const u = session?.user ?? null;
-      setUser(u);
-      if (u) fetchProfile(u.id);
-      setLoading(false);
-    }
-
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      finishLoading(session);
-    }).catch(() => {
-      finishLoading(null);
-    });
-
-    // Safety timeout — never spin for more than 3 seconds
-    const timeout = setTimeout(() => finishLoading(null), 3000);
-
-    // Listen for auth changes
+    // Listen for auth changes — this must be registered before getSession()
+    // because Supabase v2 fires INITIAL_SESSION through this listener.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
         const u = session?.user ?? null;
-        setUser(u);
-        if (u) {
-          await fetchProfile(u.id);
-        } else {
+
+        // On SIGNED_OUT, clear everything
+        if (event === "SIGNED_OUT") {
+          setUser(null);
           setProfile(null);
+          if (initialLoad) {
+            initialLoad = false;
+            setLoading(false);
+          }
+          return;
         }
-        // Also resolve loading if auth change fires first
-        if (!resolved) {
-          resolved = true;
-          setLoading(false);
+
+        // For all other events with a user, update state
+        if (u) {
+          setUser(u);
+          // Use setTimeout(0) to avoid Supabase deadlock where getSession()
+          // is called inside onAuthStateChange before it has finished updating
+          setTimeout(() => {
+            fetchProfile(u.id).finally(() => {
+              if (initialLoad) {
+                initialLoad = false;
+                setLoading(false);
+              }
+            });
+          }, 0);
+        } else if (event === "INITIAL_SESSION") {
+          // No session on initial load — user is not logged in
+          setUser(null);
+          setProfile(null);
+          if (initialLoad) {
+            initialLoad = false;
+            setLoading(false);
+          }
         }
+        // Ignore TOKEN_REFRESHED with null session — it's transient
       }
     );
+
+    // Safety timeout — if nothing fires within 5 seconds, stop loading
+    const timeout = setTimeout(() => {
+      if (initialLoad) {
+        initialLoad = false;
+        setLoading(false);
+      }
+    }, 5000);
 
     return () => {
       clearTimeout(timeout);
