@@ -9,24 +9,17 @@ const categoryColors = { power: ACCENT, recovery: BLUE, health: PURPLE, training
 
 const dataLabels = [
   { text: "FTP 298W", cat: "power" }, { text: "4.2 W/kg", cat: "power" },
-  { text: "VO₂max 58", cat: "power" }, { text: "Threshold ↑12W", cat: "power" },
-  { text: "Sprint 1180W", cat: "power" }, { text: "NP 287W", cat: "power" },
-  { text: "FTP ↑14W", cat: "power" }, { text: "5min PR ↑", cat: "power" },
-  { text: "Cadence 92rpm", cat: "power" },
+  { text: "VO₂max 58", cat: "power" }, { text: "Sprint 1180W", cat: "power" },
+  { text: "5min PR ↑", cat: "power" },
   { text: "Deep Sleep 1h22m", cat: "recovery" }, { text: "HRV 68ms", cat: "recovery" },
   { text: "Recovery 92%", cat: "recovery" }, { text: "RHR 47bpm", cat: "recovery" },
-  { text: "Sleep Score 88", cat: "recovery" }, { text: "HR 142bpm", cat: "recovery" },
-  { text: "HRV ↑12ms", cat: "recovery" }, { text: "REM 1h48m", cat: "recovery" },
-  { text: "Readiness 94", cat: "recovery" }, { text: "Bed Temp 67°F", cat: "recovery" },
-  { text: "Lean Mass +1.2kg", cat: "health" }, { text: "Ferritin 52", cat: "health" },
-  { text: "Vitamin D 58", cat: "health" }, { text: "Iron ✓", cat: "health" },
-  { text: "B12 680", cat: "health" }, { text: "Hemoglobin 14.2", cat: "health" },
-  { text: "SpO₂ 98%", cat: "health" }, { text: "Cortisol Normal", cat: "health" },
-  { text: "Hydration 94%", cat: "health" },
+  { text: "Sleep Score 88", cat: "recovery" }, { text: "Readiness 94", cat: "recovery" },
+  { text: "Ferritin 52", cat: "health" }, { text: "Vitamin D 58", cat: "health" },
+  { text: "Hemoglobin 14.2", cat: "health" }, { text: "SpO₂ 98%", cat: "health" },
+  { text: "Cortisol Normal", cat: "health" },
   { text: "Fitness ↑", cat: "training" }, { text: "Form +8", cat: "training" },
-  { text: "Fatigue Low", cat: "training" }, { text: "CTL 74", cat: "training" },
-  { text: "Ready to Train", cat: "training" }, { text: "TSS 82", cat: "training" },
-  { text: "Training Load ↑", cat: "training" }, { text: "Efficiency 3.82", cat: "training" },
+  { text: "CTL 74", cat: "training" }, { text: "TSS 82", cat: "training" },
+  { text: "Training Load ↑", cat: "training" },
 ];
 
 const seeded = (seed) => {
@@ -83,7 +76,7 @@ export default function NeuralBackground() {
     const isInCenter = (x, y) => x > 25 && x < 75 && y > 30 && y < 70;
     const nodes = [];
     let attempts = 0;
-    while (nodes.length < 38 && attempts < 200) {
+    while (nodes.length < 22 && attempts < 200) {
       attempts++;
       const x = rng() * 100;
       const y = rng() * 100;
@@ -94,10 +87,10 @@ export default function NeuralBackground() {
         id: nodes.length, x, y,
         label: label.text, color,
         size: 4 + rng() * 4,
-        duration: 18 + rng() * 25,
-        delay: rng() * -40,
-        driftX: (rng() - 0.5) * 60,
-        driftY: (rng() - 0.5) * 50,
+        duration: 10 + rng() * 14,
+        delay: rng() * -25,
+        driftX: (rng() - 0.5) * 70,
+        driftY: (rng() - 0.5) * 60,
         opacity: 0.2 + rng() * 0.5,
         glowSize: 20 + rng() * 30,
         breatheDuration: 3 + rng() * 4,
@@ -112,7 +105,7 @@ export default function NeuralBackground() {
     const isInCenter = (x, y) => x > 28 && x < 72 && y > 33 && y < 67;
     const dots = [];
     let attempts = 0;
-    while (dots.length < 100 && attempts < 300) {
+    while (dots.length < 60 && attempts < 300) {
       attempts++;
       const x = rng() * 100;
       const y = rng() * 100;
@@ -121,10 +114,10 @@ export default function NeuralBackground() {
         id: dots.length, x, y,
         color: [ACCENT, BLUE, PURPLE, TEAL][Math.floor(rng() * 4)],
         size: 1 + rng() * 2.5,
-        duration: 20 + rng() * 30,
-        delay: rng() * -50,
-        driftX: (rng() - 0.5) * 50,
-        driftY: (rng() - 0.5) * 40,
+        duration: 12 + rng() * 18,
+        delay: rng() * -30,
+        driftX: (rng() - 0.5) * 60,
+        driftY: (rng() - 0.5) * 50,
         opacity: 0.08 + rng() * 0.15,
       });
     }
@@ -135,7 +128,7 @@ export default function NeuralBackground() {
     const rng = seeded(777);
     const vw = typeof window !== "undefined" ? window.innerWidth : 1440;
     const vh = typeof window !== "undefined" ? window.innerHeight : 900;
-    return Array.from({ length: 24 }, (_, i) => {
+    return Array.from({ length: 16 }, (_, i) => {
       const startX = rng() * 100;
       const startY = rng() * 100;
       const angle = rng() * Math.PI * 2;
