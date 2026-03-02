@@ -510,7 +510,9 @@ export default function ActivityDetail() {
     });
 
     if (!res.ok) {
-      setError("Activity not found");
+      const errData = await res.json().catch(() => ({}));
+      console.error("Activity fetch failed:", res.status, errData);
+      setError(errData.detail || "Activity not found");
       setLoading(false);
       return;
     }
