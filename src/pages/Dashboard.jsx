@@ -944,14 +944,14 @@ export default function Dashboard() {
             <div style={{ width: 200, height: 14, background: T.border, borderRadius: 4, marginBottom: 8 }} />
             <div style={{ width: 300, height: 22, background: T.border, borderRadius: 4 }} />
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginBottom: 14 }}>
-            {[1, 2, 3, 4, 5].map(i => <SkeletonCard key={i} />)}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 14 }}>
+            {[1, 2, 3].map(i => <SkeletonCard key={i} />)}
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginBottom: 14 }}>
-            {[1, 2, 3, 4, 5].map(i => <SkeletonCard key={i} />)}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 14 }}>
+            {[1, 2, 3].map(i => <SkeletonCard key={i} />)}
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
-            {[1, 2, 3, 4, 5].map(i => <SkeletonCard key={i} />)}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            {[1, 2].map(i => <SkeletonCard key={i} height={140} />)}
           </div>
         </div>
         <style>{`@keyframes shimmer { 0% { transform: translateX(-50%); } 100% { transform: translateX(50%); } }`}</style>
@@ -1100,30 +1100,17 @@ export default function Dashboard() {
           </div>
 
           {/* Row 1: Core power metrics */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginBottom: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 10 }}>
             <MetricCard label="Avg Power" value={safe(activity.avg_power_watts)} unit="W" color={T.accent} icon={"\u26A1"} />
             <MetricCard label="Normalized Power" value={safe(activity.normalized_power_watts)} unit="W" trend={`IF: ${computed.IF}`} color={T.blue} icon={"\uD83D\uDCCA"} />
             <MetricCard label="TSS" value={computed.TSS} unit="" color={T.purple} icon={"\uD83D\uDCC8"} />
-            <MetricCard label="Variability Index" value={computed.VI} unit="" color={T.accent} icon={"\u3030\uFE0F"} />
+          </div>
+
+          {/* Row 2: Efficiency + body */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 10 }}>
             <MetricCard label="Efficiency Factor" value={computed.EF} unit="W/bpm" color={T.blue} icon={"\uD83C\uDFAF"} />
-          </div>
-
-          {/* Row 2: Body comp + weight-adjusted metrics */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginBottom: 14 }}>
             <MetricCard label="W/kg (Avg)" value={computed.wPerKg} unit="" trend={`NP: ${computed.npPerKg} W/kg`} color={T.accent} icon={"\uD83C\uDFCB\uFE0F"} />
-            <MetricCard label="FTP/kg" value={computed.ftpPerKg} unit="" trend={`Lean: ${computed.ftpPerLeanKg}`} color={T.accent} icon={"\uD83D\uDCAA"} />
-            <MetricCard label="Weight" value={safe(weightKg, 1)} unit="kg" color={T.blue} icon={"\u2696\uFE0F"} />
-            <MetricCard label="Body Fat" value={bodyFat != null ? safe(bodyFat, 1) : "—"} unit="%" trend={muscleMass ? `Muscle: ${safe(muscleMass, 1)}kg` : undefined} color={T.orange} icon={"\uD83D\uDCC9"} />
-            <MetricCard label="VAM" value={computed.VAM} unit="m/hr" trend={`System: ${computed.totalSystemWeight}kg`} color={T.purple} icon={"\uD83C\uDFD4\uFE0F"} />
-          </div>
-
-          {/* Row 3: HR + cadence + detailed */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginBottom: 16 }}>
             <MetricCard label="Avg HR" value={safe(activity.avg_hr_bpm)} unit="bpm" trend={computed.hrDrift !== "—" ? `${computed.hrDrift}% drift` : undefined} color={T.pink} icon={"\u2764\uFE0F"} />
-            <MetricCard label="Calories" value={computed.calories !== "—" ? computed.calories.toLocaleString() : "—"} unit="kcal" trend={computed.fuel ? `${computed.fuel.carbGrams}g carb · ${computed.fuel.fatGrams}g fat · ${computed.fuel.proteinGrams}g protein` : activity.work_kj ? `${activity.work_kj} kJ work` : undefined} color={T.orange} icon={"\uD83D\uDD25"} />
-            <MetricCard label="L/R Balance" value={lrBalance ? `${lrBalance.avg?.[0] || "—"}/${lrBalance.avg?.[1] || "—"}` : "—"} unit="%" color={T.warn} icon={"\u2696\uFE0F"} />
-            <MetricCard label="Cadence" value={safe(activity.avg_cadence_rpm)} unit="rpm" color={T.accent} icon={"\uD83D\uDD04"} />
-            <MetricCard label="Power:HR" value={computed.pwHR} unit="W/bpm" color={T.accent} icon={"\uD83D\uDC93"} />
           </div>
 
           {/* Charts Row */}
@@ -1281,7 +1268,7 @@ export default function Dashboard() {
           {/* Full TrainingPeaks-style metrics table */}
           <div style={{ marginTop: 14, background: T.card, border: `1px solid ${T.border}`, borderRadius: 13, padding: "14px 18px" }}>
             <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 12 }}>{"\uD83D\uDCCB"} Full Ride Metrics</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "0 20px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 20px" }}>
               <div>
                 <div style={{ fontSize: 9, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6, marginTop: 4 }}>Power</div>
                 <StatRow label="Avg Power" value={safe(activity.avg_power_watts)} unit="W" />
@@ -1377,7 +1364,7 @@ export default function Dashboard() {
         </div>
 
         {/* Right: AI Panel */}
-        <div style={{ width: 370, borderLeft: `1px solid ${T.border}`, padding: 14, display: "flex", flexDirection: "column" }}>
+        <div style={{ flex: 1, borderLeft: `1px solid ${T.border}`, padding: 14, display: "flex", flexDirection: "column" }}>
           <AIAnalysisPanel
             aiAnalysis={effectiveAiAnalysis}
             activity={activity}

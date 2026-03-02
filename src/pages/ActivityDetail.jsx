@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { T, font, mono } from "../theme/tokens";
 import { btn, inputStyle } from "../theme/styles";
-import { ArrowLeft, Clock, Zap, Heart, Mountain, Gauge, Activity, TrendingUp, Flame, RefreshCw, Brain, ChevronRight, Star, X, Check } from "lucide-react";
+import { ArrowLeft, Clock, Zap, Heart, Mountain, Gauge, Activity, TrendingUp, Flame, RefreshCw, Brain, ChevronRight, Star, X, Check, Send } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
 function formatDuration(seconds) {
