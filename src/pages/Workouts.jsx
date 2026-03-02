@@ -300,7 +300,6 @@ export default function Workouts() {
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisError, setAnalysisError] = useState(null);
   const [liveAnalysis, setLiveAnalysis] = useState(null);
-  const analysisTriggeredRef = useRef(null);
   const effectiveAiAnalysis = liveAnalysis || activity?.ai_analysis || null;
 
   const triggerAnalysis = useCallback(async () => {

@@ -264,7 +264,6 @@ export default function Dashboard() {
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisError, setAnalysisError] = useState(null);
   const [liveAnalysis, setLiveAnalysis] = useState(null);
-  const analysisTriggeredRef = useRef(null);
   const effectiveAiAnalysis = liveAnalysis || activity?.ai_analysis || null;
 
   // ── Goals + Nutrition Logger ──
@@ -316,13 +315,10 @@ export default function Dashboard() {
     }
   }, [activity?.id]);
 
+  // Reset live analysis when switching activities
   useEffect(() => {
-    if (activity?.id && !activity.ai_analysis && !analysisLoading && analysisTriggeredRef.current !== activity.id) {
-      analysisTriggeredRef.current = activity.id;
-      triggerAnalysis();
-    }
-    if (activity?.id !== analysisTriggeredRef.current) setLiveAnalysis(null);
-  }, [activity?.id, activity?.ai_analysis, analysisLoading, triggerAnalysis]);
+    setLiveAnalysis(null);
+  }, [activity?.id]);
 
   // ── Computed values ──
   const computed = useMemo(() => {
