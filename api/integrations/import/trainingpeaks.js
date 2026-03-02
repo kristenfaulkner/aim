@@ -31,29 +31,34 @@ export default async function handler(req, res) {
 
   try {
     const { zipPath, csvData, metricsCsvData } = req.body || {};
-    if (!zipPath) return res.status(400).json({ error: "Missing zipPath" });
-
-    // 1. Download ZIP from Supabase Storage
-    const { data: zipBlob, error: dlError } = await supabaseAdmin.storage
-      .from("import-files")
-      .download(zipPath);
-
-    if (dlError || !zipBlob) {
-      return res.status(400).json({ error: `Failed to download ZIP: ${dlError?.message || "not found"}` });
+    if (!zipPath && !csvData && !metricsCsvData) {
+      return res.status(400).json({ error: "No files provided" });
     }
 
-    const zipBuffer = Buffer.from(await zipBlob.arrayBuffer());
+    // 1. Download and extract ZIP (if provided)
+    let entries = [];
+    if (zipPath) {
+      const { data: zipBlob, error: dlError } = await supabaseAdmin.storage
+        .from("import-files")
+        .download(zipPath);
 
-    // 2. Extract ZIP and filter to .FIT / .FIT.GZ files
-    const zip = new AdmZip(zipBuffer);
-    const entries = zip.getEntries().filter(e => {
-      if (e.isDirectory) return false;
-      const name = e.entryName.toLowerCase();
-      return name.endsWith(".fit") || name.endsWith(".fit.gz");
-    });
+      if (dlError || !zipBlob) {
+        return res.status(400).json({ error: `Failed to download ZIP: ${dlError?.message || "not found"}` });
+      }
 
-    if (entries.length === 0) {
-      return res.status(400).json({ error: "ZIP contains no .FIT files" });
+      const zipBuffer = Buffer.from(await zipBlob.arrayBuffer());
+
+      // 2. Extract ZIP and filter to .FIT / .FIT.GZ files
+      const zip = new AdmZip(zipBuffer);
+      entries = zip.getEntries().filter(e => {
+        if (e.isDirectory) return false;
+        const name = e.entryName.toLowerCase();
+        return name.endsWith(".fit") || name.endsWith(".fit.gz");
+      });
+
+      if (entries.length === 0) {
+        return res.status(400).json({ error: "ZIP contains no .FIT files" });
+      }
     }
 
     // 3. Parse optional CSV for metadata enrichment
@@ -309,6 +314,41 @@ export default async function handler(req, res) {
       }
     }
 
+    // 6b. CSV-only enrichment: match CSV rows to existing activities by date
+    if (!zipPath && csvRows.length > 0) {
+      for (const act of existing) {
+        const csvMatch = matchCsvRow(csvRows, act.started_at);
+        if (!csvMatch) continue;
+
+        const updates = {};
+        const existingSourceData = act.source_data || {};
+
+        // Add TP metadata
+        const tpMeta = {
+          rpe: csvMatch.rpe,
+          coach_comments: csvMatch.comments,
+          notes: csvMatch.notes,
+          planned_workout: csvMatch.planned_workout,
+        };
+        if (Object.values(tpMeta).some(v => v != null)) {
+          updates.source_data = { ...existingSourceData, trainingpeaks: { ...existingSourceData.trainingpeaks, ...tpMeta } };
+        }
+
+        // Enrich name/description if missing or generic
+        if (csvMatch.title && (!act.name || /^(Morning|Afternoon|Evening|Lunch) Ride$/.test(act.name))) {
+          updates.name = csvMatch.title;
+        }
+        if (csvMatch.description && !act.description) {
+          updates.description = csvMatch.description;
+        }
+
+        if (Object.keys(updates).length > 0) {
+          await supabaseAdmin.from("activities").update(updates).eq("id", act.id);
+          results.merged++;
+        }
+      }
+    }
+
     // 7. Update body weight from CSV if available
     if (csvRows.length > 0) {
       await updateBodyWeightFromCsv(session.userId, csvRows);
@@ -337,12 +377,15 @@ export default async function handler(req, res) {
           merged: results.merged,
           skipped: results.skipped,
           failed: results.failed,
+          csv_only: !zipPath,
         },
       },
     }, { onConflict: "user_id,provider" });
 
     // 9. Clean up uploaded ZIP from storage
-    await supabaseAdmin.storage.from("import-files").remove([zipPath]).catch(() => {});
+    if (zipPath) {
+      await supabaseAdmin.storage.from("import-files").remove([zipPath]).catch(() => {});
+    }
 
     return res.status(200).json(results);
   } catch (err) {

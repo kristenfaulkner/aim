@@ -54,7 +54,7 @@ export default function TrainingPeaksImport({ onClose, onComplete }) {
   };
 
   const handleImport = async () => {
-    if (!zipFile) { setError("Please select a ZIP file first"); return; }
+    if (!zipFile && !csvFile && !metricsCsvFile) { setError("Please select at least one file"); return; }
     setError(null);
     setStep("uploading");
 
@@ -62,14 +62,17 @@ export default function TrainingPeaksImport({ onClose, onComplete }) {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not authenticated — please sign in again");
 
-      // 1. Upload ZIP to Supabase Storage
-      setProgress(`Uploading ZIP file (${(zipFile.size / 1024 / 1024).toFixed(1)} MB)...`);
-      const storagePath = `${session.user.id}/imports/${Date.now()}-trainingpeaks.zip`;
-      const { error: uploadErr } = await supabase.storage
-        .from("import-files")
-        .upload(storagePath, zipFile, { contentType: "application/zip" });
+      // 1. Upload ZIP to Supabase Storage (if provided)
+      let storagePath = null;
+      if (zipFile) {
+        setProgress(`Uploading ZIP file (${(zipFile.size / 1024 / 1024).toFixed(1)} MB)...`);
+        storagePath = `${session.user.id}/imports/${Date.now()}-trainingpeaks.zip`;
+        const { error: uploadErr } = await supabase.storage
+          .from("import-files")
+          .upload(storagePath, zipFile, { contentType: "application/zip" });
 
-      if (uploadErr) throw new Error(`Upload failed: ${uploadErr.message}`);
+        if (uploadErr) throw new Error(`Upload failed: ${uploadErr.message}`);
+      }
 
       // 2. Prepare CSVs as base64 if provided
       const readAsBase64 = (file) => new Promise((resolve, reject) => {
@@ -89,7 +92,7 @@ export default function TrainingPeaksImport({ onClose, onComplete }) {
 
       // 3. Call processing endpoint
       setStep("processing");
-      setProgress("Processing FIT files — computing metrics and checking for duplicates...");
+      setProgress(zipFile ? "Processing FIT files — computing metrics and checking for duplicates..." : "Processing CSV data...");
 
       const res = await fetch("/api/integrations/import/trainingpeaks", {
         method: "POST",
@@ -339,8 +342,8 @@ export default function TrainingPeaksImport({ onClose, onComplete }) {
         <button onClick={onClose} style={{ ...btn(false), flex: 1, padding: "12px 20px", fontSize: 13 }}>
           Cancel
         </button>
-        <button onClick={handleImport} disabled={!zipFile}
-          style={{ ...btn(!!zipFile), flex: 1, padding: "12px 20px", fontSize: 13, opacity: zipFile ? 1 : 0.5 }}>
+        <button onClick={handleImport} disabled={!zipFile && !csvFile && !metricsCsvFile}
+          style={{ ...btn(!!(zipFile || csvFile || metricsCsvFile)), flex: 1, padding: "12px 20px", fontSize: 13, opacity: (zipFile || csvFile || metricsCsvFile) ? 1 : 0.5 }}>
           Import Data
         </button>
       </div>
