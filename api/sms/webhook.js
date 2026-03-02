@@ -85,7 +85,7 @@ export default async function handler(req, res) {
   if (keyword === "HELP" || keyword === "INFO") {
     res.setHeader("Content-Type", "text/xml");
     return res.status(200).send(twimlResponse(
-      "AIM Performance SMS Coach: AI-powered workout analysis and coaching for endurance athletes. Message frequency varies. Msg & data rates may apply. Reply STOP to unsubscribe. For support visit app.aimperformance.com or email support@aimperformance.com"
+      "AIM Performance SMS Coach: AI-powered workout analysis and coaching for endurance athletes. Message frequency varies. Msg & data rates may apply. Reply STOP to unsubscribe. For support visit aimfitness.ai or email support@aimfitness.ai"
     ));
   }
 
@@ -100,7 +100,7 @@ export default async function handler(req, res) {
     if (!profile) {
       res.setHeader("Content-Type", "text/xml");
       return res.status(200).send(twimlResponse(
-        "This number isn't registered with AIM. Visit app.aimperformance.com/settings to add your phone number and enable SMS coaching."
+        "This number isn't registered with AIM. Visit aimfitness.ai/settings to add your phone number and enable SMS coaching."
       ));
     }
 

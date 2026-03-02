@@ -34,9 +34,10 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 - `App.jsx` — route definitions; protected routes wrap with `ProtectedRoute`
 - `context/AuthContext.jsx` — user auth state, profile management, Supabase auth listeners
 - `pages/` — 17 route-level pages (Dashboard, ActivityDetail, HealthLab, Boosters, ConnectApps, Settings, Onboarding, AcceptTerms, Auth, ResetPassword, Landing, Contact, 5 legal pages)
-- `components/` — reusable: `TrainingPeaksImport`, `BloodPanelUpload`, `ProtectedRoute` (auth + consent gate), `NeuralBackground`, `SEO` (React 19 native metadata: title, description, OG, Twitter cards, canonical URL)
+- `components/` — reusable: `TrainingPeaksImport`, `BloodPanelUpload` (multi-file drag-and-drop), `ActivityBrowser` (popover with time filters/search/pagination), `ProtectedRoute` (auth + consent gate), `NeuralBackground`, `SEO` (React 19 native metadata: title, description, OG, Twitter cards, canonical URL)
 - `hooks/useDashboardData.js` — parallel Supabase queries (7 concurrent) using `Promise.allSettled`
-- `hooks/useActivities.js` — paginated activity list
+- `hooks/useActivities.js` — paginated activity list (legacy, replaced by useActivityBrowser on Dashboard)
+- `hooks/useActivityBrowser.js` — cursor-based paginated activity browser with time period filtering (Week/Month/Year/All) and client-side search
 - `hooks/useResponsive.js` — responsive breakpoint hook (`isMobile`/`isTablet`/`isDesktop`) via `matchMedia`
 - `lib/api.js` — `apiFetch()` utility adds Bearer token to all `/api` calls
 - `lib/supabase.js` — Supabase client init
@@ -61,7 +62,8 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 - `auth/connect/` — OAuth flow initiators (strava, wahoo, oura, whoop, withings, eightsleep)
 - `auth/callback/` — OAuth return handlers (strava, wahoo, oura, whoop, withings)
 - `integrations/sync/` — sync logic (strava full+backfill, eightsleep)
-- `integrations/import/` — file-based imports (TrainingPeaks ZIP/CSV)
+- `integrations/import/` — file-based imports (TrainingPeaks ZIP/CSV, ZIP optional for CSV-only enrichment)
+- `cron/sync-eightsleep.js` — hourly Vercel Cron syncs last 2 days of Eight Sleep data; skips users synced in last 6 hours
 - `webhooks/` — inbound webhooks (strava activity events, wahoo workout summaries)
 - `activities/` — list, detail, annotate, analyze endpoints
 - `health/` — blood panel upload (Claude AI extraction from PDF/image) and panel management
@@ -76,7 +78,7 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 ### Key Data Flows
 
 **Integration sync pipeline** (e.g. Strava):
-1. OAuth connect → token stored in `integrations` table
+1. OAuth connect → token stored in `integrations` table → fire-and-forget 365-day backfill auto-triggered on first connect (both Strava and Eight Sleep)
 2. Sync fetches activity + streams from provider API
 3. Backend computes metrics (NP, TSS, IF, VI, EF, HR drift, zones, power curve) via `/api/_lib/metrics.js`
 4. Cross-source deduplication via `source-priority.js` (device > TrainingPeaks > Strava)
@@ -85,12 +87,19 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 7. Fire-and-forget SMS notification → sends workout summary text via Twilio (if opted in)
 
 **TrainingPeaks file import** (`/api/integrations/import/trainingpeaks.js`):
-1. User uploads ZIP (workout files) + optional workouts CSV + optional metrics CSV via `TrainingPeaksImport` component
+1. User uploads ZIP (workout files) + optional workouts CSV + optional metrics CSV via `TrainingPeaksImport` component. ZIP is optional — CSV-only import enriches existing activities by matching on date.
 2. ZIP uploaded to Supabase `import-files` bucket, CSVs sent as base64
 3. Backend extracts .fit/.tcx/.gpx files, parses with `fit.js`/xml2js, computes full metrics
 4. Source priority merge: UPGRADE (TP replaces lower-priority source), ENRICH (add metadata), or SKIP (duplicate)
 5. Workouts CSV enriches activities with titles, RPE, coach comments, body weight
 6. Metrics CSV imports daily health data (RHR, HRV, sleep, SpO2, body fat, Whoop recovery) — only fills null fields, never overwrites device data
+
+**Eight Sleep hourly cron** (`/api/cron/sync-eightsleep.js`):
+1. Vercel Cron fires every hour (`0 * * * *`)
+2. Queries active Eight Sleep integrations where `last_sync_at` is null or >6 hours ago
+3. Syncs last 2 days of sleep data per user via `fullEightSleepSync`
+4. Skips recently-synced users — first run after wake-up does the work, subsequent runs are no-ops
+5. Auth: requires `CRON_SECRET` env var, verified via Bearer token
 
 **AI analysis** (`/api/_lib/ai.js`):
 - Smart context assembly: 3-layer structure reduces token usage ~60% while improving insight quality
@@ -103,7 +112,7 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 - Triggered post-sync, non-blocking
 
 **Blood panel upload** (`/api/health/upload.js`):
-1. User uploads PDF/image via `BloodPanelUpload` drag-drop component
+1. User uploads one or more PDF/image files via `BloodPanelUpload` multi-file drag-drop component (sequential processing with progress tracking)
 2. File sent to Claude AI for OCR extraction of 25 biomarkers (ferritin, iron, vitamins, thyroid, hormones, lipids, liver/kidney, minerals)
 3. Claude handles unit conversions (nmol/L → ng/mL, etc.) and flags normal/high/low/critical
 4. PDF stored in Supabase `health-files` bucket, results in `blood_panels` table
@@ -140,7 +149,11 @@ Core tables (10): `profiles`, `integrations`, `activities`, `daily_metrics`, `po
 
 ### Deployment
 
-Vercel auto-deploys from GitHub. Frontend SPA rewrite in `vercel.json` routes non-API paths to `index.html`. Environment variables configured in Vercel dashboard.
+**Production URL**: https://aimfitness.ai (Vercel domain: `aim-ashen.vercel.app`)
+
+Vercel auto-deploys from GitHub. Frontend SPA rewrite in `vercel.json` routes non-API paths to `index.html`. Environment variables configured in Vercel dashboard. Custom domain `aimfitness.ai` with `www` redirect. SSL handled by Vercel.
+
+**Vercel Cron**: Eight Sleep hourly sync configured in `vercel.json` `crons` array. Requires `CRON_SECRET` env var in Vercel dashboard for auth.
 
 ## Product Context
 
@@ -173,15 +186,15 @@ All plans include 14-day free trial, no credit card required.
 ## Integrations
 
 ### Tier 1 — Cycling Core (launch priority)
-- **Strava** ✅ — OAuth + full sync + backfill + metrics + streams + webhook (activity create/update/delete)
+- **Strava** ✅ — OAuth + full sync + backfill + metrics + streams + webhook (activity create/update/delete) + auto 365-day backfill on first connect
 - **Wahoo** ✅ — OAuth + webhook receiver for workout summaries (maps workout data to activities)
 - **Garmin Connect** — activities, body battery, stress, daily HR (not yet started)
-- **TrainingPeaks** ✅ — file import: ZIP (.fit/.tcx/.gpx workout files with full metrics computation) + workouts CSV (titles/RPE/comments/body weight) + metrics CSV (daily RHR/HRV/sleep/SpO2/body fat/Whoop recovery)
+- **TrainingPeaks** ✅ — file import: ZIP (.fit/.tcx/.gpx workout files with full metrics computation, ZIP optional for CSV-only enrichment) + workouts CSV (titles/RPE/comments/body weight) + metrics CSV (daily RHR/HRV/sleep/SpO2/body fat/Whoop recovery)
 
 ### Tier 2 — Recovery & Body
 - **Oura Ring** — OAuth connect/callback exist, sync logic TODO
 - **Whoop** — OAuth connect/callback exist, sync logic TODO
-- **EightSleep** ✅ — credential auth (email/password), trends API sync, sleep metrics (score, duration, stages, HRV, RHR, bed temp), extended metrics (toss/turns, room temp, HR/HRV min/max, sleep quality/routine/fitness scores)
+- **EightSleep** ✅ — credential auth (email/password), trends API sync, sleep metrics (score, duration, stages, HRV, RHR, bed temp), extended metrics (toss/turns, room temp, HR/HRV min/max, sleep quality/routine/fitness scores), auto 365-day sync on first connect, hourly Vercel Cron auto-sync (skips if synced in last 6 hours)
 - **Withings** — OAuth connect/callback exist, sync logic TODO
 
 ### Tier 3 — Advanced
@@ -294,6 +307,11 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 - Mobile-responsive overhaul: all pages responsive at 320px–428px (mobile), 768px–1024px (tablet), 1024px+ (desktop) via `useResponsive()` hook, hamburger nav, collapsible grids, full-screen modals, 44px touch targets
 - Testing infrastructure: Vitest + React Testing Library + MSW + Playwright; initial test suites for metrics, source-priority, routing, ProtectedRoute, API utility, Auth, theme tokens
 - SEO foundations: reusable `SEO` component (React 19 native metadata hoisting), static fallback meta/OG/Twitter tags in `index.html`, JSON-LD structured data (Organization + SoftwareApplication) on Landing page, `robots.txt`, `sitemap.xml`, `manifest.json`, favicon links, semantic `<main>` wrapper, per-page titles/descriptions for all public pages
+- **Activity Browser** — popover-based activity picker replacing plain `<select>` dropdown: time period filters (Week/Month/Year/All), date-grouped sections (Today/Yesterday/This Week/Last Week/by month), client-side search, cursor-based pagination (50/page), sticky section headers
+- **Auto-sync on first connect** — Strava and Eight Sleep both auto-trigger 365-day backfill on first OAuth connect (fire-and-forget); removed manual sync sections from Connect Apps page
+- **Eight Sleep hourly Cron** — Vercel Cron job (`/api/cron/sync-eightsleep.js`) syncs every hour, skips users synced in last 6 hours, covers all time zones
+- **Multi-file blood panel upload** — `BloodPanelUpload` supports drag-and-drop of multiple files with sequential processing, per-file progress bar, and aggregated success/failure summary
+- **TrainingPeaks ZIP optional** — CSV-only import enriches existing activities by matching on date without requiring ZIP file
 
 ### Remaining
 - Garmin Connect sync logic

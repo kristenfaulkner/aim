@@ -1022,12 +1022,12 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi...
 # Strava
 STRAVA_CLIENT_ID=your_client_id
 STRAVA_CLIENT_SECRET=your_client_secret
-STRAVA_REDIRECT_URI=https://yourdomain.com/api/auth/callback/strava
+STRAVA_REDIRECT_URI=https://aimfitness.ai/api/auth/callback/strava
 
 # Oura
 OURA_CLIENT_ID=your_client_id
 OURA_CLIENT_SECRET=your_client_secret
-OURA_REDIRECT_URI=https://yourdomain.com/api/auth/callback/oura
+OURA_REDIRECT_URI=https://aimfitness.ai/api/auth/callback/oura
 
 # Anthropic
 ANTHROPIC_API_KEY=sk-ant-...
@@ -1044,7 +1044,7 @@ STRIPE_PRICE_ELITE_MONTHLY=price_xxx
 STRIPE_PRICE_ELITE_ANNUAL=price_xxx
 
 # App
-VITE_APP_URL=https://yourdomain.com
+VITE_APP_URL=https://aimfitness.ai
 ```
 
 ---
