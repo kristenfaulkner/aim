@@ -5,6 +5,7 @@ import { biomarkerDB, DB_COLUMN_TO_KEY } from "../data/biomarkers";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabase";
 import BloodPanelUpload from "../components/BloodPanelUpload";
+import DexaScanUpload from "../components/DexaScanUpload";
 import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import { LogOut, Trash2, ChevronDown, ChevronUp, ExternalLink, Settings, Menu, X } from "lucide-react";
 import { useResponsive } from "../hooks/useResponsive";
@@ -254,18 +255,24 @@ export default function HealthLab() {
   const { isMobile, isTablet } = useResponsive();
 
   const [panels, setPanels] = useState([]);
+  const [dexaScans, setDexaScans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedBiomarker, setExpandedBiomarker] = useState(null);
 
-  // Fetch blood panels
+  // Fetch blood panels and DEXA scans
   useEffect(() => {
-    supabase.from("blood_panels")
-      .select("*")
-      .order("test_date", { ascending: true })
-      .then(({ data }) => {
-        if (data) setPanels(data.map(transformPanel));
-        setLoading(false);
-      });
+    Promise.allSettled([
+      supabase.from("blood_panels").select("*").order("test_date", { ascending: true }),
+      supabase.from("dexa_scans").select("*").order("scan_date", { ascending: true }),
+    ]).then(([panelsResult, dexaResult]) => {
+      if (panelsResult.status === "fulfilled" && panelsResult.value.data) {
+        setPanels(panelsResult.value.data.map(transformPanel));
+      }
+      if (dexaResult.status === "fulfilled" && dexaResult.value.data) {
+        setDexaScans(dexaResult.value.data);
+      }
+      setLoading(false);
+    });
   }, []);
 
   const handleUploadComplete = (data) => {
@@ -276,6 +283,25 @@ export default function HealthLab() {
       .then(({ data: rows }) => {
         if (rows) setPanels(rows.map(transformPanel));
       });
+  };
+
+  const handleDexaUploadComplete = () => {
+    supabase.from("dexa_scans")
+      .select("*")
+      .order("scan_date", { ascending: true })
+      .then(({ data: rows }) => {
+        if (rows) setDexaScans(rows);
+      });
+  };
+
+  const handleDexaDelete = async (scanId) => {
+    const { error: delErr } = await supabase
+      .from("dexa_scans")
+      .delete()
+      .eq("id", scanId);
+    if (!delErr) {
+      setDexaScans(prev => prev.filter(s => s.id !== scanId));
+    }
   };
 
   const handleDelete = async (panelId) => {
@@ -380,7 +406,7 @@ export default function HealthLab() {
           <h1 style={{ fontSize: isMobile ? 24 : 32, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 6px" }}>
             Health <span style={{ background: `linear-gradient(135deg, ${T.purple}, ${T.pink})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Lab</span>
           </h1>
-          <p style={{ fontSize: 14, color: T.textSoft, margin: 0 }}>Upload blood panels and track biomarkers over time — analyzed with athlete-optimal ranges.</p>
+          <p style={{ fontSize: 14, color: T.textSoft, margin: 0 }}>Upload blood panels and DEXA scans — track biomarkers and body composition over time with athlete-optimal ranges.</p>
         </div>
 
         {loading ? (
@@ -549,6 +575,244 @@ export default function HealthLab() {
 
             {/* Panel history */}
             <PanelHistory panels={panels} onDelete={handleDelete} />
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════ */}
+        {/* DEXA SCANS SECTION */}
+        {/* ═══════════════════════════════════════ */}
+        {!loading && (
+          <div style={{ marginTop: 40 }}>
+            <div style={{ marginBottom: isMobile ? 20 : 24 }}>
+              <h2 style={{ fontSize: isMobile ? 20 : 26, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 6px" }}>
+                DEXA <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Scans</span>
+              </h2>
+              <p style={{ fontSize: 13, color: T.textSoft, margin: 0 }}>Track body composition, lean mass, and bone density over time.</p>
+            </div>
+
+            {dexaScans.length === 0 ? (
+              /* ── DEXA Empty State ── */
+              <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 600, margin: "0 auto" }}>
+                <div style={{ textAlign: "center", padding: "12px 0" }}>
+                  <div style={{ fontSize: 40, marginBottom: 12 }}>{"\uD83E\uDDB4"}</div>
+                  <h3 style={{ fontSize: 18, fontWeight: 800, margin: "0 0 6px" }}>Upload Your First DEXA Scan</h3>
+                  <p style={{ fontSize: 13, color: T.textSoft, margin: "0 0 20px", lineHeight: 1.6 }}>
+                    Upload a PDF or photo of your DEXA scan results. AI will extract body composition, regional data, and bone density — then cross-reference with your training and power data.
+                  </p>
+                </div>
+                <DexaScanUpload onUploadComplete={handleDexaUploadComplete} />
+                <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px" }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 14px" }}>What AIM Extracts</h3>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)", gap: 8 }}>
+                    {[
+                      { label: "Body Fat %", desc: "Total and regional breakdown" },
+                      { label: "Lean Mass", desc: "Muscle mass in kg across all regions" },
+                      { label: "Bone Density", desc: "BMD, T-score, and Z-score" },
+                      { label: "Visceral Fat", desc: "Deep abdominal fat area" },
+                      { label: "L/R Imbalances", desc: "Arm and leg asymmetry detection" },
+                      { label: "W/kg Lean", desc: "FTP divided by lean mass (more accurate)" },
+                    ].map(({ label, desc }) => (
+                      <div key={label} style={{ padding: "10px 14px", background: T.surface, borderRadius: 10 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 2 }}>{label}</div>
+                        <div style={{ fontSize: 11, color: T.textSoft }}>{desc}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* ── DEXA Scans Exist ── */
+              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                {/* Upload + Latest Summary */}
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16 }}>
+                  <DexaScanUpload onUploadComplete={handleDexaUploadComplete} compact />
+
+                  {(() => {
+                    const latest = dexaScans[dexaScans.length - 1];
+                    const prev = dexaScans.length > 1 ? dexaScans[dexaScans.length - 2] : null;
+                    const delta = (curr, old) => {
+                      if (curr == null || old == null) return null;
+                      const d = curr - old;
+                      return d > 0 ? `+${d.toFixed(1)}` : d.toFixed(1);
+                    };
+                    return (
+                      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px" }}>
+                        <div style={{ fontSize: 10, color: T.textDim, textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.06em", marginBottom: 12 }}>Latest DEXA Scan</div>
+                        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(3, 1fr)", gap: 12 }}>
+                          {latest.total_body_fat_pct != null && (
+                            <div>
+                              <div style={{ fontSize: 22, fontWeight: 800, fontFamily: mono }}>{latest.total_body_fat_pct}%</div>
+                              <div style={{ fontSize: 10, color: T.textDim }}>Body Fat</div>
+                              {prev && delta(latest.total_body_fat_pct, prev.total_body_fat_pct) && (
+                                <div style={{ fontSize: 11, fontFamily: mono, color: parseFloat(delta(latest.total_body_fat_pct, prev.total_body_fat_pct)) <= 0 ? T.green : T.amber }}>
+                                  {delta(latest.total_body_fat_pct, prev.total_body_fat_pct)}%
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {latest.lean_mass_kg != null && (
+                            <div>
+                              <div style={{ fontSize: 22, fontWeight: 800, fontFamily: mono }}>{latest.lean_mass_kg}</div>
+                              <div style={{ fontSize: 10, color: T.textDim }}>Lean Mass (kg)</div>
+                              {prev && delta(latest.lean_mass_kg, prev.lean_mass_kg) && (
+                                <div style={{ fontSize: 11, fontFamily: mono, color: parseFloat(delta(latest.lean_mass_kg, prev.lean_mass_kg)) >= 0 ? T.green : T.amber }}>
+                                  {delta(latest.lean_mass_kg, prev.lean_mass_kg)} kg
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {latest.fat_mass_kg != null && (
+                            <div>
+                              <div style={{ fontSize: 22, fontWeight: 800, fontFamily: mono }}>{latest.fat_mass_kg}</div>
+                              <div style={{ fontSize: 10, color: T.textDim }}>Fat Mass (kg)</div>
+                              {prev && delta(latest.fat_mass_kg, prev.fat_mass_kg) && (
+                                <div style={{ fontSize: 11, fontFamily: mono, color: parseFloat(delta(latest.fat_mass_kg, prev.fat_mass_kg)) <= 0 ? T.green : T.amber }}>
+                                  {delta(latest.fat_mass_kg, prev.fat_mass_kg)} kg
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {latest.bone_mineral_density != null && (
+                            <div>
+                              <div style={{ fontSize: 22, fontWeight: 800, fontFamily: mono }}>{latest.bone_mineral_density}</div>
+                              <div style={{ fontSize: 10, color: T.textDim }}>BMD (g/cm{"\u00B2"})</div>
+                            </div>
+                          )}
+                          {latest.visceral_fat_area_cm2 != null && (
+                            <div>
+                              <div style={{ fontSize: 22, fontWeight: 800, fontFamily: mono }}>{latest.visceral_fat_area_cm2}</div>
+                              <div style={{ fontSize: 10, color: T.textDim }}>Visceral Fat (cm{"\u00B2"})</div>
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 11, color: T.textDim, marginTop: 12 }}>
+                          {dexaScans.length} scan{dexaScans.length !== 1 ? "s" : ""} &middot; {latest.facility_name || "DEXA"} &middot; {new Date(latest.scan_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Regional Data (L/R breakdown) */}
+                {(() => {
+                  const latest = dexaScans[dexaScans.length - 1];
+                  const rd = latest?.regional_data;
+                  if (!rd) return null;
+                  const regions = ["left_arm", "right_arm", "left_leg", "right_leg", "trunk"].filter(r => rd[r]);
+                  if (regions.length === 0) return null;
+
+                  return (
+                    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px" }}>
+                      <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 14px" }}>Regional Breakdown</h3>
+                      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : `repeat(${Math.min(regions.length, 5)}, 1fr)`, gap: 10 }}>
+                        {regions.map(region => {
+                          const d = rd[region];
+                          const label = region.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+                          return (
+                            <div key={region} style={{ padding: "12px 14px", background: T.surface, borderRadius: 10 }}>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: T.textSoft, marginBottom: 8 }}>{label}</div>
+                              {d.fat_pct != null && (
+                                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
+                                  <span style={{ color: T.textDim }}>Fat %</span>
+                                  <span style={{ fontFamily: mono, fontWeight: 600 }}>{d.fat_pct}%</span>
+                                </div>
+                              )}
+                              {d.lean_mass_kg != null && (
+                                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
+                                  <span style={{ color: T.textDim }}>Lean</span>
+                                  <span style={{ fontFamily: mono, fontWeight: 600 }}>{d.lean_mass_kg} kg</span>
+                                </div>
+                              )}
+                              {d.fat_mass_kg != null && (
+                                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                                  <span style={{ color: T.textDim }}>Fat</span>
+                                  <span style={{ fontFamily: mono, fontWeight: 600 }}>{d.fat_mass_kg} kg</span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* AI Analysis */}
+                {(() => {
+                  const latest = dexaScans[dexaScans.length - 1];
+                  if (!latest?.ai_analysis) return null;
+                  let analysis = null;
+                  try { analysis = JSON.parse(latest.ai_analysis); } catch { return null; }
+                  return (
+                    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px" }}>
+                      <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 12px", display: "flex", alignItems: "center", gap: 6 }}>
+                        <span>{"\uD83E\uDDE0"}</span> AI Analysis
+                      </h3>
+                      {analysis.summary && (
+                        <p style={{ fontSize: 13, color: T.textSoft, lineHeight: 1.65, margin: "0 0 16px" }}>{analysis.summary}</p>
+                      )}
+                      {analysis.insights?.length > 0 && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: analysis.actionItems?.length > 0 ? 16 : 0 }}>
+                          {analysis.insights.map((ins, i) => {
+                            const colors = { positive: T.green, warning: T.amber, action: T.blue, info: T.textSoft };
+                            return (
+                              <div key={i} style={{ padding: "12px 16px", borderRadius: 10, background: T.surface, borderLeft: `3px solid ${colors[ins.type] || T.textDim}` }}>
+                                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>{ins.title}</div>
+                                <div style={{ fontSize: 12, color: T.textSoft, lineHeight: 1.6 }}>{ins.body}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {analysis.actionItems?.length > 0 && (
+                        <div>
+                          <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>Action Items</div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            {analysis.actionItems.map((item, i) => (
+                              <div key={i} style={{ display: "flex", gap: 8, fontSize: 12, color: T.textSoft, lineHeight: 1.5 }}>
+                                <span style={{ color: T.accent, fontWeight: 700 }}>{i + 1}.</span>
+                                <span>{item}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* DEXA Scan History */}
+                <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "18px 20px" }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 14px" }}>Scan History</h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {dexaScans.slice().reverse().map(scan => (
+                      <div key={scan.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: T.surface, borderRadius: 10 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <span style={{ fontSize: 18 }}>{"\uD83E\uDDB4"}</span>
+                          <div>
+                            <div style={{ fontSize: 12, fontWeight: 600 }}>{scan.facility_name || "DEXA Scan"}</div>
+                            <div style={{ fontSize: 10, color: T.textDim }}>
+                              {scan.total_body_fat_pct != null ? `${scan.total_body_fat_pct}% body fat` : ""}
+                              {scan.total_body_fat_pct != null && scan.lean_mass_kg != null ? " \u00B7 " : ""}
+                              {scan.lean_mass_kg != null ? `${scan.lean_mass_kg} kg lean` : ""}
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <div style={{ fontSize: 11, color: T.textDim }}>{new Date(scan.scan_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</div>
+                          <button onClick={() => handleDexaDelete(scan.id)}
+                            style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: T.textDim, transition: "color 0.2s" }}
+                            onMouseOver={e => e.currentTarget.style.color = "#ef4444"}
+                            onMouseOut={e => e.currentTarget.style.color = T.textDim}>
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
