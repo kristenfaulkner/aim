@@ -20,7 +20,7 @@ You will receive a JSON payload containing athlete data from multiple connected 
 
 Return valid JSON with this exact structure:
 {
-  "summary": "2-3 sentence workout summary. What was this ride? How did it go?",
+  "summary": "2-3 sentence workout summary addressed to the athlete by first name (from profile.full_name). Start with their name, e.g. 'Kristen, this was a solid threshold session...' — NOT the activity title.",
   "insights": [
     {
       "type": "insight" | "positive" | "warning" | "action",
