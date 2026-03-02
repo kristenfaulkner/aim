@@ -140,10 +140,10 @@ function NavBar({ profile, isMobile, menuOpen, setMenuOpen, onSignout, navigate 
           </div>
           {!isMobile && (
             <div style={{ display: "flex", gap: 3 }}>
-              {[{ label: "Dashboard", path: "/dashboard" }, { label: "Workouts", path: "/workouts" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }, { label: "Settings", path: "/settings" }].map(item => (
+              {[{ label: "Dashboard", path: "/dashboard" }, { label: "Activities", path: "/workouts" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }, { label: "Settings", path: "/settings" }].map(item => (
                 <button key={item.label} onClick={() => navigate(item.path)} style={{
-                  background: item.label === "Workouts" ? T.accentDim : "none", border: "none", padding: "5px 12px", borderRadius: 7,
-                  fontSize: 11, fontWeight: 600, color: item.label === "Workouts" ? T.accent : T.textSoft,
+                  background: item.label === "Activities" ? T.accentDim : "none", border: "none", padding: "5px 12px", borderRadius: 7,
+                  fontSize: 11, fontWeight: 600, color: item.label === "Activities" ? T.accent : T.textSoft,
                   cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 4,
                 }}>{item.label === "Settings" ? <><Settings size={12} /> {item.label}</> : item.label}</button>
               ))}
@@ -181,10 +181,10 @@ function NavBar({ profile, isMobile, menuOpen, setMenuOpen, onSignout, navigate 
               </div>
               <span style={{ fontSize: 14, fontWeight: 600 }}>{profile?.full_name || "Athlete"}</span>
             </div>
-            {[{ label: "Dashboard", path: "/dashboard" }, { label: "Workouts", path: "/workouts" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }, { label: "Settings", path: "/settings" }].map(item => (
+            {[{ label: "Dashboard", path: "/dashboard" }, { label: "Activities", path: "/workouts" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }, { label: "Settings", path: "/settings" }].map(item => (
               <button key={item.label} onClick={() => { setMenuOpen(false); navigate(item.path); }} style={{
-                background: item.label === "Workouts" ? T.accentDim : "none", border: "none", padding: "12px 14px", borderRadius: 8,
-                fontSize: 14, fontWeight: 600, color: item.label === "Workouts" ? T.accent : T.textSoft,
+                background: item.label === "Activities" ? T.accentDim : "none", border: "none", padding: "12px 14px", borderRadius: 8,
+                fontSize: 14, fontWeight: 600, color: item.label === "Activities" ? T.accent : T.textSoft,
                 cursor: "pointer", fontFamily: font, textAlign: "left",
               }}>{item.label}</button>
             ))}
@@ -348,14 +348,14 @@ export default function Workouts() {
 
   return (
     <div style={{ minHeight: "100vh", background: T.bg, color: T.text, fontFamily: font }}>
-      <SEO title="Workouts" path="/workouts" description="Browse all your workouts with AI-powered analysis and cross-domain insights." />
+      <SEO title="Activities" path="/workouts" description="Browse all your activities with AI-powered analysis and cross-domain insights." />
       <NavBar profile={profile} isMobile={isMobile} menuOpen={menuOpen} setMenuOpen={setMenuOpen} onSignout={handleSignout} navigate={navigate} />
 
       <div style={{ maxWidth: 1400, margin: "0 auto", padding: isMobile ? 16 : "20px 24px" }}>
         {/* Header */}
         <div style={{ marginBottom: 16 }}>
           <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, margin: 0, letterSpacing: "-0.02em" }}>
-            <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Workouts</span>
+            <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Activities</span>
           </h1>
           <p style={{ fontSize: 13, color: T.textSoft, margin: "4px 0 0" }}>Browse all activities with AI-powered analysis</p>
         </div>
