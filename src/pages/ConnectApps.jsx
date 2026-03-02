@@ -29,9 +29,7 @@ function AppCard({ app, isConnected, onToggle }) {
       onMouseOver={e => { if (!isConnected) e.currentTarget.style.borderColor = T.borderHover; }}
       onMouseOut={e => { if (!isConnected) e.currentTarget.style.borderColor = T.border; }}>
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-        <div style={{ width: 40, height: 40, borderRadius: 10, background: `${app.color}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, border: `1px solid ${app.color}30` }}>
-          {app.icon}
-        </div>
+        <img src={app.logo} alt={`${app.name} logo`} style={{ width: 40, height: 40, borderRadius: 10, objectFit: "contain" }} />
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ fontSize: 14, fontWeight: 700 }}>{app.name}</span>
