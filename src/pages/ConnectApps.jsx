@@ -21,6 +21,7 @@ const NAME_TO_PROVIDER = { Strava: "strava", Whoop: "whoop", "Oura Ring": "oura"
 function AppCard({ app, isConnected, onToggle }) {
   const [hover, setHover] = useState(false);
   const isOAuth = !!OAUTH_APPS[app.name];
+  const isUnavailable = !!app.note;
   const showDisconnect = isConnected && isOAuth && hover;
 
   return (
@@ -34,23 +35,23 @@ function AppCard({ app, isConnected, onToggle }) {
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ fontSize: 14, fontWeight: 700 }}>{app.name}</span>
-            {app.note && <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 4, background: "rgba(139,92,246,0.1)", color: T.purple, fontWeight: 600 }}>COMING SOON</span>}
+            {(isUnavailable || !isOAuth) && <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 4, background: "rgba(139,92,246,0.1)", color: T.purple, fontWeight: 600 }}>COMING SOON</span>}
           </div>
           <span style={{ fontSize: 12, color: T.textDim }}>{app.desc}</span>
         </div>
       </div>
-      <button onClick={onToggle} disabled={!!app.note}
+      <button onClick={onToggle} disabled={isUnavailable}
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
         style={{
-          padding: "8px 20px", borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: app.note ? "not-allowed" : "pointer",
-          background: showDisconnect ? "rgba(239,68,68,0.08)" : isConnected ? "rgba(0,229,160,0.12)" : app.note ? T.surface : T.accentDim,
-          border: `1px solid ${showDisconnect ? "rgba(239,68,68,0.2)" : isConnected ? "rgba(0,229,160,0.3)" : app.note ? T.border : T.accentMid}`,
-          color: showDisconnect ? "#ef4444" : isConnected ? T.accent : app.note ? T.textDim : T.accent,
+          padding: "8px 20px", borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: isUnavailable ? "not-allowed" : "pointer",
+          background: showDisconnect ? "rgba(239,68,68,0.08)" : isConnected ? "rgba(0,229,160,0.12)" : isUnavailable ? T.surface : T.accentDim,
+          border: `1px solid ${showDisconnect ? "rgba(239,68,68,0.2)" : isConnected ? "rgba(0,229,160,0.3)" : isUnavailable ? T.border : T.accentMid}`,
+          color: showDisconnect ? "#ef4444" : isConnected ? T.accent : isUnavailable ? T.textDim : T.accent,
           fontFamily: font, transition: "all 0.2s", display: "flex", alignItems: "center", gap: 6,
-          opacity: app.note ? 0.5 : 1,
+          opacity: isUnavailable ? 0.5 : 1,
         }}>
-        {showDisconnect ? "Disconnect" : isConnected ? <><Check size={14} /> Connected</> : app.note ? "Soon" : "Connect"}
+        {showDisconnect ? "Disconnect" : isConnected ? <><Check size={14} /> Connected</> : isUnavailable ? "Soon" : isOAuth ? "Connect" : "Connect"}
       </button>
     </div>
   );
@@ -151,8 +152,9 @@ export default function ConnectApps() {
       return;
     }
 
-    // Non-OAuth apps: just toggle locally
-    setConnected(prev => ({ ...prev, [name]: !prev[name] }));
+    // Non-OAuth apps: not yet available
+    setToast(`${name} integration coming soon`);
+    setTimeout(() => setToast(""), 3000);
   };
 
   const connectedCount = Object.values(connected).filter(Boolean).length;
