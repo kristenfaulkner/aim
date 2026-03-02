@@ -5,12 +5,12 @@
   "installCommand": "npm install",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
+    { "source": "/((?!api/)(?!robots\\.txt)(?!sitemap\\.xml)(?!manifest\\.json).*)", "destination": "/index.html" }
   ],
   "crons": [
     {
       "path": "/api/cron/sync-eightsleep",
-      "schedule": "0 10 * * *"
+      "schedule": "0 10-17 * * *"
     }
   ]
 }
