@@ -19,7 +19,6 @@ import { isHigherPriority } from "../../_lib/source-priority.js";
 
 export const config = {
   maxDuration: 300, // 5 minutes for large imports
-  api: { bodyParser: { sizeLimit: "20mb" } }, // FIT files sent as base64 in batches
 };
 
 export default async function handler(req, res) {
@@ -31,37 +30,28 @@ export default async function handler(req, res) {
   if (!session) return res.status(401).json({ error: "Unauthorized" });
 
   try {
-    const { zipPath, files, csvData, metricsCsvData } = req.body || {};
+    const { zipPath, csvData, metricsCsvData } = req.body || {};
+    if (!zipPath) return res.status(400).json({ error: "Missing zipPath" });
 
-    // Support two modes: direct files (from browser extraction) or zipPath (legacy storage)
-    let entries;
-    if (files && Array.isArray(files) && files.length > 0) {
-      // New mode: FIT files sent directly as base64
-      entries = files.map(f => ({
-        entryName: f.name,
-        getData: () => Buffer.from(f.data, "base64"),
-      }));
-    } else if (zipPath) {
-      // Legacy mode: download ZIP from Supabase Storage
-      const { data: zipBlob, error: dlError } = await supabaseAdmin.storage
-        .from("import-files")
-        .download(zipPath);
+    // 1. Download ZIP from Supabase Storage
+    const { data: zipBlob, error: dlError } = await supabaseAdmin.storage
+      .from("import-files")
+      .download(zipPath);
 
-      if (dlError || !zipBlob) {
-        return res.status(400).json({ error: `Failed to download ZIP: ${dlError?.message || "not found"}` });
-      }
-
-      const zipBuffer = Buffer.from(await zipBlob.arrayBuffer());
-      const zip = new AdmZip(zipBuffer);
-      entries = zip.getEntries().filter(e =>
-        !e.isDirectory && e.entryName.toLowerCase().endsWith(".fit")
-      );
-    } else {
-      return res.status(400).json({ error: "Missing files or zipPath" });
+    if (dlError || !zipBlob) {
+      return res.status(400).json({ error: `Failed to download ZIP: ${dlError?.message || "not found"}` });
     }
 
+    const zipBuffer = Buffer.from(await zipBlob.arrayBuffer());
+
+    // 2. Extract ZIP and filter to .FIT files
+    const zip = new AdmZip(zipBuffer);
+    const entries = zip.getEntries().filter(e =>
+      !e.isDirectory && e.entryName.toLowerCase().endsWith(".fit")
+    );
+
     if (entries.length === 0) {
-      return res.status(400).json({ error: "No .FIT files found" });
+      return res.status(400).json({ error: "ZIP contains no .FIT files" });
     }
 
     // 3. Parse optional CSV for metadata enrichment
@@ -344,10 +334,8 @@ export default async function handler(req, res) {
       },
     }, { onConflict: "user_id,provider" });
 
-    // 9. Clean up uploaded ZIP from storage (only if using legacy storage mode)
-    if (zipPath) {
-      await supabaseAdmin.storage.from("import-files").remove([zipPath]).catch(() => {});
-    }
+    // 9. Clean up uploaded ZIP from storage
+    await supabaseAdmin.storage.from("import-files").remove([zipPath]).catch(() => {});
 
     return res.status(200).json(results);
   } catch (err) {

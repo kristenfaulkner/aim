@@ -1,5 +1,4 @@
 import { useState, useRef } from "react";
-import JSZip from "jszip";
 import { T, font, mono } from "../theme/tokens";
 import { btn } from "../theme/styles";
 import {
@@ -11,7 +10,6 @@ import { supabase } from "../lib/supabase";
 
 const MAX_ZIP_MB = 500;
 const MAX_CSV_MB = 10;
-const BATCH_SIZE = 8; // FIT files per API call (~3-4MB per batch)
 
 export default function TrainingPeaksImport({ onClose, onComplete }) {
   const [step, setStep] = useState("instructions"); // instructions | uploading | processing | complete
@@ -64,24 +62,14 @@ export default function TrainingPeaksImport({ onClose, onComplete }) {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not authenticated — please sign in again");
 
-      // 1. Extract ZIP in browser
-      setProgress("Extracting ZIP file...");
-      const zipData = await zipFile.arrayBuffer();
-      const zip = await JSZip.loadAsync(zipData);
+      // 1. Upload ZIP to Supabase Storage
+      setProgress(`Uploading ZIP file (${(zipFile.size / 1024 / 1024).toFixed(1)} MB)...`);
+      const storagePath = `${session.user.id}/imports/${Date.now()}-trainingpeaks.zip`;
+      const { error: uploadErr } = await supabase.storage
+        .from("import-files")
+        .upload(storagePath, zipFile, { contentType: "application/zip" });
 
-      // Filter to .FIT files only
-      const fitEntries = [];
-      zip.forEach((path, entry) => {
-        if (!entry.dir && path.toLowerCase().endsWith(".fit")) {
-          fitEntries.push({ path, entry });
-        }
-      });
-
-      if (fitEntries.length === 0) {
-        throw new Error("ZIP contains no .FIT files");
-      }
-
-      setProgress(`Found ${fitEntries.length} FIT files. Preparing...`);
+      if (uploadErr) throw new Error(`Upload failed: ${uploadErr.message}`);
 
       // 2. Prepare CSVs as base64 if provided
       const readAsBase64 = (file) => new Promise((resolve, reject) => {
@@ -93,57 +81,31 @@ export default function TrainingPeaksImport({ onClose, onComplete }) {
 
       let csvData = null;
       let metricsCsvData = null;
-      if (csvFile) csvData = await readAsBase64(csvFile);
-      if (metricsCsvFile) metricsCsvData = await readAsBase64(metricsCsvFile);
-
-      // 3. Send FIT files in batches
-      setStep("processing");
-      const totalBatches = Math.ceil(fitEntries.length / BATCH_SIZE);
-      const totals = { imported: 0, merged: 0, skipped: 0, failed: 0, errors: [], total: fitEntries.length };
-
-      for (let i = 0; i < fitEntries.length; i += BATCH_SIZE) {
-        const batchNum = Math.floor(i / BATCH_SIZE) + 1;
-        const batch = fitEntries.slice(i, i + BATCH_SIZE);
-        setProgress(`Processing batch ${batchNum}/${totalBatches} (${i + 1}-${Math.min(i + BATCH_SIZE, fitEntries.length)} of ${fitEntries.length} files)...`);
-
-        // Extract file data as base64
-        const files = await Promise.all(batch.map(async ({ path, entry }) => {
-          const buf = await entry.async("arraybuffer");
-          const bytes = new Uint8Array(buf);
-          let binary = "";
-          for (let j = 0; j < bytes.length; j++) binary += String.fromCharCode(bytes[j]);
-          return { name: path, data: btoa(binary) };
-        }));
-
-        const isLastBatch = i + BATCH_SIZE >= fitEntries.length;
-        const res = await fetch("/api/integrations/import/trainingpeaks", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({
-            files,
-            csvData: isLastBatch ? csvData : null,
-            metricsCsvData: isLastBatch ? metricsCsvData : null,
-            batchIndex: batchNum,
-            totalBatches,
-          }),
-        });
-
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || `Batch ${batchNum} failed`);
-
-        totals.imported += data.imported || 0;
-        totals.merged += data.merged || 0;
-        totals.skipped += data.skipped || 0;
-        totals.failed += data.failed || 0;
-        if (data.errors?.length) totals.errors.push(...data.errors);
+      if (csvFile || metricsCsvFile) {
+        setProgress("Processing CSV files...");
+        if (csvFile) csvData = await readAsBase64(csvFile);
+        if (metricsCsvFile) metricsCsvData = await readAsBase64(metricsCsvFile);
       }
 
-      setResult(totals);
+      // 3. Call processing endpoint
+      setStep("processing");
+      setProgress("Processing FIT files — computing metrics and checking for duplicates...");
+
+      const res = await fetch("/api/integrations/import/trainingpeaks", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ zipPath: storagePath, csvData, metricsCsvData }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Import failed");
+
+      setResult(data);
       setStep("complete");
-      if (onComplete) onComplete(totals);
+      if (onComplete) onComplete(data);
     } catch (err) {
       setError(err.message);
       setStep("instructions");
