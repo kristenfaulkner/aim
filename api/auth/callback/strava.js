@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "../../_lib/supabase.js";
 import { redis } from "../../_lib/redis.js";
+import { backfillStravaSync } from "../../integrations/sync/strava.js";
 
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
@@ -39,6 +40,11 @@ export default async function handler(req, res) {
     is_active: true,
     sync_status: "pending",
   }, { onConflict: "user_id,provider" });
+
+  // Auto-sync last 365 days of activities (fire-and-forget)
+  backfillStravaSync(userId, 365).catch(err =>
+    console.error(`Strava auto-backfill failed for ${userId}:`, err.message)
+  );
 
   res.redirect(302, "/connect?connected=strava");
 }

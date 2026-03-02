@@ -119,7 +119,7 @@ export default async function handler(req, res) {
   const session = await verifySession(req);
   if (!session) return res.status(401).json({ error: "Unauthorized" });
 
-  const days = Math.min(parseInt(req.query.days) || 7, 90);
+  const days = Math.min(parseInt(req.query.days) || 7, 365);
 
   try {
     const { results, errors } = await fullEightSleepSync(session.userId, days);

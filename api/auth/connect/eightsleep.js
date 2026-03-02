@@ -2,6 +2,7 @@ import { supabaseAdmin } from "../../_lib/supabase.js";
 import { verifySession, cors } from "../../_lib/auth.js";
 import { authenticateEightSleep } from "../../_lib/eightsleep.js";
 import { encrypt } from "../../_lib/crypto.js";
+import { fullEightSleepSync } from "../../integrations/sync/eightsleep.js";
 
 /**
  * POST /api/auth/connect/eightsleep
@@ -36,6 +37,11 @@ export default async function handler(req, res) {
       sync_status: "pending",
       metadata: { email: encrypt(email), password: encrypt(password), encrypted: true }, // Encrypted; needed for token re-auth
     }, { onConflict: "user_id,provider" });
+
+    // Auto-sync last 365 days of sleep data (fire-and-forget)
+    fullEightSleepSync(session.userId, 365).catch(err =>
+      console.error(`Eight Sleep auto-sync failed for ${session.userId}:`, err.message)
+    );
 
     return res.status(200).json({ ok: true, provider: "eightsleep" });
   } catch (err) {
