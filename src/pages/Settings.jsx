@@ -3,8 +3,41 @@ import { useNavigate } from "react-router-dom";
 import { T, font, mono } from "../theme/tokens";
 import { btn, inputStyle } from "../theme/styles";
 import { useAuth } from "../context/AuthContext";
+import { useResponsive } from "../hooks/useResponsive";
 import { supabase } from "../lib/supabase";
-import { ArrowLeft, User, Bell, Ruler, Palette, LogOut, MessageSquare, Check, Loader, Shield, Download, Trash2, AlertTriangle } from "lucide-react";
+import { ArrowLeft, User, Bell, Ruler, Palette, LogOut, MessageSquare, Check, Loader, Shield, Download, Trash2, AlertTriangle, Menu, X, Mail, Lock } from "lucide-react";
+import { computePowerZones, computeHRZones } from "../lib/zones";
+
+const RIDING_LEVELS = ["Recreational", "Competitive", "Professional"];
+const WEEKLY_HOURS = ["1-5", "5-10", "11-15", "16+"];
+const COMMON_TIMEZONES = [
+  "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles",
+  "America/Phoenix", "America/Anchorage", "Pacific/Honolulu", "America/Toronto",
+  "America/Vancouver", "America/Sao_Paulo", "Europe/London", "Europe/Paris",
+  "Europe/Berlin", "Europe/Rome", "Europe/Madrid", "Europe/Amsterdam",
+  "Europe/Zurich", "Australia/Sydney", "Australia/Melbourne", "Asia/Tokyo",
+  "Asia/Singapore", "Asia/Hong_Kong", "Africa/Johannesburg",
+];
+
+function fromMetric(field, value) {
+  if (!value) return "";
+  if (field === "height") return String(Math.round(value / 2.54 * 10) / 10);
+  if (field === "weight") return String(Math.round(value / 0.453592 * 10) / 10);
+  return String(value);
+}
+
+function toMetric(units, field, value) {
+  if (!value) return null;
+  const v = Number(value);
+  if (units === "metric") return v;
+  if (field === "height") return Math.round(v * 2.54 * 10) / 10;
+  if (field === "weight") return Math.round(v * 0.453592 * 10) / 10;
+  return v;
+}
+
+function formatTz(tz) {
+  return tz.replace(/_/g, " ").replace(/\//g, " / ");
+}
 
 function formatPhoneDisplay(value) {
   const digits = value.replace(/\D/g, "");
@@ -22,8 +55,29 @@ function toE164(value) {
 
 export default function Settings() {
   const navigate = useNavigate();
-  const { user, profile, signout, updateProfile } = useAuth();
+  const { user, profile, signout, updateProfile, resetPassword } = useAuth();
+  const { isMobile, isTablet } = useResponsive();
   const [activeTab, setActiveTab] = useState("profile");
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // Profile form state
+  const [profileForm, setProfileForm] = useState({
+    full_name: "", date_of_birth: "", sex: "",
+    height: "", weight: "",
+    ftp_watts: "", lthr_bpm: "", max_hr_bpm: "",
+    riding_level: "", weekly_hours: "",
+    uses_cycle_tracking: false, hormonal_contraception: "",
+    timezone: "",
+  });
+  const [units, setUnits] = useState("imperial");
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
+  const [profileError, setProfileError] = useState("");
+  const [showFtpTooltip, setShowFtpTooltip] = useState(false);
+
+  // Password reset state
+  const [resetSending, setResetSending] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
   // SMS state
   const [phone, setPhone] = useState("");
@@ -51,23 +105,117 @@ export default function Settings() {
       setSmsOptIn(!!profile.sms_opt_in);
       setSmsConsent(!!profile.sms_opt_in);
     }
-    // Load notification preferences
+    // Load notification preferences + units + populate profile form
     async function loadPrefs() {
-      if (!user) return;
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-      const res = await fetch("/api/settings", {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.settings?.notification_preferences) {
-          setSmsPrefs(prev => ({ ...prev, ...data.settings.notification_preferences }));
+      if (!user || !profile) return;
+      let userUnits = "imperial";
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const res = await fetch("/api/settings", {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.settings?.notification_preferences) {
+            setSmsPrefs(prev => ({ ...prev, ...data.settings.notification_preferences }));
+          }
+          if (data.settings?.units) userUnits = data.settings.units;
         }
-      }
+      } catch (e) { /* use default */ }
+      setUnits(userUnits);
+      const isMetric = userUnits === "metric";
+      setProfileForm({
+        full_name: profile.full_name || "",
+        date_of_birth: profile.date_of_birth || "",
+        sex: profile.sex || "",
+        height: isMetric ? String(profile.height_cm ?? "") : fromMetric("height", profile.height_cm),
+        weight: isMetric ? String(profile.weight_kg ?? "") : fromMetric("weight", profile.weight_kg),
+        ftp_watts: profile.ftp_watts ? String(profile.ftp_watts) : "",
+        lthr_bpm: profile.lthr_bpm ? String(profile.lthr_bpm) : "",
+        max_hr_bpm: profile.max_hr_bpm ? String(profile.max_hr_bpm) : "",
+        riding_level: profile.riding_level || "",
+        weekly_hours: profile.weekly_hours || "",
+        uses_cycle_tracking: profile.uses_cycle_tracking || false,
+        hormonal_contraception: profile.hormonal_contraception || "",
+        timezone: profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+      });
     }
     loadPrefs();
   }, [profile, user]);
+
+  const setField = (field, value) => setProfileForm(prev => ({ ...prev, [field]: value }));
+
+  const handleUnitsToggle = (newUnits) => {
+    if (newUnits === units) return;
+    setProfileForm(prev => ({
+      ...prev,
+      height: newUnits === "metric"
+        ? (prev.height ? String(Math.round(Number(prev.height) * 2.54 * 10) / 10) : "")
+        : (prev.height ? String(Math.round(Number(prev.height) / 2.54 * 10) / 10) : ""),
+      weight: newUnits === "metric"
+        ? (prev.weight ? String(Math.round(Number(prev.weight) * 0.453592 * 10) / 10) : "")
+        : (prev.weight ? String(Math.round(Number(prev.weight) / 0.453592 * 10) / 10) : ""),
+    }));
+    setUnits(newUnits);
+  };
+
+  const saveProfile = async () => {
+    setProfileSaving(true);
+    setProfileSaved(false);
+    setProfileError("");
+    try {
+      const ftpVal = profileForm.ftp_watts ? parseInt(profileForm.ftp_watts) : null;
+      const maxHrVal = profileForm.max_hr_bpm ? parseInt(profileForm.max_hr_bpm) : null;
+      const lthrVal = profileForm.lthr_bpm ? parseInt(profileForm.lthr_bpm) : null;
+
+      await updateProfile({
+        full_name: profileForm.full_name.trim(),
+        date_of_birth: profileForm.date_of_birth || null,
+        sex: profileForm.sex || null,
+        height_cm: toMetric(units, "height", profileForm.height),
+        weight_kg: toMetric(units, "weight", profileForm.weight),
+        ftp_watts: ftpVal,
+        lthr_bpm: lthrVal,
+        max_hr_bpm: maxHrVal,
+        riding_level: profileForm.riding_level || null,
+        weekly_hours: profileForm.weekly_hours || null,
+        uses_cycle_tracking: profileForm.uses_cycle_tracking,
+        hormonal_contraception: profileForm.hormonal_contraception || null,
+        timezone: profileForm.timezone || null,
+        power_zones: computePowerZones(ftpVal),
+        hr_zones: computeHRZones(maxHrVal),
+      });
+
+      // Save units preference (non-blocking)
+      supabase.from("user_settings").upsert({
+        user_id: user.id,
+        units: units,
+      }, { onConflict: "user_id" }).then(({ error: settingsErr }) => {
+        if (settingsErr) console.error("Units save failed:", settingsErr.message);
+      });
+
+      setProfileSaved(true);
+      setTimeout(() => setProfileSaved(false), 3000);
+    } catch (err) {
+      setProfileError(err.message || "Failed to save profile");
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    setResetSending(true);
+    try {
+      await resetPassword(user.email);
+      setResetSent(true);
+      setTimeout(() => setResetSent(false), 5000);
+    } catch (err) {
+      setProfileError(err.message || "Failed to send reset email");
+    } finally {
+      setResetSending(false);
+    }
+  };
 
   const handleSignout = async () => {
     await signout();
@@ -133,24 +281,54 @@ export default function Settings() {
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       {/* Header */}
-      <div style={{ padding: "0 40px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${T.border}`, background: `${T.surface}cc`, backdropFilter: "blur(16px)" }}>
+      <div style={{ padding: isMobile ? "0 12px" : "0 40px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${T.border}`, background: `${T.surface}cc`, backdropFilter: "blur(16px)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <button onClick={() => navigate("/dashboard")} style={{ background: "none", border: "none", color: T.textSoft, cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontFamily: font }}>
-            <ArrowLeft size={18} /> Dashboard
-          </button>
+          {isMobile ? (
+            <button onClick={() => setMenuOpen(!menuOpen)} style={{ background: "none", border: "none", color: T.textSoft, cursor: "pointer", padding: 0, display: "flex", alignItems: "center" }}>
+              {menuOpen ? <X size={22} /> : <Menu size={22} />}
+            </button>
+          ) : (
+            <button onClick={() => navigate("/dashboard")} style={{ background: "none", border: "none", color: T.textSoft, cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontFamily: font }}>
+              <ArrowLeft size={18} /> Dashboard
+            </button>
+          )}
         </div>
         <h1 style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.03em", margin: 0 }}>Settings</h1>
         <button onClick={handleSignout} style={{ ...btn(false), fontSize: 13, padding: "8px 16px", color: "#ef4444", borderColor: "rgba(239,68,68,0.2)" }}>
-          <LogOut size={14} /> Sign Out
+          <LogOut size={14} /> {!isMobile && "Sign Out"}
         </button>
       </div>
 
-      <div style={{ flex: 1, display: "flex", maxWidth: 1000, margin: "0 auto", width: "100%", padding: "40px" }}>
-        {/* Sidebar tabs */}
-        <div style={{ width: 220, marginRight: 40, display: "flex", flexDirection: "column", gap: 4 }}>
+      {/* Mobile slide-out drawer */}
+      {isMobile && menuOpen && (
+        <>
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 998 }} onClick={() => setMenuOpen(false)} />
+          <div style={{ position: "fixed", top: 0, left: 0, bottom: 0, width: 260, background: T.surface, borderRight: `1px solid ${T.border}`, zIndex: 999, padding: "24px 16px", display: "flex", flexDirection: "column", gap: 4 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+              <span style={{ fontSize: 16, fontWeight: 700 }}>Menu</span>
+              <button onClick={() => setMenuOpen(false)} style={{ background: "none", border: "none", color: T.textSoft, cursor: "pointer", padding: 0, display: "flex" }}>
+                <X size={20} />
+              </button>
+            </div>
+            <button onClick={() => { navigate("/dashboard"); setMenuOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 10, fontSize: 14, fontWeight: 400, background: "transparent", color: T.textSoft, border: "none", cursor: "pointer", fontFamily: font, textAlign: "left" }}>
+              <ArrowLeft size={16} /> Dashboard
+            </button>
+            {tabs.map((tab) => (
+              <button key={tab.id} onClick={() => { setActiveTab(tab.id); setMenuOpen(false); }}
+                style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 10, fontSize: 14, fontWeight: activeTab === tab.id ? 600 : 400, background: activeTab === tab.id ? T.accentDim : "transparent", color: activeTab === tab.id ? T.accent : T.textSoft, border: "none", cursor: "pointer", fontFamily: font, textAlign: "left" }}>
+                {tab.icon} {tab.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      <div style={{ flex: 1, display: "flex", flexDirection: isMobile ? "column" : "row", maxWidth: 1000, margin: "0 auto", width: "100%", padding: isMobile ? "20px" : "40px" }}>
+        {/* Sidebar tabs / horizontal tab bar on mobile */}
+        <div style={isMobile ? { display: "flex", overflowX: "auto", gap: 4, padding: "0 16px", borderBottom: `1px solid ${T.border}`, marginBottom: 16 } : { width: 220, marginRight: 40, display: "flex", flexDirection: "column", gap: 4 }}>
           {tabs.map((tab) => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 10, fontSize: 14, fontWeight: activeTab === tab.id ? 600 : 400, background: activeTab === tab.id ? T.accentDim : "transparent", color: activeTab === tab.id ? T.accent : T.textSoft, border: "none", cursor: "pointer", fontFamily: font, textAlign: "left" }}>
+              style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 10, fontSize: 14, fontWeight: activeTab === tab.id ? 600 : 400, background: activeTab === tab.id ? T.accentDim : "transparent", color: activeTab === tab.id ? T.accent : T.textSoft, border: "none", cursor: "pointer", fontFamily: font, textAlign: "left", whiteSpace: isMobile ? "nowrap" : undefined, flexShrink: isMobile ? 0 : undefined }}>
               {tab.icon} {tab.label}
             </button>
           ))}
@@ -158,22 +336,208 @@ export default function Settings() {
 
         {/* Content */}
         <div style={{ flex: 1 }}>
-          {activeTab === "profile" && (
-            <div>
-              <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 8px", letterSpacing: "-0.02em" }}>Profile</h2>
-              <p style={{ fontSize: 14, color: T.textSoft, margin: "0 0 32px" }}>Manage your account details.</p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-                <div>
-                  <label style={{ fontSize: 13, fontWeight: 600, color: T.textSoft, display: "block", marginBottom: 6 }}>Name</label>
-                  <input defaultValue={profile?.full_name || ""} style={{ ...inputStyle, paddingLeft: 16 }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 13, fontWeight: 600, color: T.textSoft, display: "block", marginBottom: 6 }}>Email</label>
-                  <input defaultValue={user?.email || profile?.email || ""} disabled style={{ ...inputStyle, paddingLeft: 16, opacity: 0.5 }} />
-                </div>
+          {activeTab === "profile" && (() => {
+            const lbl = (text) => (
+              <label style={{ fontSize: 13, fontWeight: 600, color: T.textSoft, display: "block", marginBottom: 6 }}>{text}</label>
+            );
+            const selBtn = (value, current, onClick) => (
+              <button key={value} onClick={onClick}
+                style={{ padding: "10px 16px", borderRadius: 10, fontSize: 13, fontWeight: current ? 700 : 500, background: current ? T.accentDim : T.card, border: `1px solid ${current ? T.accentMid : T.border}`, color: current ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font, transition: "all 0.2s" }}>
+                {value}
+              </button>
+            );
+            const card = (title, children) => (
+              <div style={{ padding: 24, background: T.card, borderRadius: 16, border: `1px solid ${T.border}`, marginBottom: 24 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 20px", letterSpacing: "-0.01em" }}>{title}</h3>
+                {children}
               </div>
-            </div>
-          )}
+            );
+            const isMetric = units === "metric";
+
+            return (
+              <div>
+                <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 8px", letterSpacing: "-0.02em" }}>Profile</h2>
+                <p style={{ fontSize: 14, color: T.textSoft, margin: "0 0 32px" }}>Manage your account and athlete profile.</p>
+
+                {profileError && (
+                  <div style={{ padding: "10px 14px", marginBottom: 14, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 10, fontSize: 13, color: "#ef4444" }}>
+                    {profileError}
+                  </div>
+                )}
+
+                {/* Personal Info */}
+                {card("Personal Info", (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                    <div>
+                      {lbl("Full Name")}
+                      <input value={profileForm.full_name} onChange={e => setField("full_name", e.target.value)} placeholder="Your name" style={{ ...inputStyle, paddingLeft: 16 }} />
+                    </div>
+                    <div>
+                      {lbl("Email")}
+                      <input value={user?.email || profile?.email || ""} disabled style={{ ...inputStyle, paddingLeft: 16, opacity: 0.5 }} />
+                    </div>
+                    <div>
+                      {lbl("Date of Birth")}
+                      <input type="date" value={profileForm.date_of_birth} onChange={e => setField("date_of_birth", e.target.value)} style={{ ...inputStyle, paddingLeft: 16 }} />
+                    </div>
+                    <div>
+                      {lbl("Sex")}
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                        {["Male", "Female", "Non-binary"].map(s => selBtn(s, profileForm.sex === s.toLowerCase(), () => setField("sex", s.toLowerCase())))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Physical Stats */}
+                {card("Physical Stats", (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                    <div>
+                      {lbl("Units")}
+                      <div style={{ display: "flex", gap: 8 }}>
+                        {selBtn("Metric (kg, cm)", isMetric, () => handleUnitsToggle("metric"))}
+                        {selBtn("Imperial (lbs, in)", !isMetric, () => handleUnitsToggle("imperial"))}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 16 }}>
+                      <div style={{ flex: 1 }}>
+                        {lbl(isMetric ? "Height (cm)" : "Height (inches)")}
+                        <input type="number" value={profileForm.height} onChange={e => setField("height", e.target.value)} placeholder={isMetric ? "175" : "69"} style={{ ...inputStyle, paddingLeft: 16 }} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        {lbl(isMetric ? "Weight (kg)" : "Weight (lbs)")}
+                        <input type="number" value={profileForm.weight} onChange={e => setField("weight", e.target.value)} placeholder={isMetric ? "70" : "154"} style={{ ...inputStyle, paddingLeft: 16 }} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Training Profile */}
+                {card("Training Profile", (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                    <div style={{ display: "flex", gap: 16 }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: 13, fontWeight: 600, color: T.textSoft, display: "flex", alignItems: "center", gap: 4, marginBottom: 6 }}>
+                          FTP (watts)
+                          <span
+                            onMouseEnter={() => setShowFtpTooltip(true)}
+                            onMouseLeave={() => setShowFtpTooltip(false)}
+                            style={{ position: "relative", cursor: "help", display: "inline-flex", alignItems: "center", justifyContent: "center", width: 16, height: 16, borderRadius: "50%", background: T.border, fontSize: 10, fontWeight: 700, color: T.textDim }}
+                          >
+                            ?
+                            {showFtpTooltip && (
+                              <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)", width: 240, padding: "10px 12px", background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, fontSize: 12, fontWeight: 400, color: T.textSoft, lineHeight: 1.5, zIndex: 10, pointerEvents: "none", textAlign: "left" }}>
+                                Functional Threshold Power — estimated as 95% of your best 20-minute average power.
+                              </div>
+                            )}
+                          </span>
+                        </label>
+                        <input type="number" value={profileForm.ftp_watts} onChange={e => setField("ftp_watts", e.target.value)} placeholder="250" style={{ ...inputStyle, paddingLeft: 16 }} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        {lbl("Max HR (bpm)")}
+                        <input type="number" value={profileForm.max_hr_bpm} onChange={e => setField("max_hr_bpm", e.target.value)} placeholder="185" style={{ ...inputStyle, paddingLeft: 16 }} />
+                      </div>
+                    </div>
+                    <div>
+                      {lbl("LTHR (bpm)")}
+                      <input type="number" value={profileForm.lthr_bpm} onChange={e => setField("lthr_bpm", e.target.value)} placeholder="170" style={{ ...inputStyle, paddingLeft: 16, maxWidth: "calc(50% - 8px)" }} />
+                    </div>
+                    <div>
+                      {lbl("Riding Level")}
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                        {RIDING_LEVELS.map(l => selBtn(l, profileForm.riding_level === l.toLowerCase(), () => setField("riding_level", l.toLowerCase())))}
+                      </div>
+                    </div>
+                    <div>
+                      {lbl("Weekly Training Hours")}
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                        {WEEKLY_HOURS.map(h => selBtn(`${h} hrs`, profileForm.weekly_hours === h, () => setField("weekly_hours", h)))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Preferences */}
+                {card("Preferences", (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                    <div>
+                      {lbl("Timezone")}
+                      <select value={profileForm.timezone} onChange={e => setField("timezone", e.target.value)}
+                        style={{ ...inputStyle, paddingLeft: 16, cursor: "pointer", appearance: "auto" }}>
+                        <option value="">Select timezone...</option>
+                        {COMMON_TIMEZONES.map(tz => (
+                          <option key={tz} value={tz}>{formatTz(tz)}</option>
+                        ))}
+                      </select>
+                    </div>
+                    {profileForm.sex === "female" && (
+                      <div style={{ padding: 20, background: T.surface, borderRadius: 14, border: `1px solid ${T.border}` }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                          <div>
+                            <div style={{ fontSize: 14, fontWeight: 700 }}>Menstrual Cycle Tracking</div>
+                            <div style={{ fontSize: 12, color: T.textDim, marginTop: 2 }}>AIM can adjust insights based on cycle phase</div>
+                          </div>
+                          <button onClick={() => setField("uses_cycle_tracking", !profileForm.uses_cycle_tracking)}
+                            style={{ width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer", padding: 2, background: profileForm.uses_cycle_tracking ? T.accent : T.border, transition: "background 0.2s" }}>
+                            <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "transform 0.2s", transform: profileForm.uses_cycle_tracking ? "translateX(20px)" : "translateX(0)" }} />
+                          </button>
+                        </div>
+                        {profileForm.uses_cycle_tracking && (
+                          <div style={{ marginTop: 12 }}>
+                            {lbl("Hormonal contraception?")}
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                              {["None", "Pill", "IUD", "Implant", "Other"].map(h => selBtn(h, profileForm.hormonal_contraception === h.toLowerCase(), () => setField("hormonal_contraception", h.toLowerCase())))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {/* Save Button */}
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 32 }}>
+                  <button onClick={saveProfile} disabled={profileSaving} style={{
+                    ...btn(true), fontSize: 13, padding: "10px 24px",
+                    opacity: profileSaving ? 0.6 : 1,
+                  }}>
+                    {profileSaving ? <Loader size={14} style={{ animation: "spin 1s linear infinite" }} /> : null}
+                    {profileSaving ? "Saving..." : "Save Profile"}
+                  </button>
+                  {profileSaved && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: T.accent, fontWeight: 600 }}>
+                      <Check size={14} /> Saved
+                    </div>
+                  )}
+                </div>
+
+                {/* Password */}
+                <div style={{ padding: 24, background: T.card, borderRadius: 16, border: `1px solid ${T.border}` }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                    <Lock size={18} color={T.accent} />
+                    <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Password</h3>
+                  </div>
+                  <p style={{ fontSize: 13, color: T.textSoft, margin: "0 0 16px", lineHeight: 1.5 }}>
+                    We'll send a password reset link to <strong style={{ color: T.text }}>{user?.email}</strong>. Click the link in the email to set a new password.
+                  </p>
+                  <button onClick={handlePasswordReset} disabled={resetSending || resetSent}
+                    style={{
+                      ...btn(false), fontSize: 13, padding: "10px 24px",
+                      opacity: (resetSending || resetSent) ? 0.6 : 1,
+                      color: resetSent ? T.accent : T.text,
+                      borderColor: resetSent ? T.accentMid : T.border,
+                    }}>
+                    {resetSending ? <Loader size={14} style={{ animation: "spin 1s linear infinite" }} /> :
+                     resetSent ? <Check size={14} /> : <Mail size={14} />}
+                    {resetSending ? "Sending..." : resetSent ? "Reset Link Sent" : "Send Password Reset Email"}
+                  </button>
+                </div>
+
+                <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+              </div>
+            );
+          })()}
 
           {activeTab === "notifications" && (
             <div>
@@ -198,7 +562,7 @@ export default function Settings() {
                     onChange={(e) => setPhone(formatPhoneDisplay(e.target.value))}
                     placeholder="(555) 123-4567"
                     maxLength={14}
-                    style={{ ...inputStyle, paddingLeft: 16, fontFamily: mono, width: 220 }}
+                    style={{ ...inputStyle, paddingLeft: 16, fontFamily: mono, width: "100%" }}
                   />
                 </div>
 
@@ -366,7 +730,7 @@ export default function Settings() {
               {showDeleteModal && (
                 <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}
                   onClick={() => { setShowDeleteModal(false); setDeleteConfirm(""); setDeleteError(""); }}>
-                  <div style={{ background: T.surface, borderRadius: 20, padding: 32, width: "100%", maxWidth: 440, border: `1px solid ${T.border}` }}
+                  <div style={{ background: T.surface, borderRadius: 20, padding: isMobile ? 24 : 32, width: isMobile ? "calc(100% - 32px)" : "auto", maxWidth: isMobile ? "calc(100% - 32px)" : 440, border: `1px solid ${T.border}` }}
                     onClick={e => e.stopPropagation()}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
                       <AlertTriangle size={24} color="#ef4444" />
