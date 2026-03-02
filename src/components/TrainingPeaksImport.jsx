@@ -15,14 +15,17 @@ export default function TrainingPeaksImport({ onClose, onComplete }) {
   const [step, setStep] = useState("instructions"); // instructions | uploading | processing | complete
   const [zipFile, setZipFile] = useState(null);
   const [csvFile, setCsvFile] = useState(null);
+  const [metricsCsvFile, setMetricsCsvFile] = useState(null);
   const [draggingZip, setDraggingZip] = useState(false);
   const [draggingCsv, setDraggingCsv] = useState(false);
+  const [draggingMetrics, setDraggingMetrics] = useState(false);
   const [progress, setProgress] = useState("");
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [showErrors, setShowErrors] = useState(false);
   const zipRef = useRef(null);
   const csvRef = useRef(null);
+  const metricsRef = useRef(null);
 
   const tpApp = integrations.find(a => a.name === "TrainingPeaks");
 
@@ -68,16 +71,20 @@ export default function TrainingPeaksImport({ onClose, onComplete }) {
 
       if (uploadErr) throw new Error(`Upload failed: ${uploadErr.message}`);
 
-      // 2. Prepare CSV as base64 if provided
+      // 2. Prepare CSVs as base64 if provided
+      const readAsBase64 = (file) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(",")[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
       let csvData = null;
-      if (csvFile) {
-        setProgress("Processing CSV summary...");
-        csvData = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result.split(",")[1]);
-          reader.onerror = reject;
-          reader.readAsDataURL(csvFile);
-        });
+      let metricsCsvData = null;
+      if (csvFile || metricsCsvFile) {
+        setProgress("Processing CSV files...");
+        if (csvFile) csvData = await readAsBase64(csvFile);
+        if (metricsCsvFile) metricsCsvData = await readAsBase64(metricsCsvFile);
       }
 
       // 3. Call processing endpoint
@@ -90,7 +97,7 @@ export default function TrainingPeaksImport({ onClose, onComplete }) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ zipPath: storagePath, csvData }),
+        body: JSON.stringify({ zipPath: storagePath, csvData, metricsCsvData }),
       });
 
       const data = await res.json();
@@ -218,16 +225,17 @@ export default function TrainingPeaksImport({ onClose, onComplete }) {
         </div>
       </div>
 
-      {/* Step 2: Optional CSV */}
+      {/* Step 2: Optional CSVs */}
       <div style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
           <StepBadge n={2} />
-          <span style={{ fontSize: 14, fontWeight: 700, color: T.text }}>Export workout summary</span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: T.text }}>Export CSV data</span>
           <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 4, background: "rgba(139,92,246,0.1)", color: T.purple, fontWeight: 600 }}>OPTIONAL</span>
         </div>
         <div style={{ padding: "14px 16px", background: T.surface, borderRadius: 10, fontSize: 12, color: T.textSoft, lineHeight: 1.8 }}>
-          Under the same Export Data page, also export <strong style={{ color: T.text }}>Workout Summary and/or Custom Metrics</strong> as a CSV.
-          This adds workout titles, RPE scores, coach comments, and body weight history to your imported activities.
+          Under the same Export Data page, you can also export two CSV files:
+          <div style={{ marginTop: 6 }}><strong style={{ color: T.text }}>Workouts CSV</strong> — adds workout titles, RPE scores, coach comments, and body weight to your imported activities.</div>
+          <div style={{ marginTop: 4 }}><strong style={{ color: T.text }}>Metrics CSV</strong> — imports daily metrics like resting heart rate, hours of sleep, fatigue, and stress levels.</div>
         </div>
       </div>
 
@@ -260,7 +268,7 @@ export default function TrainingPeaksImport({ onClose, onComplete }) {
         <input ref={zipRef} type="file" accept=".zip" style={{ display: "none" }}
           onChange={e => { const f = e.target.files[0]; if (f && validateZip(f)) { setZipFile(f); setError(null); } }} />
 
-        {/* CSV drop zone */}
+        {/* Workouts CSV drop zone */}
         <div style={{ marginTop: 10 }}>
           <DropZone
             dragging={draggingCsv}
@@ -275,7 +283,7 @@ export default function TrainingPeaksImport({ onClose, onComplete }) {
             }}
             onClick={() => csvRef.current?.click()}
             icon={<FileText size={20} color={T.purple} />}
-            label="Workout Summary (.CSV)"
+            label="Workouts CSV"
             hint="Optional — adds titles, RPE, and comments"
             fileLabel={csvFile ? `${csvFile.name} (${(csvFile.size / 1024).toFixed(0)} KB)` : null}
             optional
@@ -283,6 +291,31 @@ export default function TrainingPeaksImport({ onClose, onComplete }) {
           />
           <input ref={csvRef} type="file" accept=".csv" style={{ display: "none" }}
             onChange={e => { const f = e.target.files[0]; if (f && validateCsv(f)) { setCsvFile(f); setError(null); } }} />
+        </div>
+
+        {/* Metrics CSV drop zone */}
+        <div style={{ marginTop: 10 }}>
+          <DropZone
+            dragging={draggingMetrics}
+            file={metricsCsvFile}
+            onDragOver={e => { e.preventDefault(); setDraggingMetrics(true); }}
+            onDragLeave={e => { e.preventDefault(); setDraggingMetrics(false); }}
+            onDrop={e => {
+              e.preventDefault();
+              setDraggingMetrics(false);
+              const f = e.dataTransfer.files[0];
+              if (f && validateCsv(f)) { setMetricsCsvFile(f); setError(null); }
+            }}
+            onClick={() => metricsRef.current?.click()}
+            icon={<FileText size={20} color={T.blue} />}
+            label="Metrics CSV"
+            hint="Optional — imports daily RHR, sleep, fatigue, stress"
+            fileLabel={metricsCsvFile ? `${metricsCsvFile.name} (${(metricsCsvFile.size / 1024).toFixed(0)} KB)` : null}
+            optional
+            accent={T.blue}
+          />
+          <input ref={metricsRef} type="file" accept=".csv" style={{ display: "none" }}
+            onChange={e => { const f = e.target.files[0]; if (f && validateCsv(f)) { setMetricsCsvFile(f); setError(null); } }} />
         </div>
       </div>
 

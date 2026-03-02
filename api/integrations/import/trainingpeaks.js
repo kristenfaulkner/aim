@@ -30,7 +30,7 @@ export default async function handler(req, res) {
   if (!session) return res.status(401).json({ error: "Unauthorized" });
 
   try {
-    const { zipPath, csvData } = req.body || {};
+    const { zipPath, csvData, metricsCsvData } = req.body || {};
     if (!zipPath) return res.status(400).json({ error: "Missing zipPath" });
 
     // 1. Download ZIP from Supabase Storage
@@ -62,6 +62,17 @@ export default async function handler(req, res) {
         csvRows = csvParse(csvText, { columns: true, skip_empty_lines: true, relax_column_count: true });
       } catch (csvErr) {
         console.error("CSV parse error (non-fatal):", csvErr.message);
+      }
+    }
+
+    // 3b. Parse optional metrics CSV for daily metrics
+    let metricsCsvRows = [];
+    if (metricsCsvData) {
+      try {
+        const metricsText = Buffer.from(metricsCsvData, "base64").toString("utf-8");
+        metricsCsvRows = csvParse(metricsText, { columns: true, skip_empty_lines: true, relax_column_count: true });
+      } catch (csvErr) {
+        console.error("Metrics CSV parse error (non-fatal):", csvErr.message);
       }
     }
 
@@ -296,6 +307,11 @@ export default async function handler(req, res) {
       await updateBodyWeightFromCsv(session.userId, csvRows);
     }
 
+    // 7b. Import daily metrics from metrics CSV
+    if (metricsCsvRows.length > 0) {
+      await importDailyMetricsFromCsv(session.userId, metricsCsvRows);
+    }
+
     // 8. Create/update integration record
     await supabaseAdmin.from("integrations").upsert({
       user_id: session.userId,
@@ -421,6 +437,88 @@ function cleanFilename(name) {
     .replace(/\.fit$/i, "")  // strip extension
     .replace(/_/g, " ")      // underscores to spaces
     .replace(/\b\w/g, c => c.toUpperCase()); // title case
+}
+
+/**
+ * Import daily metrics from TrainingPeaks metrics CSV.
+ * The CSV has a pivoted format: each row is (Timestamp, Type, Value).
+ * We group by date and upsert into daily_metrics.
+ */
+async function importDailyMetricsFromCsv(userId, rows) {
+  // Group rows by date
+  const byDate = {};
+  for (const row of rows) {
+    const ts = row.Timestamp || row.timestamp;
+    const type = row.Type || row.type;
+    const value = row.Value || row.value;
+    if (!ts || !type || value == null || value === "") continue;
+
+    const date = ts.split(" ")[0]; // "2025-03-02 06:15:00" → "2025-03-02"
+    if (!byDate[date]) byDate[date] = {};
+
+    const num = parseFloat(value);
+    switch (type) {
+      case "Weight Pounds":
+        if (!isNaN(num) && num > 50 && num < 400) byDate[date].weight_kg = Math.round(num * 0.453592 * 10) / 10;
+        break;
+      case "Pulse":
+        if (!isNaN(num) && num > 20 && num < 220) byDate[date].resting_hr_bpm = Math.round(num);
+        break;
+      case "HRV":
+        if (!isNaN(num) && num > 0 && num < 300) byDate[date].hrv_ms = Math.round(num * 10) / 10;
+        break;
+      case "Sleep Hours":
+        if (!isNaN(num) && num > 0 && num < 24) byDate[date].total_sleep_seconds = Math.round(num * 3600);
+        break;
+      case "Time In Deep Sleep":
+        if (!isNaN(num) && num >= 0) byDate[date].deep_sleep_seconds = Math.round(num * 3600);
+        break;
+      case "Time In REM Sleep":
+        if (!isNaN(num) && num >= 0) byDate[date].rem_sleep_seconds = Math.round(num * 3600);
+        break;
+      case "Time In Light Sleep":
+        if (!isNaN(num) && num >= 0) byDate[date].light_sleep_seconds = Math.round(num * 3600);
+        break;
+      case "SPO2":
+        if (!isNaN(num) && num > 50 && num <= 100) byDate[date].blood_oxygen_pct = Math.round(num);
+        break;
+      case "Percent Fat":
+        if (!isNaN(num) && num > 1 && num < 60) byDate[date].body_fat_pct = Math.round(num * 10) / 10;
+        break;
+      case "Notes":
+        // Parse Whoop recovery score from notes like "WHOOP Recovery Score: 51"
+        const whoopMatch = String(value).match(/WHOOP Recovery Score:\s*(\d+)/i);
+        if (whoopMatch) byDate[date].recovery_score = parseInt(whoopMatch[1], 10);
+        break;
+    }
+  }
+
+  // Upsert each date's metrics
+  const dates = Object.keys(byDate).sort();
+  for (const date of dates) {
+    const metrics = byDate[date];
+    if (Object.keys(metrics).length === 0) continue;
+
+    const { data: existing } = await supabaseAdmin
+      .from("daily_metrics")
+      .select("id, weight_kg, resting_hr_bpm, hrv_ms, total_sleep_seconds, recovery_score")
+      .eq("user_id", userId)
+      .eq("date", date)
+      .single();
+
+    if (existing) {
+      // Only fill in fields that are currently null (don't overwrite data from Oura/Whoop/EightSleep)
+      const updates = {};
+      for (const [key, val] of Object.entries(metrics)) {
+        if (existing[key] == null) updates[key] = val;
+      }
+      if (Object.keys(updates).length > 0) {
+        await supabaseAdmin.from("daily_metrics").update(updates).eq("id", existing.id);
+      }
+    } else {
+      await supabaseAdmin.from("daily_metrics").insert({ user_id: userId, date, ...metrics });
+    }
+  }
 }
 
 /**
