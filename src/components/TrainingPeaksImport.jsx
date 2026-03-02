@@ -211,7 +211,7 @@ export default function TrainingPeaksImport({ onClose, onComplete }) {
               trainingpeaks.com <ExternalLink size={10} style={{ verticalAlign: "middle" }} />
             </a>
           </div>
-          <div>2. Go to <strong style={{ color: T.text }}>Account Settings</strong></div>
+          <div>2. Go to <strong style={{ color: T.text }}>Settings</strong></div>
           <div>3. Select <strong style={{ color: T.text }}>Export Data</strong> from the menu</div>
           <div>4. Under Workout Files, choose your date range (e.g., one year)</div>
           <div>5. Click <strong style={{ color: T.text }}>Export</strong> to download a ZIP folder with your .FIT files</div>
