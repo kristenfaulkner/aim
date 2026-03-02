@@ -9,7 +9,8 @@ import { useResponsive } from "../hooks/useResponsive";
 import { supabase } from "../lib/supabase";
 import AIPanel from "../components/dashboard/AIPanel";
 import SEO from "../components/SEO";
-import { LogOut, Settings, Menu, X, Search, Calendar, ChevronDown, User } from "lucide-react";
+import { LogOut, Settings, Menu, X, Search, Calendar, ChevronDown, User, Sparkles } from "lucide-react";
+import { apiFetch } from "../lib/api";
 
 // ── Constants ──
 
@@ -347,6 +348,31 @@ export default function Workouts() {
 
   const handleSignout = async () => { await signout(); navigate("/"); };
 
+  // ── Backfill AI Analysis ──
+  const [backfillRunning, setBackfillRunning] = useState(false);
+  const [backfillProgress, setBackfillProgress] = useState(null); // { processed, remaining }
+
+  const runBackfill = useCallback(async () => {
+    setBackfillRunning(true);
+    setBackfillProgress({ processed: 0, remaining: null });
+    let totalProcessed = 0;
+    let remaining = Infinity;
+    try {
+      while (remaining > 0) {
+        const data = await apiFetch("/api/activities/backfill-analysis?limit=5", { method: "POST" });
+        totalProcessed += data.processed;
+        remaining = data.remaining;
+        setBackfillProgress({ processed: totalProcessed, remaining });
+        if (data.processed === 0 && data.failed === 0) break;
+      }
+      setBackfillProgress({ processed: totalProcessed, remaining: 0 });
+    } catch {
+      setBackfillProgress(prev => ({ ...prev, error: true }));
+    } finally {
+      setBackfillRunning(false);
+    }
+  }, []);
+
   // ── Filter UI ──
   const currentYear = new Date().getFullYear();
   const yearOptions = [];
@@ -365,12 +391,40 @@ export default function Workouts() {
 
       <div style={{ maxWidth: 1400, margin: "0 auto", padding: isMobile ? 16 : "20px 24px" }}>
         {/* Header */}
-        <div style={{ marginBottom: 16 }}>
-          <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, margin: 0, letterSpacing: "-0.02em" }}>
-            <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Activities</span>
-          </h1>
-          <p style={{ fontSize: 13, color: T.textSoft, margin: "4px 0 0" }}>Browse all activities with AI-powered analysis</p>
+        <div style={{ marginBottom: 16, display: "flex", alignItems: isMobile ? "flex-start" : "center", justifyContent: "space-between", flexDirection: isMobile ? "column" : "row", gap: 10 }}>
+          <div>
+            <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, margin: 0, letterSpacing: "-0.02em" }}>
+              <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Activities</span>
+            </h1>
+            <p style={{ fontSize: 13, color: T.textSoft, margin: "4px 0 0" }}>Browse all activities with AI-powered analysis</p>
+          </div>
+          {!backfillRunning && backfillProgress?.remaining !== 0 && (
+            <button
+              onClick={runBackfill}
+              style={{
+                background: T.gradient, border: "none", borderRadius: 8,
+                padding: "8px 14px", fontSize: 11, fontWeight: 600,
+                color: T.white, cursor: "pointer", fontFamily: font,
+                display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap",
+              }}
+            >
+              <Sparkles size={13} /> Generate All AI Analyses
+            </button>
+          )}
+          {backfillRunning && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: T.accent, fontWeight: 600 }}>
+              <div style={{ width: 14, height: 14, border: `2px solid ${T.accent}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+              Analyzing... {backfillProgress?.processed || 0} done
+              {backfillProgress?.remaining != null ? `, ${backfillProgress.remaining} remaining` : ""}
+            </div>
+          )}
+          {!backfillRunning && backfillProgress?.remaining === 0 && (
+            <div style={{ fontSize: 11, color: T.accent, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}>
+              All activities analyzed
+            </div>
+          )}
         </div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
         {/* Two-Column Layout */}
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 380px", gap: 20, alignItems: "start" }}>
