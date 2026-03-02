@@ -253,39 +253,54 @@ function AIAnalysisPanel({ aiAnalysis, activity, profile, dailyMetrics, computed
   const [isTyping, setIsTyping] = useState(false);
   const chatRef = useRef(null);
 
-  // Parse AI analysis into structured insights, or show placeholder
-  const analysisInsights = useMemo(() => {
+  // Parse AI analysis into structured insights, summary, and data gaps
+  const parsedAnalysis = useMemo(() => {
     if (aiAnalysis && typeof aiAnalysis === "object" && Array.isArray(aiAnalysis.insights)) {
-      return aiAnalysis.insights;
+      return aiAnalysis;
     }
     if (aiAnalysis && typeof aiAnalysis === "string") {
       try {
         const parsed = JSON.parse(aiAnalysis);
-        if (Array.isArray(parsed.insights)) return parsed.insights;
+        if (Array.isArray(parsed.insights)) return parsed;
       } catch { /* not JSON */ }
       // Plain text analysis — wrap as single insight
-      return [{
-        type: "insight", icon: "\u2726", category: "performance",
-        title: "AI Analysis",
-        body: aiAnalysis,
-        confidence: "high",
-      }];
+      return {
+        summary: null,
+        insights: [{
+          type: "insight", icon: "\u2726", category: "performance",
+          title: "AI Analysis",
+          body: aiAnalysis,
+          confidence: "high",
+        }],
+        dataGaps: [],
+      };
     }
-    return null; // No analysis available
+    return null;
   }, [aiAnalysis]);
+
+  const analysisInsights = parsedAnalysis?.insights || null;
+  const analysisSummary = parsedAnalysis?.summary || null;
+  const dataGaps = parsedAnalysis?.dataGaps || [];
 
   const [insightFilter, setInsightFilter] = useState("all");
   const filteredInsights = !analysisInsights ? [] :
     insightFilter === "all" ? analysisInsights :
     analysisInsights.filter(i => i.category === insightFilter);
 
-  const insightCategories = analysisInsights ? [
-    { id: "all", label: "All", count: analysisInsights.length },
-    { id: "performance", label: "Benchmarks", count: analysisInsights.filter(i => i.category === "performance").length },
-    { id: "body", label: "Body Comp", count: analysisInsights.filter(i => i.category === "body").length },
-    { id: "recovery", label: "Recovery", count: analysisInsights.filter(i => i.category === "recovery").length },
-    { id: "training", label: "Training", count: analysisInsights.filter(i => i.category === "training").length },
-  ].filter(c => c.id === "all" || c.count > 0) : [];
+  const allCategories = [
+    { id: "all", label: "All" },
+    { id: "performance", label: "Performance" },
+    { id: "body", label: "Body Comp" },
+    { id: "recovery", label: "Recovery" },
+    { id: "training", label: "Training" },
+    { id: "nutrition", label: "Nutrition" },
+    { id: "environment", label: "Environment" },
+    { id: "health", label: "Health" },
+  ];
+  const insightCategories = analysisInsights ? allCategories.map(c => ({
+    ...c,
+    count: c.id === "all" ? analysisInsights.length : analysisInsights.filter(i => i.category === c.id).length,
+  })).filter(c => c.id === "all" || c.count > 0) : [];
 
   const handleSendChat = () => {
     if (!chatInput.trim()) return;
@@ -347,6 +362,13 @@ function AIAnalysisPanel({ aiAnalysis, activity, profile, dailyMetrics, computed
                   Post-Ride Analysis {activity?.started_at ? `\u00B7 ${new Date(activity.started_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}
                 </div>
 
+                {/* AI Summary */}
+                {analysisSummary && (
+                  <div style={{ fontSize: 12, color: T.text, lineHeight: 1.6, padding: "10px 14px", background: T.bg, borderRadius: 10, borderLeft: `3px solid ${T.accent}` }}>
+                    {analysisSummary}
+                  </div>
+                )}
+
                 {/* Recovery alert banner (if dailyMetrics available) */}
                 {dailyMetrics?.hrv_ms && dailyMetrics.hrv_ms < 50 && (
                   <div style={{ background: `linear-gradient(135deg, ${T.danger}12, ${T.warn}08)`, border: `1px solid ${T.danger}25`, borderRadius: 12, padding: "10px 14px", display: "flex", alignItems: "center", gap: 10 }}>
@@ -388,6 +410,19 @@ function AIAnalysisPanel({ aiAnalysis, activity, profile, dailyMetrics, computed
                     <div style={{ fontSize: 11, lineHeight: 1.6, color: T.textSoft }}>{insight.body}</div>
                   </div>
                 ))}
+
+                {/* Data Gap Suggestions — drive integration adoption */}
+                {dataGaps.length > 0 && insightFilter === "all" && (
+                  <div style={{ marginTop: 4 }}>
+                    <div style={{ fontSize: 10, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Unlock More Insights</div>
+                    {dataGaps.map((gap, i) => (
+                      <div key={i} style={{ background: T.bg, borderRadius: 10, padding: "10px 14px", marginBottom: 6, borderLeft: `3px solid ${T.blue}30`, display: "flex", alignItems: "flex-start", gap: 8 }}>
+                        <span style={{ fontSize: 12, flexShrink: 0, marginTop: 1 }}>{"\uD83D\uDD17"}</span>
+                        <div style={{ fontSize: 11, lineHeight: 1.5, color: T.textSoft }}>{gap}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </>
             )}
           </div>
