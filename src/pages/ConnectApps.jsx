@@ -38,7 +38,8 @@ function AppCard({ app, isConnected, onToggle }) {
   const isFileImport = !!FILE_IMPORT_APPS[app.name];
   const isConnectable = isOAuth || isCredential || isFileImport;
   const isUnavailable = !!app.note;
-  const showDisconnect = isConnected && isConnectable && hover;
+  const showDisconnect = isConnected && isConnectable && hover && !isFileImport;
+  const showUploadMore = isConnected && isFileImport && hover;
 
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", background: isConnected ? "rgba(0,229,160,0.04)" : T.card, border: `1px solid ${isConnected ? "rgba(0,229,160,0.2)" : T.border}`, borderRadius: 14, transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)" }}
@@ -59,13 +60,13 @@ function AppCard({ app, isConnected, onToggle }) {
         onMouseLeave={() => setHover(false)}
         style={{
           padding: "8px 20px", borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: isUnavailable ? "not-allowed" : "pointer",
-          background: showDisconnect ? "rgba(239,68,68,0.08)" : isConnected ? "rgba(0,229,160,0.12)" : isUnavailable ? T.surface : T.accentDim,
-          border: `1px solid ${showDisconnect ? "rgba(239,68,68,0.2)" : isConnected ? "rgba(0,229,160,0.3)" : isUnavailable ? T.border : T.accentMid}`,
-          color: showDisconnect ? "#ef4444" : isConnected ? T.accent : isUnavailable ? T.textDim : T.accent,
+          background: showDisconnect ? "rgba(239,68,68,0.08)" : showUploadMore ? T.accentDim : isConnected ? "rgba(0,229,160,0.12)" : isUnavailable ? T.surface : T.accentDim,
+          border: `1px solid ${showDisconnect ? "rgba(239,68,68,0.2)" : showUploadMore ? T.accentMid : isConnected ? "rgba(0,229,160,0.3)" : isUnavailable ? T.border : T.accentMid}`,
+          color: showDisconnect ? "#ef4444" : showUploadMore ? T.accent : isConnected ? T.accent : isUnavailable ? T.textDim : T.accent,
           fontFamily: font, transition: "all 0.2s", display: "flex", alignItems: "center", gap: 6,
           opacity: isUnavailable ? 0.5 : 1,
         }}>
-        {showDisconnect ? "Disconnect" : isConnected ? <><Check size={14} /> Connected</> : isUnavailable ? "Soon" : isFileImport ? "Import" : isConnectable ? "Connect" : "Connect"}
+        {showDisconnect ? "Disconnect" : showUploadMore ? "Upload More Files" : isConnected ? <><Check size={14} /> Connected</> : isUnavailable ? "Soon" : isFileImport ? "Import" : isConnectable ? "Connect" : "Connect"}
       </button>
     </div>
   );
@@ -163,30 +164,9 @@ export default function ConnectApps() {
     const isFileImport = !!FILE_IMPORT_APPS[name];
     const isCurrentlyConnected = !!connected[name];
 
-    // File import apps: open import modal
-    if (isFileImport && !isCurrentlyConnected) {
+    // File import apps: always open import modal (whether connected or not)
+    if (isFileImport) {
       setShowImportModal(name);
-      return;
-    }
-
-    // File import apps: disconnect
-    if (isFileImport && isCurrentlyConnected) {
-      const provider = NAME_TO_PROVIDER[name];
-      if (!provider) return;
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        await fetch("/api/user/disconnect", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
-          body: JSON.stringify({ provider }),
-        });
-        setConnected(prev => ({ ...prev, [name]: false }));
-        setToast(`${name} disconnected`);
-        setTimeout(() => setToast(""), 3000);
-      } catch {
-        setToast("Failed to disconnect");
-        setTimeout(() => setToast(""), 3000);
-      }
       return;
     }
 
