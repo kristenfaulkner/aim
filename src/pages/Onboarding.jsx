@@ -4,6 +4,7 @@ import { T, font } from "../theme/tokens";
 import { btn, inputStyle } from "../theme/styles";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabase";
+import { computePowerZones, computeHRZones } from "../lib/zones";
 import { ArrowRight, Loader2 } from "lucide-react";
 
 const RIDING_LEVELS = ["Recreational", "Competitive", "Professional"];
@@ -34,9 +35,12 @@ export default function Onboarding() {
     weight: "",
     riding_level: "",
     weekly_hours: "",
+    max_hr: "",
+    ftp: "",
     uses_cycle_tracking: false,
     hormonal_contraception: "",
   });
+  const [showFtpTooltip, setShowFtpTooltip] = useState(false);
 
   const set = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
 
@@ -68,6 +72,9 @@ export default function Onboarding() {
         if (insertErr) throw insertErr;
       }
 
+      const ftpVal = form.ftp ? parseInt(form.ftp) : null;
+      const maxHrVal = form.max_hr ? parseInt(form.max_hr) : null;
+
       await updateProfile({
         full_name: form.full_name.trim(),
         date_of_birth: form.date_of_birth,
@@ -76,6 +83,10 @@ export default function Onboarding() {
         weight_kg: toMetric(form.units, "weight", form.weight),
         riding_level: form.riding_level.toLowerCase(),
         weekly_hours: form.weekly_hours,
+        max_hr_bpm: maxHrVal,
+        ftp_watts: ftpVal,
+        power_zones: computePowerZones(ftpVal),
+        hr_zones: computeHRZones(maxHrVal),
         uses_cycle_tracking: form.uses_cycle_tracking,
         hormonal_contraception: form.hormonal_contraception || null,
         onboarding_completed: true,
@@ -192,6 +203,31 @@ export default function Onboarding() {
                 {label("Weekly Training Hours")}
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {WEEKLY_HOURS.map(h => selectBtn(`${h} hrs`, form.weekly_hours === h, () => set("weekly_hours", h)))}
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: 16 }}>
+                <div style={{ flex: 1 }}>
+                  {label("Max Heart Rate (bpm)")}
+                  <input type="number" value={form.max_hr} onChange={e => set("max_hr", e.target.value)} placeholder="185" style={{ ...inputStyle, paddingLeft: 16 }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: T.textSoft, display: "flex", alignItems: "center", gap: 4, marginBottom: 6 }}>
+                    FTP (watts)
+                    <span
+                      onMouseEnter={() => setShowFtpTooltip(true)}
+                      onMouseLeave={() => setShowFtpTooltip(false)}
+                      style={{ position: "relative", cursor: "help", display: "inline-flex", alignItems: "center", justifyContent: "center", width: 16, height: 16, borderRadius: "50%", background: T.border, fontSize: 10, fontWeight: 700, color: T.textDim }}
+                    >
+                      ?
+                      {showFtpTooltip && (
+                        <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)", width: 240, padding: "10px 12px", background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, fontSize: 12, fontWeight: 400, color: T.textSoft, lineHeight: 1.5, zIndex: 10, pointerEvents: "none", textAlign: "left" }}>
+                          Functional Threshold Power — estimated as 95% of your best 20-minute average power.
+                        </div>
+                      )}
+                    </span>
+                  </label>
+                  <input type="number" value={form.ftp} onChange={e => set("ftp", e.target.value)} placeholder="250" style={{ ...inputStyle, paddingLeft: 16 }} />
                 </div>
               </div>
 

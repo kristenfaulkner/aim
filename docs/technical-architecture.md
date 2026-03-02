@@ -561,9 +561,320 @@ For each integration below, search the web for and read the official API documen
 - [ ] Workout plan export to TrainingPeaks / Garmin / Wahoo as structured workout files
 - [ ] Coach sharing (athlete shares read-only dashboard access with their coach via invite link)
 - [ ] Community benchmarks from anonymized user data (percentile curves by age, sex, weight)
-- [ ] Weekly insight digest email via Resend (top insights, training summary, recommendations)
-- [ ] Monthly progress report email (FTP trend, fitness gains, body comp changes)
 - [ ] Mobile app (React Native, reusing components and design system)
+
+---
+
+### Task 26: Race Calendar & Periodization Planner
+The race calendar is foundational — it unlocks proactive AI (taper recommendations, peak predictions, race-day projections) instead of purely reactive analysis.
+- [ ] Create `races` table (user_id, name, date, location, distance, elevation, priority A/B/C, course_url, target_time, target_power, notes)
+- [ ] Build Race Calendar page with timeline view showing upcoming events
+- [ ] Allow adding/editing/deleting races with priority classification (A = peak race, B = important, C = tune-up)
+- [ ] AI auto-generates taper protocol based on race priority, current CTL/ATL/TSB, and days until event
+- [ ] Race-day predictions: projected FTP, W/kg, finish time (using VAM + weight + gradient for climbing events)
+- [ ] Countdown cards on dashboard for upcoming A-priority races showing readiness trajectory
+- [ ] Historical race results tracking — store actual results to improve future predictions
+- [ ] Feed race calendar into all AI analysis contexts so insights reference upcoming events ("Your race is in 18 days — begin taper in ~4 days")
+
+### Task 27: Season Planner / Annual Training Plan
+Visual periodization planning that replaces what coaches charge $300+/month for.
+- [ ] Create `training_blocks` table (user_id, name, type [base/build/peak/recovery/transition], start_date, end_date, target_hours, target_tss, notes)
+- [ ] Build Season Planner page with visual timeline (horizontal bar chart of blocks mapped to race calendar)
+- [ ] AI suggests block structure based on: goal races, available weekly hours, historical training response patterns
+- [ ] Each block has target metrics: weekly hours, weekly TSS, intensity distribution (% Z1-Z7)
+- [ ] Drag-and-drop block editing on the timeline
+- [ ] Show actual vs planned overlay (did you hit the prescribed volume/intensity?)
+- [ ] Auto-insert recovery weeks (every 3rd or 4th week based on athlete's historical recovery patterns)
+- [ ] Link to race calendar — blocks auto-align to peak for A-priority events
+
+### Task 28: Morning Check-in
+Subjective data + objective wearable data together are far more predictive than either alone.
+- [ ] Build morning check-in modal/page — appears on dashboard if not yet completed today
+- [ ] Quick 30-second survey: fatigue (1-5), motivation (1-5), muscle soreness (1-5), mood (1-5), sleep quality subjective (1-5), any injury/pain (body map or text), menstrual phase (if opted in)
+- [ ] Store in `daily_checkins` table (user_id, date, fatigue, motivation, soreness, mood, sleep_quality, injury_notes, cycle_day_manual, notes)
+- [ ] Blend subjective scores into the readiness score algorithm (subjective fatigue + objective HRV is the gold standard)
+- [ ] AI references check-in data in daily summary ("You reported high soreness despite good HRV — likely delayed onset from Sunday's long ride")
+- [ ] Track subjective vs objective trends over time (does the athlete's perceived fatigue match their HRV? Mismatches are informative)
+- [ ] Optional: quick free-text note field for anything else ("Traveled yesterday", "Stressful work week", "New saddle")
+
+### Task 29: Smart Alerts & Notifications
+Without alerts, users must remember to check the dashboard. Alerts make AIM proactive.
+- [ ] Create `alerts` table (user_id, type, severity [info/warning/critical], title, body, data JSONB, read BOOLEAN, created_at)
+- [ ] Build notification center in the app header (bell icon with unread count)
+- [ ] Notification feed page showing all alerts with filters
+- [ ] Implement alert triggers (server-side, checked during sync and daily summary):
+  - HRV declining 3+ consecutive days
+  - Ramp rate exceeds 7 TSS/week overtraining threshold
+  - Race countdown milestones (30 days, 14 days, 7 days — with taper reminders)
+  - Biomarker trending below athlete-optimal (ferritin <50, vitamin D <40, etc.)
+  - Sleep debt accumulating (3-night avg below personal baseline)
+  - New personal best at any power duration
+  - Booster protocol compliance falling below 70%
+  - Recovery score in red zone for 3+ consecutive days
+- [ ] Push notifications via web push API (opt-in)
+- [ ] Email notification digests via Resend (configurable: immediate for critical, daily digest for info)
+- [ ] Notification preferences in Settings (per-alert-type toggle for in-app, push, email)
+
+### Task 30: Power Duration Curve Explorer
+The single most-requested feature in every cycling analytics tool. AIM's version adds cross-domain context.
+- [ ] Build Power Curve page with interactive chart (x-axis: duration log scale 5s→60m, y-axis: watts and W/kg)
+- [ ] Time period overlays: compare current 90-day vs previous 90-day, this year vs last year, or any custom date range
+- [ ] Filter by conditions: indoor/outdoor, temperature range, altitude, activity type
+- [ ] Coggan classification overlay showing Cat 5 → World Tour bands at each duration
+- [ ] Highlight the "weakest link" duration where classification drops relative to others
+- [ ] Show when each best effort occurred (date, activity name) — clickable to navigate to that activity
+- [ ] AI-generated power profile summary: strengths, limiters, recommended training focus
+- [ ] Track power curve progression over time (animated or slider showing how the curve has shifted month by month)
+
+### Task 31: Goal Setting & Progress Tracking
+Specific, measurable targets with AI-projected timelines give users a reason to check AIM daily.
+- [ ] Create `goals` table (user_id, type [ftp/weight/ctl/race_time/custom], target_value, target_date, current_value, status [active/achieved/abandoned], created_at)
+- [ ] Build Goals section on dashboard with progress bars and projected completion dates
+- [ ] Goal types: FTP target (e.g., 320W by June), race weight (85kg by race day), CTL target (90 by season peak), race time (sub-40 min hillclimb)
+- [ ] AI projects timeline based on current trajectory: "At your current rate, you'll hit 320W FTP by May 12"
+- [ ] Auto-update current values from synced data (FTP from power profile, weight from Withings, CTL from daily_metrics)
+- [ ] Alert when a goal is achieved or when trajectory shows goal is at risk
+- [ ] Historical goal tracking — see past goals and whether they were hit
+
+### Task 32: Weekly & Monthly Reports
+Auto-generated reports keep users engaged even when they don't open the app daily.
+- [ ] Create weekly report generation (scheduled Edge Function, runs Monday morning):
+  - Training summary: hours, TSS, distance, elevation, number of activities
+  - Key metrics trend: CTL/ATL/TSB change, FTP estimate, weight change
+  - Top 3 AI insights of the week (cross-domain patterns detected)
+  - Recovery trend: avg HRV, avg sleep score, readiness distribution
+  - Booster compliance summary
+  - Goal progress update
+  - One-line AI recommendation for the coming week
+- [ ] Create monthly report generation (runs 1st of each month):
+  - Month-over-month comparisons for all key metrics
+  - Power curve changes (gains/losses at each duration)
+  - Body composition trend (if Withings/DEXA connected)
+  - Blood work changes (if panels uploaded)
+  - FTP/CTL progression chart
+  - Year-over-year comparison for the same month
+- [ ] Build in-app report viewer (paginated, shareable)
+- [ ] Email reports via Resend (weekly digest, monthly summary — configurable in Settings)
+- [ ] PDF export option for sharing with coaches
+
+### Task 33: Equipment Tracker
+Track gear mileage and correlate equipment changes with performance.
+- [ ] Create `equipment` table (user_id, name, type [bike/wheelset/shoes/helmet/other], brand, model, purchase_date, retired_date, notes, components JSONB)
+- [ ] Create `equipment_usage` table (equipment_id, activity_id) — link equipment to activities
+- [ ] Build Equipment page: list of bikes/gear with total distance, hours, and activity count
+- [ ] Component tracking with replacement alerts: chain (every 3,000-5,000km), tires (every 5,000-8,000km), brake pads, cassette, bar tape
+- [ ] Allow tagging activities with which bike/equipment was used (default bike auto-assigned)
+- [ ] AI correlates equipment changes with performance: "Your EF improved 4% since the bike fit on March 2" or "NP is 3% higher on the Tarmac vs the Roubaix on comparable routes"
+- [ ] Maintenance reminders in the alerts system
+- [ ] Cost tracking (optional) — total cost of ownership per bike
+
+### Task 34: Route & Segment Intelligence
+Predict power requirements for routes and segments based on the athlete's current fitness and conditions.
+- [ ] Build Route Intelligence widget (input: Strava segment or route URL, or manual gradient/distance)
+- [ ] Predict power requirements: given gradient + projected weight + rolling resistance + CdA estimate → watts needed for target speed/time
+- [ ] "What-if" calculator: "At your current FTP and weight, your estimated time for Hawk Hill is 8:42. At race weight (85kg), it drops to 8:21"
+- [ ] Weather-aware predictions: pull forecast for upcoming rides and adjust estimates for temperature, wind, altitude
+- [ ] Historical segment tracking: show PR progression on frequently ridden segments
+- [ ] Pre-ride briefing: for a planned route, generate an AI summary with pacing strategy, fueling plan, and key effort points based on elevation profile
+- [ ] Compare predicted vs actual after completing the route
+
+### Task 35: Activity Comparison Tool
+Side-by-side comparison reveals what changed and why between similar efforts.
+- [ ] Build comparison view: select two activities to compare side-by-side
+- [ ] Show delta for all key metrics: NP, avg HR, EF, TSS, cadence, time, speed, elevation
+- [ ] Overlay power curves from both activities
+- [ ] Overlay HR and power streams on a shared timeline (if same route) or by elapsed time
+- [ ] AI-generated comparison summary: "Your NP was 12W higher on the same route with 3bpm lower HR. Key differences: 2 extra hours of deep sleep, HRV 15ms higher, and 0.8kg lighter. Your aerobic efficiency is clearly improving."
+- [ ] Quick-select common comparisons: same route different dates, same week last year, best vs worst effort at similar TSS
+- [ ] Filterable activity picker with search by name, date range, route
+
+### Task 36: Training Camp Mode
+Specialized tracking for multi-day training blocks and camp weeks.
+- [ ] Build Training Camp mode toggle (manually activated, sets start/end dates)
+- [ ] Camp dashboard view: cumulative TSS, hours, distance, elevation across all camp days
+- [ ] Daily recovery tracking with adjusted thresholds (expect lower HRV/recovery during camp — alert only on extreme drops)
+- [ ] Fueling recommendations: increased carb targets based on cumulative load, hydration targets based on temperature
+- [ ] AI generates camp summary at the end: total load absorbed, key adaptations expected, recommended recovery timeline
+- [ ] Sleep priority alerts: "You've accumulated 1,200 TSS in 4 days — tonight's sleep is critical. Set EightSleep to -5°C, lights out by 9:30 PM"
+- [ ] Post-camp recovery monitor: track how long until HRV/CTL/performance metrics return to baseline
+
+### Task 37: Export & Share
+Let athletes share their data and insights with coaches and on social media.
+- [ ] Export activity analysis as shareable image (branded AIM card with key metrics + AI summary)
+- [ ] Share single activity via public link (read-only, no auth required, expiring link option)
+- [ ] PDF report generation for coach sharing (activity detail, weekly summary, or monthly report)
+- [ ] Export raw data as CSV (activities, daily metrics, power profile history)
+- [ ] Social media optimized cards (Instagram story size, Twitter card) with key metrics and branding
+- [ ] Coach export: selected date range of activities + metrics + AI insights as a structured PDF
+
+### Task 38: Travel & Jet Lag Mode
+Help athletes manage performance around travel and timezone changes.
+- [ ] Build Travel Mode toggle with origin/destination timezone input and travel dates
+- [ ] Calculate circadian disruption: hours of timezone shift, direction (east harder than west), expected adjustment time (~1 day per hour of shift)
+- [ ] AI-generated adaptation protocol:
+  - Pre-travel: shift sleep schedule 30-60 min/day toward destination timezone
+  - Light exposure timing recommendations (morning light to advance, evening light to delay)
+  - Meal timing adjustments to reset peripheral clocks
+  - Training intensity recommendations during adjustment (reduce intensity for 1 day per hour of shift)
+- [ ] Adjust readiness score expectations during travel recovery period (suppress false "red" alerts)
+- [ ] Track actual adaptation via sleep onset time and HRV recovery
+- [ ] Race-travel planner: "Arrive 3 days early for a 3-hour eastward shift" with day-by-day protocol
+
+### Task 39: Workout Library & Push-to-Device
+A structured workout library paired with the training prescription engine, with device sync.
+- [ ] Create `workouts` table (id, name, description, type [intervals/tempo/endurance/sprint/recovery], duration_minutes, tss_estimate, zone_targets JSONB, steps JSONB, tags, source [ai_generated/library/custom])
+- [ ] Build Workout Library page: searchable/filterable catalog of structured workouts
+- [ ] Include standard workouts: Norwegian 4×4, 30/30 VO2, over/unders, sweet spot 2×20, sprint repeats, endurance Z2, recovery spin
+- [ ] Each workout shows: description, target zones, estimated TSS, duration, and which power profile weakness it addresses
+- [ ] AI-generated custom workouts from the training prescription engine feed into this library
+- [ ] Export as .FIT or .ZWO workout file for Wahoo/Garmin/Zwift head units
+- [ ] Push-to-device via Wahoo/Garmin APIs (if device integration supports it)
+- [ ] User can create custom workouts with interval builder (drag-and-drop steps: warmup, work, rest, cooldown)
+- [ ] Track workout compliance: planned workout vs actual ride metrics comparison
+
+---
+
+## VEKTA-INSPIRED FEATURES
+
+*Features identified from competitive analysis of [Vekta](https://joinvekta.com/), the AI-powered coaching platform used by WorldTour teams (Lidl-Trek, Jayco AlUla, FDJ-SUEZ, etc.). Ranked by importance to AIM's differentiation and implementation difficulty.*
+
+### Task 40: Critical Power (CP) & W' Modeling — ★★★★★ Importance / ★★★ Difficulty
+Replace single-point FTP with a 3-dimensional power model used by WorldTour teams. This is Vekta's core differentiator and the direction elite cycling analytics is moving. AIM should match and exceed this by cross-referencing CP/W' with recovery, sleep, and body comp data.
+- [ ] Implement Critical Power (CP) calculation from power-duration curve fitting (hyperbolic model: P = W'/t + CP)
+- [ ] Calculate W' (Available Work Capacity) — the finite anaerobic energy reserve above CP, measured in joules (kJ)
+- [ ] Calculate Pmax (peak 1-second power) — neuromuscular/sprint capacity
+- [ ] Build power-duration curve fitting from all historical best efforts (5s, 15s, 30s, 1m, 2m, 3m, 5m, 8m, 12m, 20m, 30m, 60m)
+- [ ] Auto-update CP/W'/Pmax continuously as new best efforts are recorded (no formal test required)
+- [ ] Optional structured CP test protocol: 15-second sprint + 3-minute effort + 12-minute effort for baseline
+- [ ] Store in `power_profiles` table alongside existing FTP-based metrics (add cp_watts, w_prime_kj, pmax_watts columns)
+- [ ] Display CP model on dashboard: 3-panel view showing CP (aerobic ceiling), W' (anaerobic reserve), Pmax (sprint)
+- [ ] AI uses CP/W' in analysis: "Two riders with identical FTP can have dramatically different W' — yours is 18kJ, which limits your ability to respond to attacks. Target 30/30 intervals to build W'."
+- [ ] Cross-domain: correlate CP changes with sleep quality, HRV trends, body composition ("Your CP rose 8W over 6 weeks while weight dropped 1.2kg — your aerobic ceiling is expanding")
+
+### Task 41: Adaptive Training Zones — ★★★★★ Importance / ★★ Difficulty
+Replace static FTP-based zones with dynamic zones that auto-adjust as fitness evolves. Vekta recalculates zones daily from CP; AIM should do this and also factor in daily readiness.
+- [ ] Calculate training zones from CP model instead of (or in addition to) FTP:
+  | Zone | Name | Range |
+  |------|------|-------|
+  | Z1 | Aerobic / Recovery | <70% CP |
+  | Z2 | Tempo | 70-90% CP |
+  | Z3 | Threshold | 90-105% CP |
+  | Z4 | VO2max | 105-130% CP |
+  | Z5 | Anaerobic | 130-180% CP |
+  | Z6 | Neuromuscular | >180% CP |
+- [ ] Auto-update zones as CP evolves (no manual FTP entry needed after initial setup)
+- [ ] Show zone changes over time: "Your Z3 floor moved from 265W to 273W over the last 8 weeks"
+- [ ] Readiness-adjusted zones (AIM differentiator): on red recovery days, temporarily shift zone targets down 3-5% so prescribed workouts remain achievable
+- [ ] Display both CP-based and traditional Coggan zones — let user choose preference in Settings
+- [ ] Recalculate all historical zone distributions when CP model updates (background job)
+
+### Task 42: Durability & Fatigue Resistance Tracking — ★★★★★ Importance / ★★★★ Difficulty
+Durability is the hottest metric in pro cycling. It measures how power declines as fatigue accumulates — critical for stage racing, long gran fondos, and any event over 3 hours. Vekta's implementation tracks peaks at progressive kJ/kg thresholds. AIM should match this and add cross-domain context (sleep, fueling, HRV).
+- [ ] Calculate durability metric: track peak power at standard durations (1s, 5s, 1m, 5m, 20m) after progressive fatigue levels (0, 10, 20, 30, 40, 50 kJ/kg of accumulated work)
+- [ ] For each activity with power data, compute peak efforts in each fatigue bucket: what was the best 5-min power when fresh (0-10 kJ/kg) vs fatigued (30-40 kJ/kg)?
+- [ ] Build Durability page/tab showing power curves sliced by fatigue level — visual comparison of fresh vs fatigued performance
+- [ ] Durability score: percentage of peak power retained at 30 kJ/kg fatigue (e.g., "Your 5-min power retains 92% at 30 kJ/kg — excellent durability")
+- [ ] Track durability over time: is the athlete becoming more fatigue-resistant?
+- [ ] Store durability metrics in `activities` table (add `durability_data` JSONB column) and aggregate in `power_profiles`
+- [ ] AI cross-domain insights: "Your durability drops 15% more on nights with <6h sleep" or "Your 5-min power retention after 30 kJ/kg improved from 85% to 92% since starting the beetroot juice protocol"
+- [ ] Race-specific durability predictions: "This race expects ~45 kJ/kg of work before the final climb. At that fatigue level, your projected 20-min power is 278W vs 298W fresh"
+
+### Task 43: Automatic Interval Detection & Classification — ★★★★ Importance / ★★★ Difficulty
+Vekta auto-detects every interval in a ride and classifies it by intensity type, eliminating the need for athletes to hit the lap button. This turns raw ride files into structured training data automatically.
+- [ ] Build interval detection algorithm analyzing power stream data:
+  - Detect sustained efforts above a threshold relative to CP (e.g., >70% CP for >30 seconds)
+  - Detect recovery periods between efforts
+  - Group repeated efforts into interval sets (e.g., 5×5min with 3min rest)
+- [ ] Classify each detected interval by intensity type using CP-relative zones:
+  | Type | Power Range | Duration |
+  |------|------------|----------|
+  | Neuromuscular | >180% CP | <20s |
+  | Anaerobic | 130-180% CP | 20s-3min |
+  | VO2max | 105-130% CP | 30s-8min |
+  | Threshold | 90-105% CP | <60min |
+  | Tempo | 70-90% CP | 10+min |
+  | Aerobic | <70% CP | 10+min |
+- [ ] Tag additional characteristics: High Torque (low cadence + high power), High Cadence (>100rpm), Progressive (ascending power), Dynamic (variable)
+- [ ] Display detected intervals on activity detail page with per-interval metrics (avg power, avg HR, duration, NP, peak HR)
+- [ ] Interval-level AI analysis: "Your 3rd VO2max interval was 12W below the first two — this matches your fatigue pattern from last week. Consider shorter rest intervals to build repeatability."
+- [ ] Store detected intervals in `activities.intervals` JSONB column
+- [ ] Use interval data to improve training prescription: "You've done 45 minutes of VO2max work this month — below the 60-minute target for your build block"
+
+### Task 44: Automatic Session Classification — ★★★★ Importance / ★★ Difficulty
+Use ML/heuristics to automatically classify every ride as a training type or race, without manual tagging. Vekta uses power stochasticity and intensity patterns.
+- [ ] Build session classifier analyzing power data characteristics:
+  - **Race detection**: high variability index (VI > 1.10), high percentage of time above threshold, stochastic power pattern (frequent surges/attacks)
+  - **Race sub-types**: ITT (low VI, sustained high power), Flat Race (high VI, sprint finishes), Hilly Race (repeated climbs), Mountain Race (extended climbing)
+  - **Training types**: Recovery (NP < 55% FTP, low HR), Endurance/Z2 (55-75% FTP, steady), Tempo (75-88% FTP), Sweet Spot (88-95% FTP), Threshold (95-105% FTP), VO2max Intervals (detected intervals >105%), Sprint (short neuromuscular efforts)
+- [ ] Auto-classify on sync — displayed as a tag/badge on each activity (e.g., "VO2max Intervals", "Endurance", "Road Race — Hilly")
+- [ ] Allow user to override classification (manual correction feeds back to improve future detection)
+- [ ] Session type distribution chart on dashboard: pie/bar chart showing training type mix over time (e.g., "60% endurance, 20% threshold, 10% VO2, 10% recovery this month")
+- [ ] AI uses session classification for periodization insights: "You've done 0 VO2max sessions in 3 weeks — this is your limiter zone. Your training mix is too polarized toward endurance."
+- [ ] Training stimulus summary per activity: "Primary stimulus: Threshold. Secondary: VO2max (from the final 2 intervals)"
+
+### Task 45: Torque Analysis — ★★★ Importance / ★★ Difficulty
+Torque reveals the force behind the power. Two riders at identical watts can have completely different pedaling strategies. Useful for bike fit analysis, climbing technique, and sprint form.
+- [ ] Calculate torque from power and cadence streams: Torque (Nm) = (60 × Power) / (Cadence × 2π)
+- [ ] Add torque to activity streams visualization (toggleable alongside power, HR, cadence, elevation)
+- [ ] Compute per-activity torque metrics: avg torque, max torque, torque at threshold, torque-cadence relationship
+- [ ] Analyze torque under fatigue: does the athlete shift to higher torque / lower cadence as they tire? (common compensatory pattern)
+- [ ] AI insights: "Your torque increased 12% in the final hour while cadence dropped 8rpm — you're grinding more as you fatigue. High-cadence drills can help maintain efficiency."
+- [ ] Torque vs gradient analysis: how force production changes on climbs vs flats
+- [ ] Sprint torque tracking: peak torque in sprints as a measure of neuromuscular capacity
+
+### Task 46: AI Session Summaries with Interval Breakdown — ★★★★ Importance / ★★ Difficulty
+Enhance the existing AI analysis with structured interval-level intelligence. Vekta auto-summarizes each session with detected intervals and effort classification. AIM should do this AND cross-reference with recovery/sleep/body comp.
+- [ ] Enhance post-ride AI analysis to include structured interval breakdown:
+  - Detect all intervals (from Task 43) and include per-interval metrics in the AI context
+  - AI summarizes each interval set: "4×8min threshold intervals: avg 292W (98% FTP), HR 168-174bpm, good consistency across all 4 efforts"
+  - Highlight the best and worst intervals with explanations
+- [ ] Add "Session Classification" to AI output: training stimulus type, race type if applicable
+- [ ] Compare interval quality to historical sessions: "Your threshold intervals today averaged 292W vs 285W three weeks ago — a 2.5% improvement at the same HR"
+- [ ] Cross-domain interval analysis (AIM differentiator): "Your 4th interval dropped 15W. Your deep sleep was only 42min last night (vs 1h30m avg) — fatigue resistance is compromised on poor sleep"
+- [ ] Generate natural-language interval tables in the AI output for easy coach sharing
+
+### Task 47: Similar Session Finder & Comparison — ★★★★ Importance / ★★★ Difficulty
+Vekta automatically finds the most comparable past sessions for any activity. AIM should match this and add the "why" — explaining what changed between similar efforts using cross-domain data.
+- [ ] Build similarity algorithm matching activities by: duration (±15%), distance (±10%), elevation (±20%), TSS (±15%), session type, route (GPS matching)
+- [ ] On each activity detail page, show "Similar Sessions" section with top 3-5 matches
+- [ ] Side-by-side comparison of matched sessions: power, HR, EF, cadence, pace, zones
+- [ ] AI explains the differences: "Compared to your most similar ride (March 15): NP was 8W higher at 2bpm lower HR. Your EF improved 5%. Key factors: 1.2kg lighter, HRV was 15ms higher, and deep sleep was 38min longer."
+- [ ] Automatic race comparison: when a race is detected, find and compare to the most similar past races
+- [ ] Progress detection: if the athlete rides the same route regularly, auto-track progression over time with trend line
+- [ ] Enhance existing Task 35 (Activity Comparison Tool) — this task adds the *automatic* discovery, Task 35 handles the manual comparison UI
+
+### Task 48: Coach Platform & Multi-Athlete Management — ★★★★ Importance / ★★★★ Difficulty
+Vekta's coach platform is free with unlimited athletes — a major growth driver. AIM should build a coach view that leverages its cross-domain advantage (coaches see sleep, blood work, recovery alongside training).
+- [ ] Create `coach_athletes` table (coach_user_id, athlete_user_id, status [pending/active/revoked], permissions JSONB, invited_at, accepted_at)
+- [ ] Build Coach Dashboard: grid/list view of all connected athletes with at-a-glance status (today's readiness, last activity, CTL trend, alerts)
+- [ ] Per-athlete drill-down: coach sees full dashboard, activities, health lab, and AI insights for that athlete
+- [ ] Coach can assign workouts, set goals, and leave notes on activities
+- [ ] Athlete invitation flow: coach sends invite link → athlete accepts → data sharing begins
+- [ ] Granular permissions: athlete controls what the coach can see (training data, recovery data, health lab, body comp)
+- [ ] Coach-specific AI summaries: "3 of your 8 athletes are in red zone today. Maria's HRV has declined for 5 consecutive days. Tom hit a 20-min PR yesterday."
+- [ ] Weekly athlete management report for coaches: all athletes' training summaries, flagged concerns, upcoming races
+- [ ] Free tier for coaches (up to 5 athletes), paid coach tier for unlimited athletes
+- [ ] Coach can view and compare multiple athletes' data (useful for team management)
+
+### Task 49: W' Balance Tracking (Real-Time Anaerobic Reserve) — ★★★★ Importance / ★★★ Difficulty
+Once CP and W' are modeled (Task 40), track W' depletion and recovery in real-time throughout a ride. This is the gold standard for race analysis — showing exactly when an athlete "went into the red" and how quickly they recovered.
+- [ ] Implement W' balance algorithm: W'bal = W' - Σ(work above CP) + Σ(recovery below CP) using the Skiba differential equation model
+- [ ] For each activity with power data, compute second-by-second W'bal throughout the ride
+- [ ] Visualize W'bal as a stream on activity detail page (shows depletion during hard efforts, recovery during easy periods)
+- [ ] Flag "empty tank" moments: when W'bal approaches 0, the athlete was at their absolute limit
+- [ ] Race analysis: "You depleted W' to 2% at the 45km mark and never fully recovered. The winning attack came at 52km when your W'bal was only at 38% — you didn't have the reserves to respond."
+- [ ] AI cross-domain: "Your W' recovery rate was 15% slower than your 90-day average. Combined with last night's low HRV (38ms), your anaerobic system was impaired."
+- [ ] Track W' recovery rate over time as a fitness metric — faster recovery = better anaerobic fitness
+
+### Task 50: Historical Performance Timeline (5-Year Deep Analysis) — ★★★ Importance / ★★ Difficulty
+Vekta analyzes up to 5 years of training data for personalized feedback. AIM should build a long-range performance timeline showing the athlete's entire training history with key milestones.
+- [ ] Build Performance Timeline page: long-range view of key metrics (FTP, CP, CTL, weight, W/kg) over months/years
+- [ ] Import historical data from Strava (up to 5 years of activities on backfill sync)
+- [ ] Annotate timeline with key events: races, injuries, equipment changes, training block transitions, blood work dates
+- [ ] AI-generated season summaries: "Your 2025 season: FTP rose from 285W to 302W (+6%), CTL peaked at 88. Best performance: Hawk Hill PR on June 15."
+- [ ] Year-over-year overlay: compare any metric across seasons (same month, same time of year)
+- [ ] Identify long-term patterns: "Your FTP plateaus every August — historically this coincides with heat + accumulated fatigue. Consider a mid-summer recovery block."
+- [ ] Training volume and intensity trends over years — are you training smarter or just more?
 
 ## IMPORTANT NOTES
 

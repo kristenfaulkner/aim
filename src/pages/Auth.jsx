@@ -7,7 +7,7 @@ import { useAuth } from "../context/AuthContext";
 
 export default function Auth({ mode }) {
   const navigate = useNavigate();
-  const { signup, signin, signInWithGoogle, signInWithApple, signInWithMagicLink, resetPassword } = useAuth();
+  const { signup, signin, signInWithGoogle, signInWithMagicLink, resetPassword } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -72,10 +72,6 @@ export default function Auth({ mode }) {
 
   const handleGoogle = async () => {
     try { await signInWithGoogle(); } catch (err) { setError(err.message); }
-  };
-
-  const handleApple = async () => {
-    try { await signInWithApple(); } catch (err) { setError(err.message); }
   };
 
   const socialBtn = (label, icon, onClick) => (
@@ -197,8 +193,6 @@ export default function Auth({ mode }) {
 
           <div style={{ display: "flex", gap: 10, marginBottom: 24 }}>
             {socialBtn("Google", "G", handleGoogle)}
-            {socialBtn("Strava", "S", () => {})}
-            {socialBtn("Apple", "\uF8FF", handleApple)}
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>

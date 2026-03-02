@@ -796,11 +796,26 @@ export default function Dashboard() {
     };
   }, [activity, profile, dailyMetrics]);
 
-  // ── Map zone_distribution JSONB → powerZones array ──
+  // ── Map zone_distribution JSONB → powerZones array using stored zones ──
   const powerZonesData = useMemo(() => {
-    if (!activity?.zone_distribution || !profile?.ftp_watts) return [];
-    const ftp = profile.ftp_watts;
+    if (!activity?.zone_distribution) return [];
     const zd = activity.zone_distribution;
+    const pz = profile?.power_zones;
+    if (pz && Array.isArray(pz)) {
+      // Use pre-computed zones from profile, merge Z6+Z7 time
+      return pz.filter(z => z.zone !== "Z7").map(z => ({
+        zone: `${z.zone} ${z.name}`,
+        min: z.min,
+        max: z.zone === "Z6" ? 9999 : z.max,
+        time: z.zone === "Z6"
+          ? Math.round(((zd.z6 || 0) + (zd.z7 || 0)) / 60)
+          : Math.round((zd[z.zone.toLowerCase()] || 0) / 60),
+        color: z.color,
+      }));
+    }
+    // Fallback: compute from FTP if stored zones not available
+    if (!profile?.ftp_watts) return [];
+    const ftp = profile.ftp_watts;
     return [
       { zone: "Z1 Recovery", min: 0, max: Math.round(ftp * 0.55), time: Math.round((zd.z1 || 0) / 60), color: "#6b7280" },
       { zone: "Z2 Endurance", min: Math.round(ftp * 0.55), max: Math.round(ftp * 0.75), time: Math.round((zd.z2 || 0) / 60), color: "#3b82f6" },
