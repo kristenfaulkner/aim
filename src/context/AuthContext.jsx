@@ -80,6 +80,26 @@ export function AuthProvider({ children }) {
     return data;
   }
 
+  async function signInWithMagicLink(email) {
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: `${window.location.origin}/dashboard` },
+    });
+    if (error) throw error;
+  }
+
+  async function resetPassword(email) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    if (error) throw error;
+  }
+
+  async function updatePassword(newPassword) {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw error;
+  }
+
   async function signout() {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
@@ -110,6 +130,9 @@ export function AuthProvider({ children }) {
         signin,
         signInWithGoogle,
         signInWithApple,
+        signInWithMagicLink,
+        resetPassword,
+        updatePassword,
         signout,
         updateProfile,
         fetchProfile,

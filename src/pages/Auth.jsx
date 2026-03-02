@@ -2,18 +2,20 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { T, font } from "../theme/tokens";
 import { btn, inputStyle } from "../theme/styles";
-import { User, Mail, Lock, Eye, EyeOff, ArrowRight, Brain, BarChart3, Heart, Shield, Loader2 } from "lucide-react";
+import { User, Mail, Lock, Eye, EyeOff, ArrowRight, ArrowLeft, Brain, BarChart3, Heart, Shield, Loader2, Wand2, Check } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 export default function Auth({ mode }) {
   const navigate = useNavigate();
-  const { signup, signin, signInWithGoogle, signInWithApple } = useAuth();
+  const { signup, signin, signInWithGoogle, signInWithApple, signInWithMagicLink, resetPassword } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [view, setView] = useState("form"); // "form" | "magic-link" | "forgot-password" | "sent"
+  const [sentMessage, setSentMessage] = useState("");
   const isSignup = mode === "signup";
 
   const handleSubmit = async () => {
@@ -38,6 +40,36 @@ export default function Auth({ mode }) {
     }
   };
 
+  const handleMagicLink = async () => {
+    setError("");
+    if (!email.trim()) return setError("Email is required");
+    setSubmitting(true);
+    try {
+      await signInWithMagicLink(email);
+      setSentMessage("Check your email for a magic sign-in link.");
+      setView("sent");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    setError("");
+    if (!email.trim()) return setError("Email is required");
+    setSubmitting(true);
+    try {
+      await resetPassword(email);
+      setSentMessage("Check your email for a password reset link.");
+      setView("sent");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleGoogle = async () => {
     try { await signInWithGoogle(); } catch (err) { setError(err.message); }
   };
@@ -54,15 +86,107 @@ export default function Auth({ mode }) {
     </button>
   );
 
+  const backToForm = () => {
+    setView("form");
+    setError("");
+  };
+
+  // ── SENT CONFIRMATION ──
+  if (view === "sent") {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex" }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 40 }}>
+          <div style={{ width: "100%", maxWidth: 420, textAlign: "center" }}>
+            <div style={{ width: 64, height: 64, borderRadius: "50%", background: T.accentDim, border: `1px solid ${T.accentMid}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px" }}>
+              <Check size={28} style={{ color: T.accent }} />
+            </div>
+            <h1 style={{ fontSize: 24, fontWeight: 800, margin: "0 0 12px", letterSpacing: "-0.03em" }}>Check your email</h1>
+            <p style={{ fontSize: 15, color: T.textSoft, margin: "0 0 8px", lineHeight: 1.6 }}>{sentMessage}</p>
+            <p style={{ fontSize: 13, color: T.textDim, margin: "0 0 32px" }}>
+              Sent to <strong style={{ color: T.text }}>{email}</strong>
+            </p>
+            <button onClick={backToForm} style={{ ...btn(false), fontSize: 13, padding: "10px 24px" }}>
+              <ArrowLeft size={14} /> Back to sign in
+            </button>
+          </div>
+        </div>
+        <RightPanel />
+      </div>
+    );
+  }
+
+  // ── MAGIC LINK VIEW ──
+  if (view === "magic-link") {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex" }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 40 }}>
+          <div style={{ width: "100%", maxWidth: 420 }}>
+            <LogoBar navigate={navigate} />
+            <button onClick={backToForm} style={{ background: "none", border: "none", color: T.textDim, cursor: "pointer", fontSize: 13, fontFamily: font, padding: 0, display: "flex", alignItems: "center", gap: 4, marginBottom: 24 }}>
+              <ArrowLeft size={14} /> Back
+            </button>
+            <h1 style={{ fontSize: 28, fontWeight: 800, margin: "0 0 8px", letterSpacing: "-0.03em" }}>Sign in with magic link</h1>
+            <p style={{ fontSize: 15, color: T.textSoft, margin: "0 0 32px" }}>We'll email you a link that signs you in instantly — no password needed.</p>
+
+            {error && <ErrorBanner message={error} />}
+
+            <div style={{ position: "relative", marginBottom: 20 }}>
+              <Mail size={18} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: T.textDim }} />
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email address" style={inputStyle}
+                onKeyDown={e => { if (e.key === "Enter") handleMagicLink(); }} />
+            </div>
+
+            <button onClick={handleMagicLink} disabled={submitting}
+              style={{ ...btn(true), width: "100%", justifyContent: "center", fontSize: 16, padding: "15px 32px", opacity: submitting ? 0.7 : 1, cursor: submitting ? "not-allowed" : "pointer" }}>
+              {submitting ? <Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} /> : <Wand2 size={18} />}
+              Send Magic Link
+            </button>
+          </div>
+        </div>
+        <RightPanel />
+      </div>
+    );
+  }
+
+  // ── FORGOT PASSWORD VIEW ──
+  if (view === "forgot-password") {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex" }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 40 }}>
+          <div style={{ width: "100%", maxWidth: 420 }}>
+            <LogoBar navigate={navigate} />
+            <button onClick={backToForm} style={{ background: "none", border: "none", color: T.textDim, cursor: "pointer", fontSize: 13, fontFamily: font, padding: 0, display: "flex", alignItems: "center", gap: 4, marginBottom: 24 }}>
+              <ArrowLeft size={14} /> Back
+            </button>
+            <h1 style={{ fontSize: 28, fontWeight: 800, margin: "0 0 8px", letterSpacing: "-0.03em" }}>Reset your password</h1>
+            <p style={{ fontSize: 15, color: T.textSoft, margin: "0 0 32px" }}>Enter your email and we'll send you a link to create a new password.</p>
+
+            {error && <ErrorBanner message={error} />}
+
+            <div style={{ position: "relative", marginBottom: 20 }}>
+              <Mail size={18} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: T.textDim }} />
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email address" style={inputStyle}
+                onKeyDown={e => { if (e.key === "Enter") handleForgotPassword(); }} />
+            </div>
+
+            <button onClick={handleForgotPassword} disabled={submitting}
+              style={{ ...btn(true), width: "100%", justifyContent: "center", fontSize: 16, padding: "15px 32px", opacity: submitting ? 0.7 : 1, cursor: submitting ? "not-allowed" : "pointer" }}>
+              {submitting ? <Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} /> : null}
+              Send Reset Link <ArrowRight size={18} />
+            </button>
+          </div>
+        </div>
+        <RightPanel />
+      </div>
+    );
+  }
+
+  // ── MAIN FORM VIEW ──
   return (
     <div style={{ minHeight: "100vh", display: "flex" }}>
-      {/* Left: Form */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 40 }}>
         <div style={{ width: "100%", maxWidth: 420 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 48, cursor: "pointer" }} onClick={() => navigate("/")}>
-            <div style={{ width: 32, height: 32, borderRadius: 9, background: T.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: T.bg, letterSpacing: "-0.02em" }}>AI</div>
-            <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.03em" }}><span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>AI</span>M</span>
-          </div>
+          <LogoBar navigate={navigate} />
 
           <h1 style={{ fontSize: 28, fontWeight: 800, margin: "0 0 8px", letterSpacing: "-0.03em" }}>
             {isSignup ? "Create your account" : "Welcome back"}
@@ -83,11 +207,7 @@ export default function Auth({ mode }) {
             <div style={{ flex: 1, height: 1, background: T.border }} />
           </div>
 
-          {error && (
-            <div style={{ padding: "10px 14px", marginBottom: 14, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 10, fontSize: 13, color: "#ef4444" }}>
-              {error}
-            </div>
-          )}
+          {error && <ErrorBanner message={error} />}
 
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {isSignup && (
@@ -118,8 +238,13 @@ export default function Auth({ mode }) {
           )}
 
           {!isSignup && (
-            <div style={{ textAlign: "right", marginTop: 8 }}>
-              <a href="#" style={{ fontSize: 13, color: T.accent, textDecoration: "none" }}>Forgot password?</a>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+              <button onClick={() => setView("magic-link")} style={{ background: "none", border: "none", fontSize: 13, color: T.textDim, cursor: "pointer", fontFamily: font, padding: 0, display: "flex", alignItems: "center", gap: 4 }}>
+                <Wand2 size={12} /> Sign in with magic link
+              </button>
+              <button onClick={() => setView("forgot-password")} style={{ background: "none", border: "none", fontSize: 13, color: T.accent, cursor: "pointer", fontFamily: font, padding: 0 }}>
+                Forgot password?
+              </button>
             </div>
           )}
 
@@ -137,38 +262,58 @@ export default function Auth({ mode }) {
           </p>
         </div>
       </div>
+      <RightPanel />
+    </div>
+  );
+}
 
-      {/* Right: Brand panel */}
-      <div style={{ flex: 1, background: T.surface, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 60, position: "relative", overflow: "hidden", borderLeft: `1px solid ${T.border}` }}>
-        <div style={{ position: "absolute", top: -200, right: -200, width: 600, height: 600, background: "radial-gradient(circle, rgba(0,229,160,0.06) 0%, transparent 60%)", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", bottom: -150, left: -150, width: 500, height: 500, background: "radial-gradient(circle, rgba(59,130,246,0.04) 0%, transparent 60%)", pointerEvents: "none" }} />
+function LogoBar({ navigate }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 48, cursor: "pointer" }} onClick={() => navigate("/")}>
+      <div style={{ width: 32, height: 32, borderRadius: 9, background: T.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: T.bg, letterSpacing: "-0.02em" }}>AI</div>
+      <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.03em" }}><span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>AI</span>M</span>
+    </div>
+  );
+}
 
-        <div style={{ position: "relative", zIndex: 1, maxWidth: 400, textAlign: "center" }}>
-          <div style={{ margin: "0 auto 32px", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
-            <div style={{ width: 64, height: 64, borderRadius: 18, background: T.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 800, color: T.bg, letterSpacing: "-0.03em" }}>AI</div>
-            <span style={{ fontSize: 40, fontWeight: 800, letterSpacing: "-0.03em" }}>M</span>
-          </div>
-          <h2 style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 16px" }}>
-            Train with <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>intelligence</span>
-          </h2>
-          <p style={{ fontSize: 15, color: T.textSoft, lineHeight: 1.65, margin: "0 0 40px" }}>
-            Connect your data sources and let AI find the patterns that unlock your next breakthrough.
-          </p>
+function ErrorBanner({ message }) {
+  return (
+    <div style={{ padding: "10px 14px", marginBottom: 14, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 10, fontSize: 13, color: "#ef4444" }}>
+      {message}
+    </div>
+  );
+}
 
-          {/* Feature highlights */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 16, textAlign: "left" }}>
-            {[
-              { icon: <Brain size={16} />, text: "Cross-domain AI insights no single app can see" },
-              { icon: <BarChart3 size={16} />, text: "Power benchmarking against Cat 1-5 and World Tour" },
-              { icon: <Heart size={16} />, text: "Recovery intelligence from Oura, Whoop, EightSleep" },
-              { icon: <Shield size={16} />, text: "Your data is encrypted and never sold to third parties" },
-            ].map((f, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: T.accentDim, display: "flex", alignItems: "center", justifyContent: "center", color: T.accent, flexShrink: 0 }}>{f.icon}</div>
-                <span style={{ fontSize: 13, color: T.textSoft }}>{f.text}</span>
-              </div>
-            ))}
-          </div>
+function RightPanel() {
+  return (
+    <div style={{ flex: 1, background: T.surface, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 60, position: "relative", overflow: "hidden", borderLeft: `1px solid ${T.border}` }}>
+      <div style={{ position: "absolute", top: -200, right: -200, width: 600, height: 600, background: "radial-gradient(circle, rgba(0,229,160,0.06) 0%, transparent 60%)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", bottom: -150, left: -150, width: 500, height: 500, background: "radial-gradient(circle, rgba(59,130,246,0.04) 0%, transparent 60%)", pointerEvents: "none" }} />
+
+      <div style={{ position: "relative", zIndex: 1, maxWidth: 400, textAlign: "center" }}>
+        <div style={{ margin: "0 auto 32px", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+          <div style={{ width: 64, height: 64, borderRadius: 18, background: T.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 800, color: T.bg, letterSpacing: "-0.03em" }}>AI</div>
+          <span style={{ fontSize: 40, fontWeight: 800, letterSpacing: "-0.03em" }}>M</span>
+        </div>
+        <h2 style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 16px" }}>
+          Train with <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>intelligence</span>
+        </h2>
+        <p style={{ fontSize: 15, color: T.textSoft, lineHeight: 1.65, margin: "0 0 40px" }}>
+          Connect your data sources and let AI find the patterns that unlock your next breakthrough.
+        </p>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, textAlign: "left" }}>
+          {[
+            { icon: <Brain size={16} />, text: "Cross-domain AI insights no single app can see" },
+            { icon: <BarChart3 size={16} />, text: "Power benchmarking against Cat 1-5 and World Tour" },
+            { icon: <Heart size={16} />, text: "Recovery intelligence from Oura, Whoop, EightSleep" },
+            { icon: <Shield size={16} />, text: "Your data is encrypted and never sold to third parties" },
+          ].map((f, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: T.accentDim, display: "flex", alignItems: "center", justifyContent: "center", color: T.accent, flexShrink: 0 }}>{f.icon}</div>
+              <span style={{ fontSize: 13, color: T.textSoft }}>{f.text}</span>
+            </div>
+          ))}
         </div>
       </div>
     </div>
