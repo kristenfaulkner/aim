@@ -773,8 +773,8 @@ export default function ActivityDetail() {
           <button onClick={() => setMenuOpen(true)} style={{ background: "none", border: "none", color: T.text, cursor: "pointer", padding: 8, minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}><Menu size={20} /></button>
         ) : (
           <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-            {["Sleep", "Health Lab", "Connect", "Settings"].map(item => (
-              <button key={item} onClick={() => { if (item === "Sleep") navigate("/sleep"); if (item === "Connect") navigate("/connect"); if (item === "Health Lab") navigate("/health-lab"); if (item === "Settings") navigate("/settings"); }} style={{ background: "none", border: "none", padding: "5px 12px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: T.textSoft, cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 4 }}>{item === "Settings" ? <><Settings size={12} /> {item}</> : item}</button>
+            {["Workouts", "Sleep", "Health Lab", "Connect", "Settings"].map(item => (
+              <button key={item} onClick={() => { if (item === "Workouts") navigate("/workouts"); if (item === "Sleep") navigate("/sleep"); if (item === "Connect") navigate("/connect"); if (item === "Health Lab") navigate("/health-lab"); if (item === "Settings") navigate("/settings"); }} style={{ background: "none", border: "none", padding: "5px 12px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: T.textSoft, cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 4 }}>{item === "Settings" ? <><Settings size={12} /> {item}</> : item}</button>
             ))}
           </div>
         )}
@@ -788,8 +788,8 @@ export default function ActivityDetail() {
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
               <button onClick={() => setMenuOpen(false)} style={{ background: "none", border: "none", color: T.text, cursor: "pointer", padding: 8, minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}><X size={20} /></button>
             </div>
-            {["Dashboard", "Sleep", "Health Lab", "Connect", "Settings"].map(item => (
-              <button key={item} onClick={() => { setMenuOpen(false); if (item === "Dashboard") navigate("/dashboard"); if (item === "Sleep") navigate("/sleep"); if (item === "Connect") navigate("/connect"); if (item === "Health Lab") navigate("/health-lab"); if (item === "Settings") navigate("/settings"); }} style={{ background: item === "Dashboard" ? T.accentDim : "none", border: "none", padding: "12px 14px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: item === "Dashboard" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font, textAlign: "left", display: "flex", alignItems: "center", gap: 8 }}>{item === "Settings" ? <><Settings size={14} /> {item}</> : item}</button>
+            {["Dashboard", "Workouts", "Sleep", "Health Lab", "Connect", "Settings"].map(item => (
+              <button key={item} onClick={() => { setMenuOpen(false); if (item === "Dashboard") navigate("/dashboard"); if (item === "Workouts") navigate("/workouts"); if (item === "Sleep") navigate("/sleep"); if (item === "Connect") navigate("/connect"); if (item === "Health Lab") navigate("/health-lab"); if (item === "Settings") navigate("/settings"); }} style={{ background: item === "Dashboard" ? T.accentDim : "none", border: "none", padding: "12px 14px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: item === "Dashboard" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font, textAlign: "left", display: "flex", alignItems: "center", gap: 8 }}>{item === "Settings" ? <><Settings size={14} /> {item}</> : item}</button>
             ))}
           </div>
         </div>

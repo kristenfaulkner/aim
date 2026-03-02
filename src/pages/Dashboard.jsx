@@ -175,7 +175,7 @@ function NavBar({ profile, isMobile, menuOpen, setMenuOpen, onSignout, navigate 
           </div>
           {!isMobile && (
             <div style={{ display: "flex", gap: 3 }}>
-              {[{ label: "Dashboard", path: "/dashboard" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }, { label: "Settings", path: "/settings" }].map(item => (
+              {[{ label: "Dashboard", path: "/dashboard" }, { label: "Workouts", path: "/workouts" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }, { label: "Settings", path: "/settings" }].map(item => (
                 <button key={item.label} onClick={() => navigate(item.path)} style={{
                   background: item.label === "Dashboard" ? T.accentDim : "none", border: "none", padding: "5px 12px", borderRadius: 7,
                   fontSize: 11, fontWeight: 600, color: item.label === "Dashboard" ? T.accent : T.textSoft,
@@ -216,7 +216,7 @@ function NavBar({ profile, isMobile, menuOpen, setMenuOpen, onSignout, navigate 
               </div>
               <span style={{ fontSize: 14, fontWeight: 600 }}>{profile?.full_name || "Athlete"}</span>
             </div>
-            {[{ label: "Dashboard", path: "/dashboard" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }, { label: "Settings", path: "/settings" }].map(item => (
+            {[{ label: "Dashboard", path: "/dashboard" }, { label: "Workouts", path: "/workouts" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }, { label: "Settings", path: "/settings" }].map(item => (
               <button key={item.label} onClick={() => { setMenuOpen(false); navigate(item.path); }} style={{
                 background: item.label === "Dashboard" ? T.accentDim : "none", border: "none", padding: "12px 14px", borderRadius: 8,
                 fontSize: 14, fontWeight: 600, color: item.label === "Dashboard" ? T.accent : T.textSoft,
