@@ -154,9 +154,6 @@ function NavBar({ profile, isMobile, menuOpen, setMenuOpen, onSignout, navigate 
           <button onClick={() => setMenuOpen(true)} style={{ background: "none", border: "none", color: T.text, cursor: "pointer", padding: 8, minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}><Menu size={20} /></button>
         ) : (
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", background: T.surface, borderRadius: 7, border: `1px solid ${T.border}` }}>
-              <div style={{ width: 5, height: 5, borderRadius: "50%", background: T.accent }} /><span style={{ fontSize: 10, color: T.textSoft }}>All synced</span>
-            </div>
             <div style={{ width: 30, height: 30, borderRadius: 9, background: `linear-gradient(135deg, ${T.purple}, ${T.pink})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: T.white }}>
               {profile?.full_name ? profile.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() : "U"}
             </div>
