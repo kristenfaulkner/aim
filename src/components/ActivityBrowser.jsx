@@ -201,12 +201,7 @@ export default function ActivityBrowser({ isOpen, onClose, selectedActivityId, o
 
   if (!isOpen) return null;
 
-  // Client-side search filter
-  const filtered = searchQuery
-    ? activities.filter((a) => (a.name || "").toLowerCase().includes(searchQuery.toLowerCase()))
-    : activities;
-
-  const groups = groupActivities(filtered, timePeriod);
+  const groups = groupActivities(activities, searchQuery ? "all" : timePeriod);
 
   const handleSelect = (id) => {
     onSelectActivity(id);
@@ -422,7 +417,7 @@ export default function ActivityBrowser({ isOpen, onClose, selectedActivityId, o
         ))}
 
         {/* Load More */}
-        {hasMore && !searchQuery && (
+        {hasMore && (
           <button
             onClick={loadMore}
             disabled={loading}
@@ -450,7 +445,7 @@ export default function ActivityBrowser({ isOpen, onClose, selectedActivityId, o
         )}
 
         {/* Empty State */}
-        {!loading && filtered.length === 0 && (
+        {!loading && activities.length === 0 && (
           <div style={{ padding: "40px 20px", textAlign: "center", fontSize: 11, color: T.textDim }}>
             {searchQuery ? `No activities matching "${searchQuery}"` : "No activities in this period"}
           </div>
@@ -468,7 +463,7 @@ export default function ActivityBrowser({ isOpen, onClose, selectedActivityId, o
           fontFamily: font,
         }}
       >
-        {filtered.length} activities{hasMore ? "+" : ""}
+        {activities.length} activities{hasMore ? "+" : ""}
       </div>
     </div>
   );

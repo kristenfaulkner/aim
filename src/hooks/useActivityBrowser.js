@@ -62,7 +62,7 @@ export function useActivityBrowser({ enabled = false }) {
     }
   }, [timePeriod, selectedYear, selectedMonth]);
 
-  const fetchPage = useCallback(async (reset = false) => {
+  const fetchPage = useCallback(async (reset = false, search = "") => {
     if (!user || fetchingRef.current) return;
     fetchingRef.current = true;
     setLoading(true);
@@ -75,12 +75,17 @@ export function useActivityBrowser({ enabled = false }) {
         .order("started_at", { ascending: false })
         .limit(PAGE_SIZE);
 
-      const range = getDateRange();
-      if (range.start) {
-        query = query.gte("started_at", range.start);
-      }
-      if (range.end) {
-        query = query.lte("started_at", range.end);
+      // When searching, query across all time; otherwise apply date range
+      if (search) {
+        query = query.ilike("name", `%${search}%`);
+      } else {
+        const range = getDateRange();
+        if (range.start) {
+          query = query.gte("started_at", range.start);
+        }
+        if (range.end) {
+          query = query.lte("started_at", range.end);
+        }
       }
 
       if (!reset && cursorRef.current) {
@@ -110,9 +115,21 @@ export function useActivityBrowser({ enabled = false }) {
       cursorRef.current = null;
       setActivities([]);
       setHasMore(true);
-      fetchPage(true);
+      fetchPage(true, searchQuery);
     }
   }, [timePeriod, selectedYear, selectedMonth, enabled]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Debounced server-side search — re-fetches when query changes
+  useEffect(() => {
+    if (!enabled || !user) return;
+    const timer = setTimeout(() => {
+      cursorRef.current = null;
+      setActivities([]);
+      setHasMore(true);
+      fetchPage(true, searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     activities,
@@ -127,6 +144,6 @@ export function useActivityBrowser({ enabled = false }) {
     oldestYear,
     searchQuery,
     setSearchQuery,
-    loadMore: () => fetchPage(false),
+    loadMore: () => fetchPage(false, searchQuery),
   };
 }
