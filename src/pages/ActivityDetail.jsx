@@ -101,110 +101,260 @@ function PowerCurveDisplay({ curve }) {
   );
 }
 
-function AIAnalysis({ analysis, loading, onRegenerate }) {
-  if (loading) {
-    return (
-      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: "32px", textAlign: "center" }}>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 10, fontSize: 14, color: T.textSoft }}>
-          <RefreshCw size={16} style={{ animation: "spin 1s linear infinite" }} />
-          Generating AI analysis...
-        </div>
-        <p style={{ fontSize: 12, color: T.textDim, marginTop: 8 }}>This usually takes 10-20 seconds</p>
-      </div>
-    );
-  }
+function AIAnalysis({ analysis, loading, onRegenerate, activityId }) {
+  const [activeTab, setActiveTab] = useState("summary");
+  const [chatInput, setChatInput] = useState("");
+  const [messages, setMessages] = useState([]);
+  const [isTyping, setIsTyping] = useState(false);
+  const chatRef = useRef(null);
 
-  if (!analysis) {
-    return (
-      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: "32px", textAlign: "center" }}>
-        <Brain size={24} style={{ color: T.textDim, marginBottom: 8 }} />
-        <p style={{ fontSize: 14, color: T.textSoft, margin: "0 0 16px" }}>No AI analysis yet</p>
-        <button onClick={onRegenerate} style={{ ...btn(true), fontSize: 13, padding: "10px 24px" }}>
-          <Brain size={14} /> Generate Analysis
-        </button>
-      </div>
-    );
-  }
-
-  // Parse markdown sections from the analysis
-  const sections = [];
-  const lines = analysis.split("\n");
-  let currentSection = null;
-
-  for (const line of lines) {
-    const headerMatch = line.match(/^\d+\.\s+\*\*(.+?)\*\*/);
-    if (headerMatch) {
-      currentSection = { title: headerMatch[1], content: [] };
-      sections.push(currentSection);
-      const rest = line.replace(/^\d+\.\s+\*\*.+?\*\*\s*[-—]?\s*/, "").trim();
-      if (rest) currentSection.content.push(rest);
-    } else if (currentSection) {
-      if (line.trim()) currentSection.content.push(line.trim());
+  // Parse AI analysis into structured insights
+  const parsedAnalysis = useMemo(() => {
+    if (analysis && typeof analysis === "object" && Array.isArray(analysis.insights)) return analysis;
+    if (analysis && typeof analysis === "string") {
+      try {
+        const parsed = JSON.parse(analysis);
+        if (Array.isArray(parsed.insights)) return parsed;
+      } catch { /* not JSON */ }
+      return {
+        summary: null,
+        insights: [{ type: "insight", icon: "\u2726", category: "performance", title: "AI Analysis", body: analysis, confidence: "high" }],
+        dataGaps: [],
+      };
     }
-  }
+    return null;
+  }, [analysis]);
 
-  const sectionColors = {
-    "WORKOUT SUMMARY": T.blue,
-    "KEY INSIGHTS": T.accent,
-    "WHAT'S WORKING": T.green,
-    "WATCH OUT": T.warn,
-    "RECOMMENDATION": T.purple,
+  const analysisInsights = parsedAnalysis?.insights || null;
+  const analysisSummary = parsedAnalysis?.summary || null;
+  const dataGaps = parsedAnalysis?.dataGaps || [];
+
+  const [insightFilter, setInsightFilter] = useState("all");
+  const filteredInsights = !analysisInsights ? [] :
+    insightFilter === "all" ? analysisInsights :
+    analysisInsights.filter(i => i.category === insightFilter);
+
+  const allCategories = [
+    { id: "all", label: "All" },
+    { id: "performance", label: "Performance" },
+    { id: "body", label: "Body Comp" },
+    { id: "recovery", label: "Recovery" },
+    { id: "training", label: "Training" },
+    { id: "nutrition", label: "Nutrition" },
+    { id: "environment", label: "Environment" },
+    { id: "health", label: "Health" },
+  ];
+  const insightCategories = analysisInsights ? allCategories.map(c => ({
+    ...c,
+    count: c.id === "all" ? analysisInsights.length : analysisInsights.filter(i => i.category === c.id).length,
+  })).filter(c => c.id === "all" || c.count > 0) : [];
+
+  const handleSendChat = async () => {
+    if (!chatInput.trim()) return;
+    const userMsg = chatInput;
+    setMessages(prev => [...prev, { role: "user", text: userMsg }]);
+    setChatInput("");
+    setIsTyping(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/chat/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ message: userMsg, activityId, history: messages }),
+      });
+      const data = await res.json();
+      setMessages(prev => [...prev, { role: "assistant", text: !res.ok ? `Error: ${data.error || "Request failed"}` : data.reply || "Sorry, I couldn't process that." }]);
+    } catch (err) {
+      setMessages(prev => [...prev, { role: "assistant", text: `Connection error: ${err.message || "Please try again."}` }]);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
-  const sectionIcons = {
-    "WORKOUT SUMMARY": <Activity size={16} />,
-    "KEY INSIGHTS": <Brain size={16} />,
-    "WHAT'S WORKING": <TrendingUp size={16} />,
-    "WATCH OUT": <Flame size={16} />,
-    "RECOMMENDATION": <ChevronRight size={16} />,
-  };
+  useEffect(() => { if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight; }, [messages, isTyping]);
+
+  const tabs = [{ id: "summary", label: "Summary" }, { id: "analysis", label: "AI Analysis" }, { id: "chat", label: "Ask Claude" }];
 
   return (
-    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, overflow: "hidden" }}>
-      <div style={{ padding: "20px 24px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: T.accentDim, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Brain size={16} style={{ color: T.accent }} />
+    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, display: "flex", flexDirection: "column", minHeight: 500, overflow: "hidden" }}>
+      {/* Header */}
+      <div style={{ padding: "14px 18px 0", borderBottom: `1px solid ${T.border}` }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 30, height: 30, borderRadius: 10, background: `linear-gradient(135deg, ${T.accent}, ${T.blue})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: T.bg }}>{"\u2726"}</div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>AIM Intelligence</div>
+              <div style={{ fontSize: 9, color: T.accent, textTransform: "uppercase", letterSpacing: "0.1em" }}>Powered by Claude</div>
+            </div>
           </div>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 700 }}>AI Analysis</div>
-            <div style={{ fontSize: 11, color: T.textDim }}>Powered by AIM Intelligence</div>
-          </div>
+          {analysisInsights && (
+            <button onClick={onRegenerate} style={{ background: "transparent", border: `1px solid ${T.border}`, borderRadius: 8, padding: "5px 10px", fontSize: 10, color: T.textDim, cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 4 }}>
+              <RefreshCw size={10} /> Regenerate
+            </button>
+          )}
         </div>
-        <button onClick={onRegenerate} style={{ background: "transparent", border: `1px solid ${T.border}`, borderRadius: 8, padding: "6px 12px", fontSize: 11, color: T.textDim, cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 4 }}>
-          <RefreshCw size={12} /> Regenerate
-        </button>
+        <div style={{ display: "flex", gap: 0 }}>
+          {tabs.map(tab => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ background: "none", border: "none", padding: "7px 14px", fontSize: 11, fontWeight: 600, color: activeTab === tab.id ? T.accent : T.textSoft, cursor: "pointer", borderBottom: activeTab === tab.id ? `2px solid ${T.accent}` : "2px solid transparent", transition: "all 0.2s", fontFamily: font }}>{tab.label}</button>
+          ))}
+        </div>
       </div>
-      <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 20 }}>
-        {sections.length > 0 ? sections.map((section, i) => {
-          const color = sectionColors[section.title] || T.accent;
-          const icon = sectionIcons[section.title] || <ChevronRight size={16} />;
-          return (
-            <div key={i}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                <div style={{ color }}>{icon}</div>
-                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color, textTransform: "uppercase" }}>{section.title}</span>
+
+      {/* Content */}
+      <div style={{ flex: 1, overflow: "auto", padding: activeTab === "chat" ? 0 : "14px 18px" }}>
+        {activeTab === "summary" ? (
+          <div style={{ padding: "8px 0" }}>
+            {!analysisInsights ? (
+              <div style={{ textAlign: "center", padding: "40px 16px" }}>
+                <div style={{ fontSize: 28, marginBottom: 10 }}>{loading ? "" : "\u2726"}</div>
+                {loading ? (
+                  <>
+                    <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 14 }}>
+                      {[0, 1, 2].map(i => (<div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: T.accent, animation: `bounce 1.4s ease-in-out ${i * 0.2}s infinite` }} />))}
+                    </div>
+                    <div style={{ fontSize: 13, color: T.accent, fontWeight: 600 }}>Analyzing your training data...</div>
+                    <div style={{ fontSize: 10, color: T.textDim, marginTop: 6, lineHeight: 1.5 }}>Claude is reviewing your power, recovery, and training load to generate personalized insights.</div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 13, color: T.textSoft, marginBottom: 16 }}>Generate an AI analysis to see your summary</div>
+                    <button onClick={onRegenerate} style={{ background: T.accent, border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 12, fontWeight: 700, color: T.bg, cursor: "pointer", fontFamily: font }}>{"\u2726"} Generate Analysis</button>
+                  </>
+                )}
               </div>
-              <div style={{ fontSize: 14, color: T.textSoft, lineHeight: 1.7 }}>
-                {section.content.map((line, j) => {
-                  const isBullet = line.startsWith("-") || line.startsWith("•");
-                  if (isBullet) {
-                    return (
-                      <div key={j} style={{ display: "flex", gap: 8, marginBottom: 4, paddingLeft: 4 }}>
-                        <span style={{ color, flexShrink: 0, marginTop: 2 }}>•</span>
-                        <span>{line.replace(/^[-•]\s*/, "")}</span>
+            ) : (
+              <div>
+                <div style={{ fontSize: 10, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>Workout Summary</div>
+                {analysisSummary && (
+                  <div style={{ fontSize: 13, color: T.text, lineHeight: 1.8, padding: "16px 18px", background: T.bg, borderRadius: 12, borderLeft: `3px solid ${T.accent}`, marginBottom: 16 }}>{analysisSummary}</div>
+                )}
+                {analysisInsights.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 10, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Key Takeaways</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {analysisInsights.slice(0, 4).map((insight, i) => (
+                        <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "10px 12px", background: T.bg, borderRadius: 10 }}>
+                          <span style={{ fontSize: 14, flexShrink: 0 }}>{insight.icon}</span>
+                          <div>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 2 }}>{insight.title}</div>
+                            <div style={{ fontSize: 11, color: T.textSoft, lineHeight: 1.5 }}>{insight.body?.length > 120 ? insight.body.slice(0, 120) + "..." : insight.body}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {analysisInsights.length > 4 && (
+                      <button onClick={() => setActiveTab("analysis")} style={{ background: "none", border: "none", fontSize: 11, color: T.accent, cursor: "pointer", fontFamily: font, fontWeight: 600, marginTop: 10, padding: 0 }}>View all {analysisInsights.length} insights →</button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ) : activeTab === "analysis" ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {!analysisInsights ? (
+              <div style={{ textAlign: "center", padding: "40px 16px" }}>
+                <div style={{ fontSize: 28, marginBottom: 10 }}>{loading ? "" : "\u2726"}</div>
+                {loading ? (
+                  <>
+                    <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 14 }}>
+                      {[0, 1, 2].map(i => (<div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: T.accent, animation: `bounce 1.4s ease-in-out ${i * 0.2}s infinite` }} />))}
+                    </div>
+                    <div style={{ fontSize: 13, color: T.accent, fontWeight: 600, marginBottom: 6 }}>Analyzing your training data...</div>
+                    <div style={{ fontSize: 10, color: T.textDim, lineHeight: 1.5 }}>Claude is reviewing your power, recovery, body composition, and training load to generate personalized insights.</div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 13, color: T.textSoft, marginBottom: 6 }}>Ready to analyze this ride</div>
+                    <div style={{ fontSize: 10, color: T.textDim, marginTop: 8, marginBottom: 16, lineHeight: 1.5 }}>Claude will review your power data, recovery metrics, body composition, and training load to generate cross-domain insights.</div>
+                    <button onClick={onRegenerate} style={{ background: T.accent, border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 12, fontWeight: 700, color: T.bg, cursor: "pointer", fontFamily: font }}>{"\u2726"} Generate AI Analysis</button>
+                  </>
+                )}
+              </div>
+            ) : (
+              <>
+                <div style={{ fontSize: 10, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em" }}>Post-Ride Analysis</div>
+
+                {analysisSummary && (
+                  <div style={{ fontSize: 12, color: T.text, lineHeight: 1.6, padding: "10px 14px", background: T.bg, borderRadius: 10, borderLeft: `3px solid ${T.accent}` }}>{analysisSummary}</div>
+                )}
+
+                {insightCategories.length > 0 && (
+                  <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                    {insightCategories.map(cat => (
+                      <button key={cat.id} onClick={() => setInsightFilter(cat.id)} style={{ background: insightFilter === cat.id ? `${T.accent}18` : T.bg, border: `1px solid ${insightFilter === cat.id ? T.accentMid : T.border}`, borderRadius: 20, padding: "4px 10px", fontSize: 10, fontWeight: 600, color: insightFilter === cat.id ? T.accent : T.textSoft, cursor: "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", gap: 5, fontFamily: font }}>
+                        {cat.label}
+                        <span style={{ fontSize: 8, background: insightFilter === cat.id ? `${T.accent}30` : `${T.textDim}30`, padding: "1px 4px", borderRadius: 6, color: insightFilter === cat.id ? T.accent : T.textDim }}>{cat.count}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {filteredInsights.map((insight, i) => (
+                  <div key={i} style={{ background: T.bg, borderRadius: 11, padding: "12px 14px", borderLeft: `3px solid ${insight.type === "positive" ? T.accent : insight.type === "warning" ? T.warn : insight.type === "action" ? T.purple : T.blue}` }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 5 }}>
+                      <span style={{ fontSize: 13 }}>{insight.icon}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: T.text, flex: 1 }}>{insight.title}</span>
+                      {insight.confidence && (
+                        <span style={{ fontSize: 8, padding: "2px 5px", borderRadius: 4, background: insight.confidence === "high" ? T.accentDim : `${T.warn}20`, color: insight.confidence === "high" ? T.accent : T.warn, textTransform: "uppercase", letterSpacing: "0.05em" }}>{insight.confidence}</span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 11, lineHeight: 1.6, color: T.textSoft }}>{insight.body}</div>
+                  </div>
+                ))}
+
+                {dataGaps.length > 0 && insightFilter === "all" && (
+                  <div style={{ marginTop: 4 }}>
+                    <div style={{ fontSize: 10, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Unlock More Insights</div>
+                    {dataGaps.map((gap, i) => (
+                      <div key={i} style={{ background: T.bg, borderRadius: 10, padding: "10px 14px", marginBottom: 6, borderLeft: `3px solid ${T.blue}30`, display: "flex", alignItems: "flex-start", gap: 8 }}>
+                        <span style={{ fontSize: 12, flexShrink: 0, marginTop: 1 }}>{"\uD83D\uDD17"}</span>
+                        <div style={{ fontSize: 11, lineHeight: 1.5, color: T.textSoft }}>{gap}</div>
                       </div>
-                    );
-                  }
-                  return <p key={j} style={{ margin: "0 0 4px" }}>{line}</p>;
-                })}
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        ) : (
+          /* Chat tab */
+          <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+            <div ref={chatRef} style={{ flex: 1, overflow: "auto", padding: "14px 18px" }}>
+              {messages.length === 0 && (
+                <div style={{ textAlign: "center", padding: "30px 16px" }}>
+                  <div style={{ fontSize: 28, marginBottom: 10 }}>{"\u2726"}</div>
+                  <div style={{ fontSize: 13, color: T.textSoft, marginBottom: 6 }}>Ask me anything about this ride</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 7, marginTop: 14 }}>
+                    {["Why was my cardiac drift high today?", "How does this compare to my best efforts?", "What should my next workout be?", "Am I overtraining?"].map((q, i) => (
+                      <button key={i} onClick={() => setChatInput(q)} style={{ background: T.bg, border: `1px solid ${T.border}`, borderRadius: 10, padding: "9px 12px", fontSize: 11, color: T.textSoft, cursor: "pointer", textAlign: "left", transition: "all 0.2s", fontFamily: font }}
+                        onMouseOver={e => { e.target.style.borderColor = T.accentMid; e.target.style.color = T.text; }}
+                        onMouseOut={e => { e.target.style.borderColor = T.border; e.target.style.color = T.textSoft; }}>{q}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {messages.map((msg, i) => (
+                <div key={i} style={{ marginBottom: 14, display: "flex", flexDirection: "column", alignItems: msg.role === "user" ? "flex-end" : "flex-start" }}>
+                  <div style={{ maxWidth: "85%", padding: "9px 13px", borderRadius: msg.role === "user" ? "13px 13px 4px 13px" : "13px 13px 13px 4px", background: msg.role === "user" ? T.accent : T.bg, color: msg.role === "user" ? T.bg : T.text, fontSize: 12, lineHeight: 1.6, fontWeight: msg.role === "user" ? 600 : 400 }}>{msg.text}</div>
+                </div>
+              ))}
+              {isTyping && (
+                <div style={{ display: "flex", gap: 4, padding: "9px 13px", background: T.bg, borderRadius: 13, width: "fit-content" }}>
+                  {[0, 1, 2].map(i => (<div key={i} style={{ width: 5, height: 5, borderRadius: "50%", background: T.accent, animation: `bounce 1.4s ease-in-out ${i * 0.16}s infinite` }} />))}
+                </div>
+              )}
+            </div>
+            <div style={{ padding: "10px 14px", borderTop: `1px solid ${T.border}` }}>
+              <div style={{ display: "flex", gap: 7 }}>
+                <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSendChat()} placeholder="Ask about this ride..." style={{ flex: 1, background: T.bg, border: `1px solid ${T.border}`, borderRadius: 10, padding: "9px 12px", fontSize: 12, color: T.text, outline: "none", fontFamily: font }} />
+                <button onClick={handleSendChat} style={{ background: T.accent, border: "none", borderRadius: 10, padding: "9px 14px", fontSize: 12, fontWeight: 700, color: T.bg, cursor: "pointer" }}>{"\u2192"}</button>
               </div>
             </div>
-          );
-        }) : (
-          <div style={{ fontSize: 14, color: T.textSoft, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{analysis}</div>
+          </div>
         )}
       </div>
+      <style>{`@keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }`}</style>
     </div>
   );
 }
@@ -702,11 +852,12 @@ export default function ActivityDetail() {
           </div>
 
           {/* Right column: AI Analysis */}
-          <div>
+          <div style={{ position: "sticky", top: 80 }}>
             <AIAnalysis
               analysis={a.ai_analysis}
               loading={analysisLoading}
               onRegenerate={triggerAnalysis}
+              activityId={id}
             />
           </div>
         </div>
