@@ -2,6 +2,7 @@ import { supabaseAdmin } from "../../_lib/supabase.js";
 import { getStravaToken, stravaFetch } from "../../_lib/strava.js";
 import { computeActivityMetrics, computeTrainingLoad, findNewBests } from "../../_lib/metrics.js";
 import { verifySession, cors } from "../../_lib/auth.js";
+import { analyzeActivity } from "../../_lib/ai.js";
 
 /**
  * Sync a single Strava activity by ID.
@@ -83,10 +84,12 @@ export async function syncStravaActivity(userId, stravaActivityId) {
     source_data: activity,
   };
 
-  // Upsert activity
-  await supabaseAdmin
+  // Upsert activity and get the ID back
+  const { data: upserted } = await supabaseAdmin
     .from("activities")
-    .upsert(record, { onConflict: "user_id,source,source_id" });
+    .upsert(record, { onConflict: "user_id,source,source_id" })
+    .select("id")
+    .single();
 
   // Update daily_metrics with training load
   if (record.tss) {
@@ -105,7 +108,14 @@ export async function syncStravaActivity(userId, stravaActivityId) {
     .eq("user_id", userId)
     .eq("provider", "strava");
 
-  return record;
+  // Trigger AI analysis (fire-and-forget — don't block the sync)
+  if (upserted?.id) {
+    analyzeActivity(userId, upserted.id).catch(err =>
+      console.error(`AI analysis failed for activity ${upserted.id}:`, err.message)
+    );
+  }
+
+  return { ...record, id: upserted?.id };
 }
 
 /**

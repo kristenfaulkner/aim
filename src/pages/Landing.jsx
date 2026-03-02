@@ -52,7 +52,7 @@ export default function Landing() {
       {/* ── CLEAN HERO (above the fold — same as original) ── */}
       <section style={{ paddingTop: 160, paddingBottom: 100, textAlign: "center", position: "relative", overflow: "hidden" }}>
         <NeuralBackground />
-        <div style={{ position: "relative", zIndex: 10, maxWidth: 800, margin: "0 auto", padding: "0 24px" }}>
+        <div style={{ position: "relative", zIndex: 10, maxWidth: 800, margin: "0 auto", padding: "48px 48px", background: `radial-gradient(ellipse at center, ${T.bg} 0%, ${T.bg}ee 60%, transparent 100%)`, borderRadius: 32 }}>
           <h1 style={{ fontSize: 64, fontWeight: 800, lineHeight: 1.05, letterSpacing: "-0.04em", margin: "0 0 24px" }}>
             Your AI<br />
             <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Performance Coach</span>
@@ -86,7 +86,7 @@ export default function Landing() {
       </section>
 
       {/* ── A MESSAGE FROM THE FOUNDER ── */}
-      <section style={{ padding: "80px 40px", background: T.surface, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}` }}>
+      <section id="about" style={{ padding: "80px 40px", background: T.surface, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}` }}>
         <div style={{ maxWidth: 1000, margin: "0 auto" }}>
           <p style={{ fontSize: 12, color: T.accent, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", textAlign: "center", marginBottom: 48 }}>A Message from the Founder</p>
           <div style={{ display: "flex", gap: 48, alignItems: "center" }}>
@@ -193,8 +193,60 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ── INTEGRATIONS ── */}
+      <section id="integrations" style={{ padding: "100px 40px", background: T.surface, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}` }}>
+        <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 64 }}>
+            <h2 style={{ fontSize: 42, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 16px" }}>All your data, <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>one platform</span></h2>
+            <p style={{ fontSize: 17, color: T.textSoft, maxWidth: 560, margin: "0 auto" }}>Connect the tools you already use. AIM pulls everything together so you don't have to.</p>
+          </div>
+          {[
+            { heading: "Coming Soon", apps: [
+              { name: "Strava", desc: "Ride & run data" },
+              { name: "Whoop", desc: "Recovery & strain" },
+              { name: "Oura", desc: "Sleep & readiness" },
+              { name: "TrainingPeaks", desc: "Training plans" },
+              { name: "Withings", desc: "Weight & body comp" },
+              { name: "Garmin", desc: "Device data" },
+              { name: "Wahoo", desc: "Power & cycling" },
+              { name: "EightSleep", desc: "Sleep tracking" },
+              { name: "Apple Health", desc: "Health data hub" },
+              { name: "Hammerhead", desc: "Ride analytics" },
+              { name: "Hexis", desc: "Nutrition timing" },
+              { name: "MyFitnessPal", desc: "Calorie tracking" },
+              { name: "Cronometer", desc: "Micronutrients" },
+              { name: "Blood Work", desc: "Lab panels" },
+              { name: "DEXA Scans", desc: "Body composition" },
+              { name: "Supersapiens", desc: "Glucose monitoring" },
+              { name: "Polar", desc: "HR & training" },
+              { name: "INSCYD", desc: "Metabolic profiling" },
+            ]},
+          ].map((group) => (
+            <div key={group.heading} style={{ marginBottom: 48 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: T.warn, letterSpacing: "0.06em", textTransform: "uppercase" }}>{group.heading}</span>
+                <div style={{ flex: 1, height: 1, background: T.border }} />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 12 }}>
+                {group.apps.map((app) => (
+                  <div key={app.name} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px 12px", textAlign: "center", transition: "all 0.3s", cursor: "default" }}
+                    onMouseOver={e => { e.currentTarget.style.borderColor = T.borderHover; e.currentTarget.style.transform = "translateY(-3px)"; }}
+                    onMouseOut={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.transform = "translateY(0)"; }}>
+                    <div style={{ width: 44, height: 44, borderRadius: 12, background: T.accentDim, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 10px", fontSize: 20, fontWeight: 700, color: T.accent }}>
+                      {app.name.charAt(0)}
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>{app.name}</div>
+                    <div style={{ fontSize: 11, color: T.textDim }}>{app.desc}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* ── PRICING ── */}
-      <section id="pricing" style={{ padding: "100px 40px", background: T.surface, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}` }}>
+      <section id="pricing" style={{ padding: "100px 40px" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 48 }}>
             <h2 style={{ fontSize: 42, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 16px" }}>Invest in your <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>greatest asset</span></h2>
@@ -275,12 +327,26 @@ export default function Landing() {
             <p style={{ fontSize: 12, color: T.textDim, maxWidth: 280, lineHeight: 1.6 }}>AI-powered performance intelligence for endurance athletes. Built by Kristen Faulkner, 2x Olympic Gold Medalist.</p>
           </div>
           <div style={{ display: "flex", gap: 64 }}>
-            {[{ title: "Product", links: ["Features", "Integrations", "Pricing", "Roadmap", "Changelog"] }, { title: "Company", links: ["About", "Blog", "Careers", "Contact", "Press Kit"] }, { title: "Legal", links: ["Privacy Policy", "Terms of Service", "Cookie Policy", "Data Processing", "GDPR"] }].map(col => (
-              <div key={col.title}>
-                <div style={{ fontSize: 11, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12, fontWeight: 600 }}>{col.title}</div>
-                {col.links.map(l => <a key={l} href="#" style={{ display: "block", fontSize: 13, color: T.textSoft, textDecoration: "none", marginBottom: 8 }}>{l}</a>)}
-              </div>
-            ))}
+            <div>
+              <div style={{ fontSize: 11, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12, fontWeight: 600 }}>Product</div>
+              <a href="#features" style={{ display: "block", fontSize: 13, color: T.textSoft, textDecoration: "none", marginBottom: 8 }}>Features</a>
+              <a href="#integrations" style={{ display: "block", fontSize: 13, color: T.textSoft, textDecoration: "none", marginBottom: 8 }}>Integrations</a>
+              <a href="#pricing" style={{ display: "block", fontSize: 13, color: T.textSoft, textDecoration: "none", marginBottom: 8 }}>Pricing</a>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12, fontWeight: 600 }}>Company</div>
+              <a href="#about" style={{ display: "block", fontSize: 13, color: T.textSoft, textDecoration: "none", marginBottom: 8 }}>About</a>
+              <Link to="/contact" style={{ display: "block", fontSize: 13, color: T.textSoft, textDecoration: "none", marginBottom: 8 }}>Contact</Link>
+              <a href="#" style={{ display: "block", fontSize: 13, color: T.textSoft, textDecoration: "none", marginBottom: 8 }}>Careers</a>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12, fontWeight: 600 }}>Legal</div>
+              <Link to="/privacy" style={{ display: "block", fontSize: 13, color: T.textSoft, textDecoration: "none", marginBottom: 8 }}>Privacy Policy</Link>
+              <Link to="/terms" style={{ display: "block", fontSize: 13, color: T.textSoft, textDecoration: "none", marginBottom: 8 }}>Terms of Service</Link>
+              <Link to="/cookies" style={{ display: "block", fontSize: 13, color: T.textSoft, textDecoration: "none", marginBottom: 8 }}>Cookie Policy</Link>
+              <Link to="/data-processing" style={{ display: "block", fontSize: 13, color: T.textSoft, textDecoration: "none", marginBottom: 8 }}>Data Processing</Link>
+              <Link to="/gdpr" style={{ display: "block", fontSize: 13, color: T.textSoft, textDecoration: "none", marginBottom: 8 }}>GDPR</Link>
+            </div>
           </div>
         </div>
         <div style={{ maxWidth: 1200, margin: "32px auto 0", paddingTop: 24, borderTop: `1px solid ${T.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
