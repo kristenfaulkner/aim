@@ -92,8 +92,7 @@ export default function Landing() {
           <div style={{ display: "flex", gap: 48, alignItems: "center" }}>
             {/* Photo placeholder */}
             <div style={{ flexShrink: 0, width: 320 }}>
-              <div style={{ width: 320, height: 400, borderRadius: 20, overflow: "hidden", position: "relative", background: `linear-gradient(180deg, ${T.card} 0%, ${T.surface} 100%)`, border: `1px solid ${T.border}` }}>
-                {/* Replace this div with: <img src="YOUR_HOSTED_IMAGE_URL" alt="Kristen Faulkner" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> */}
+              <div style={{ width: 320, height: 400, borderRadius: 20, overflow: "hidden", position: "relative" }}>
                 <img src="/kristen.jpg" alt="Kristen Faulkner" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               </div>
               <div style={{ textAlign: "center", marginTop: 16 }}>
