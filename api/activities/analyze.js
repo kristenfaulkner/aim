@@ -1,6 +1,8 @@
 import { verifySession, cors } from "../_lib/auth.js";
 import { analyzeActivity } from "../_lib/ai.js";
 
+export const config = { maxDuration: 60 };
+
 /**
  * POST /api/activities/analyze?id=<uuid>
  * Trigger (or regenerate) AI analysis for an activity.
