@@ -75,52 +75,97 @@ Every insight follows this format:
 
 ---
 
-## CATEGORY 2: Sleep Architecture → Next-Day Performance
+## CATEGORY 2: Sleep-Performance Correlation Analysis
 
 **Required sources:** Oura/Whoop/EightSleep (sleep stages, HRV, sleep timing) + Strava/Wahoo/Garmin (ride data)
 
-### 2A. Deep Sleep → Power Output
+**Implementation:** `/api/sleep/analyze.js` — pre-computes statistical correlations server-side via 7 pure functions in `/api/_lib/sleep-correlations.js`, sends compact summaries to Claude for interpretation. Frontend panel: `/src/components/sleep/SleepAIPanel.jsx`. Requires 7+ matched sleep-activity pairs. Results cached in localStorage (24h TTL).
 
-**What to look for:** Deep sleep duration from last night correlated with today's NP, EF, and cardiac drift. Build personal correlation over 60+ days.
+**Statistical methodology:**
+- Pearson correlations across 14 sleep metrics × 5 performance metrics (requires n ≥ 5)
+- Quartile analysis: bucket activities by sleep quality quartiles, compare avg performance per bucket
+- Confounder-adjusted correlations: stratify by TSB (< -20, -20–0, > 0), temperature (< 15°C, 15–25°C, > 25°C), and ride duration (< 90min, 90–180min, > 180min), then recompute within strata
+- Dose-response curves: bin sleep by 30-min buckets, compute avg EF/NP per bucket, fit linear slope
+- Confidence: high if |r| > 0.3 with n > 20, medium if |r| > 0.2 or n < 20, low if |r| < 0.2
+
+### 2A. Sleep Duration → Performance
+
+**What to look for:** Total sleep hours correlated with next-day EF, NP, HR drift. Rolling 7-night averages to capture cumulative sleep debt effects. Dose-response curve: how much extra sleep translates to measurable performance gains. Identify the athlete's personal optimal sleep duration (diminishing returns point).
+
+**Example insights:**
+- "Your EF averaged 1.82 on nights with >7.5h sleep vs 1.64 on <6h nights (r=0.34, n=87). Every additional hour of sleep ≈ 0.06 better EF — that's roughly 8W of free normalized power."
+- "On rides following 7h 30m+ sleep, your NP is on average 8W higher than after sub-6h nights. That's a free ~3% gain from sleep alone."
+- "Your dose-response curve shows diminishing returns above 8.5 hours — your personal optimal sleep duration appears to be 7.5–8.5 hours."
+- "Your 7-night rolling sleep average correlates more strongly with EF (r=0.41) than single-night sleep (r=0.28). Cumulative sleep matters more than any one night."
+- "Your 3-night sleep average is 5h 52m — well below your 7h 20m baseline. Expect 2-3 more days of suppressed HRV before recovery normalizes."
+
+### 2B. Sleep Architecture → Performance
+
+**What to look for:** Deep sleep % and REM sleep % correlated with next-day power and pacing quality. Compare best/worst 5 rides by EF with their preceding night's sleep architecture.
 
 **Example insights:**
 - "Your 5 best rides in the last 90 days all followed nights with >1h 30m deep sleep. Last night you got 48 minutes."
 - "Deep sleep below 60 minutes has preceded a 6-12% NP drop in 8 out of 10 occurrences in your data."
+- "Deep sleep % correlates with next-day NP (r=0.31) and EF (r=0.28). On your top-quartile deep sleep nights (>22%), next-day NP averaged 248W vs 231W on bottom-quartile nights (<14%)."
+- "REM sleep % shows a moderate correlation with your variability index (r=-0.22) — more REM tends to produce more even pacing the next day."
+- "Your best 5 rides averaged 1h 48m deep sleep and 2h 05m REM the night before. Your worst 5 averaged 52m deep and 1h 12m REM."
+
+### 2C. Sleep Quality → Performance
+
+**What to look for:** Sleep score and sleep efficiency correlated with next-day EF and NP. Sleep latency and toss & turns as stress/overtraining signals.
+
+**Example insights:**
+- "Sleep score correlates with next-day EF (r=0.36, n=94). Your top-quartile sleep score nights (>82) produce rides with avg EF of 1.79 vs 1.61 for bottom-quartile nights (<58)."
+- "Sleep efficiency above 90% correlates with 4% higher next-day NP compared to nights below 80% efficiency."
+- "Your sleep latency has averaged 28 minutes over the last week (vs your 14-minute baseline). Combined with elevated toss & turns, this suggests accumulated stress — consider a deload."
+- "Low REM (<1h 15m) correlates with worse reaction times and tactical decisions — relevant for crit racing. Last night: 1h 04m."
+
+### 2D. HRV & Recovery → Performance
+
+**What to look for:** Overnight HRV correlated with next-day EF and HR drift. HRV recovery trajectory after hard training days (how many days to bounce back). Resting HR elevation as early warning.
+
+**Example insights:**
+- "Overnight HRV shows the strongest correlation with next-day EF of any sleep metric (r=0.42, n=78). When HRV is above 65ms, your EF averages 1.84 vs 1.62 when below 45ms."
+- "After rides with TSS > 150, your HRV takes an average of 2.8 days to return to baseline. After TSS > 200, it takes 4.1 days."
+- "Your RHR crept from 48 to 54 bpm over the last 5 nights. Historically, when this happens, your NP drops 8-14% on comparable efforts."
 - "Deep sleep was 48 min last night (avg: 1h 42m) and HRV dropped to 38ms. This likely explains the 8.1% cardiac drift — on Feb 18 with similar power but 72ms HRV, drift was only 3.2%."
 
-### 2B. REM Sleep → Tactical & Cognitive Performance
+### 2E. Bedtime Consistency & Timing → Performance
 
-**What to look for:** REM sleep duration correlated with decision-quality in races (hard to measure directly, but correlate with pacing evenness and late-race power consistency).
-
-**Example insights:**
-- "Low REM (<1h 15m) correlates with worse reaction times and tactical decisions — relevant for crit racing. Last night: 1h 04m."
-- "Your REM sleep was only 1h 04m (avg 2h 12m). Combined with +0.8°C skin temp deviation from Oura, this inflammatory pattern has preceded 6-8% power drops in 3 previous occurrences."
-
-### 2C. Sleep Timing → Performance
-
-**What to look for:** Sleep onset time from Oura/Whoop correlated with next-day EF and power output. Identify the athlete's optimal sleep window.
+**What to look for:** Standard deviation of bedtime correlated with performance stability. Weekday vs weekend sleep patterns and Monday performance impact. Optimal sleep window — what bedtime produces the athlete's best rides.
 
 **Example insights:**
+- "Your bedtime consistency (std dev: 52 minutes) is moderate. Athletes with <30-minute bedtime variability show 6% more consistent EF day-to-day."
 - "Your best performances (top 10% by EF) follow nights where you fell asleep before 10:15 PM. Average sleep onset for your worst 10%: 11:42 PM."
 - "Every 30 minutes past 10 PM correlates with a 1.8% decrease in next-day EF in your data."
-- "You tend to sleep worse after rides ending past 6 PM. Tomorrow's interval session is planned for 5:30 PM — consider moving it to morning if possible."
+- "You average 1h 12m less sleep on weekday nights vs weekends. Your Monday EF is 5% lower than your Thursday EF — the weekend-to-weekday sleep transition appears to cost you."
 
-### 2D. EightSleep Bed Temperature → Sleep Quality
+### 2F. Environment → Sleep Quality → Performance
 
-**What to look for:** Bed temperature setting correlated with deep sleep duration and morning HRV.
+**What to look for:** Bed temperature setting (Eight Sleep) correlated with deep sleep duration and morning HRV. Seasonal patterns in sleep quality.
 
 **Example insights:**
-- "Deep sleep is 34% higher at -4°C vs -1°C bed temp. This translates to approximately 4-6ms higher morning HRV."
+- "Deep sleep is 34% higher at -4°C vs -1°C bed temp. This translates to approximately 4-6ms higher morning HRV and 3% better next-day EF."
 - "Your optimal bed temp varies by season: -2°C in winter, -5°C in summer. Current setting (-1°C) is too warm for this time of year."
-- "Tonight set bed to -4°C and lights out by 10 PM. Based on your recovery curves, HRV should rebound 15-20ms within 48 hours."
+- "Bed temperature shows a correlation with deep sleep % (r=−0.29) — cooler nights consistently produce more deep sleep for you."
 
-### 2E. Total Sleep Duration → Recovery & Power
+### 2G. Confounder-Adjusted Analysis
 
-**What to look for:** Total sleep hours over rolling 3-night and 7-night windows correlated with recovery scores and ride quality.
+**What to look for:** Do sleep-performance correlations hold after controlling for confounders (TSB/freshness, temperature, ride duration)? If TSB explains the relationship, report that honestly. Stratify by confounder bins and recompute correlations.
 
 **Example insights:**
-- "Your 3-night sleep average is 5h 52m — well below your 7h 20m baseline. Expect 2-3 more days of suppressed HRV before recovery normalizes."
-- "On rides following 7h 30m+ sleep, your NP is on average 8W higher than after sub-6h nights. That's a free ~3% gain from sleep alone."
+- "Sleep duration → EF correlation holds even after controlling for TSB (r=0.31 within the TSB -20 to 0 stratum). This is a genuine sleep effect, not just freshness."
+- "The sleep score → NP correlation (r=0.28) weakens to r=0.12 after stratifying by TSB. Much of the apparent sleep effect was actually fitness/freshness driving both better sleep and better power."
+- "On rides in 15–25°C (your comfort zone), sleep quality still correlates with EF (r=0.33). Temperature isn't masking the sleep signal."
+
+### 2H. Optimization & Pre-Competition Protocol
+
+**What to look for:** Synthesize all sleep-performance patterns into specific, personalized recommendations. Build a pre-competition sleep protocol from the athlete's best-ride sleep patterns.
+
+**Example insights:**
+- "Your optimal pre-competition sleep protocol based on your best 5 rides: Bedtime by 9:45 PM, bed temp -4°C, 7.5–8.5h total sleep, targeting >1h 20m deep sleep."
+- "Specific bedtime target: before 10:15 PM. Sleep duration target: 7h 45m. These are where your dose-response curves show the largest performance gains."
+- "Tonight set bed to -4°C and lights out by 10 PM. Based on your recovery curves, HRV should rebound 15-20ms within 48 hours."
 - "Your NP drops 8% from hour 2 to hour 3 on rides. On rides with better sleep (>7h 30m the night before), the fade is only 3%. Sleep is the differentiator here, not fitness."
 
 ---
@@ -576,3 +621,19 @@ When building the AI system prompt, include the category descriptions and 2-3 ex
 6. **Assign confidence levels** based on how much supporting data exists
 7. **Reference boosters, blood work, and cycle phase** when relevant and available
 8. **Build personal models over time** — the insights should get more personalized as more data accumulates (e.g., "after 3+ cycles" or "based on your last 60 rides")
+
+### Sleep-Performance Analysis Engine
+
+The sleep-performance correlation analysis (Category 2) uses a dedicated pipeline with pre-computed statistics:
+
+- **Endpoint:** `POST /api/sleep/analyze` — computes 7 statistical functions server-side, sends compact summaries (~3-5KB) to Claude
+- **Computation library:** `/api/_lib/sleep-correlations.js` — 7 pure exported functions:
+  1. `matchSleepToActivities()` — matches each activity to previous night's sleep + 3/7-night rolling averages
+  2. `computeCorrelations()` — Pearson r-value matrix (14 sleep metrics × 5 performance metrics)
+  3. `computeQuartileAnalysis()` — top/bottom quartile performance comparison for key metric pairs
+  4. `computeAdjustedCorrelations()` — stratified by TSB, temperature, duration to check for confounders
+  5. `detectSleepPatterns()` — bedtime consistency, weekday/weekend, sleep debt, temp→deep sleep, HRV recovery
+  6. `findBestAndWorstRides()` — top/bottom 5 by EF with preceding sleep data
+  7. `computeDoseResponse()` — EF/NP per hour of sleep via 30-min bucket binning + linear regression
+- **System prompt:** Instructs Claude to interpret pre-computed statistics into 6-10 actionable insights, quote r-values and quartile splits, compare adjusted vs unadjusted correlations, flag when confounders explain relationships, and include dose-response translations
+- **Frontend:** `SleepAIPanel` with 2 tabs (Sleep & Performance insights + Ask AI chat), category filters, confidence badges, 24h localStorage cache
