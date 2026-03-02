@@ -10,7 +10,7 @@
   "crons": [
     {
       "path": "/api/cron/sync-eightsleep",
-      "schedule": "0 10-17 * * *"
+      "schedule": "0 * * * *"
     }
   ]
 }

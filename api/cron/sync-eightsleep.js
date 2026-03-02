@@ -7,11 +7,10 @@ export const config = {
 
 /**
  * GET /api/cron/sync-eightsleep
- * Daily cron job that syncs the last 2 days of Eight Sleep data
- * for all users with active Eight Sleep integrations.
- *
- * Syncs 2 days (not 1) to catch late-arriving sleep data
- * (e.g. sleep sessions that end after midnight).
+ * Hourly cron that syncs the last 2 days of Eight Sleep data.
+ * Skips users who have already synced in the last 6 hours
+ * so the first run after wake-up does the work and subsequent
+ * runs are instant no-ops.
  */
 export default async function handler(req, res) {
   // Verify this is a legitimate Vercel Cron request
@@ -20,16 +19,18 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Find all active Eight Sleep integrations
+    // Find active Eight Sleep integrations that haven't synced in the last 6 hours
+    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
     const { data: integrations, error } = await supabaseAdmin
       .from("integrations")
-      .select("user_id")
+      .select("user_id, last_sync_at")
       .eq("provider", "eightsleep")
-      .eq("is_active", true);
+      .eq("is_active", true)
+      .or(`last_sync_at.is.null,last_sync_at.lt.${sixHoursAgo}`);
 
     if (error) throw error;
     if (!integrations || integrations.length === 0) {
-      return res.status(200).json({ message: "No active Eight Sleep integrations", synced: 0 });
+      return res.status(200).json({ message: "All users already synced recently", synced: 0, skipped: "all" });
     }
 
     const results = [];
