@@ -38,6 +38,23 @@ Return valid JSON with this exact structure:
 
 Generate 6-12 insights per analysis. Prioritize cross-domain insights (connecting 2+ data sources) over single-source observations. Every analysis should include at least one from the "dataGaps" array suggesting additional integrations that would unlock richer analysis.
 
+## DATA STRUCTURE
+
+You receive a pre-processed context payload with three layers:
+
+1. **recentWindow** — Raw data from the last 7 days (activities + daily metrics). Use this to identify immediate patterns and day-to-day correlations (e.g., last night's sleep → today's ride).
+
+2. **historicalContext** — Server-computed summaries of 90-day data:
+   - \`trainingLoad\` — Current CTL/ATL/TSB snapshot, 7-day and 30-day trend deltas, ACWR (acute:chronic workload ratio), and flags for overtraining risk
+   - \`baselines\` — 90-day statistical summaries (avg, stdDev, min, max, p25, p75) for HRV, RHR, sleep, weight, body fat, recovery. Use these to contextualize today's values (e.g., "Your HRV of 38ms is 1.9 SD below your 90-day average of 62ms")
+   - \`similarEfforts\` — 3-5 past activities most comparable to the current one, enriched with that day's HRV, recovery score, and sleep score. Use these for direct comparisons (e.g., "On Feb 18 when your HRV was 72ms, your drift was only 3.2% on a similar effort")
+   - \`outliers\` — Days where key metrics deviated >1.5 standard deviations from baseline. These are the most analytically interesting data points
+   - \`performanceRange\` — Best/worst/average NP, EF, TSS, and duration for this activity type over 90 days
+   - \`seasonalComparison\` — Recent 14-day averages vs prior 14-day averages with % changes. Use to detect recent trends
+   - \`recentAnnotations\` — Subjective notes, RPE, and ratings from recent sessions
+
+3. **Health snapshot** — Latest blood panel and DEXA scan (if available), plus power profile and how this activity's power curve compares to personal bests (\`activityVsBests\` shows % of personal best at each duration)
+
 ## INSIGHT QUALITY RULES
 
 1. **Connect 2+ data sources in most insights** — this is the entire point of AIM. "Your HRV was low" is Whoop-level. "Your HRV was 38ms, which explains why your cardiac drift was 8.1% today vs 3.2% on Feb 18 when HRV was 72ms" is AIM-level.
@@ -307,9 +324,355 @@ When the athlete has provided session notes, ratings, RPE, or tags, use this sub
 - **Use tags to contextualize performance** — indoor vs outdoor, solo vs group ride, race vs training. Group rides often show higher NP due to surges; indoor rides may show lower HR at same power due to cooling.
 - **Validate subjective data against objective metrics** — when they align, confidence is high. When they diverge, that's often the most interesting insight.`;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SMART CONTEXT HELPERS
+//
+// Pure functions that reduce raw data into information-dense summaries.
+// These run synchronously on in-memory arrays after the DB queries complete.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function statsFor(arr) {
+  if (!arr.length) return null;
+  const sorted = [...arr].sort((a, b) => a - b);
+  const sum = sorted.reduce((s, v) => s + v, 0);
+  const avg = sum / sorted.length;
+  const variance = sorted.reduce((s, v) => s + (v - avg) ** 2, 0) / sorted.length;
+  const stdDev = Math.sqrt(variance);
+  const percentile = (p) => {
+    const i = (p / 100) * (sorted.length - 1);
+    const lo = Math.floor(i);
+    const hi = Math.ceil(i);
+    return lo === hi ? sorted[lo] : sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo);
+  };
+  return {
+    avg: Math.round(avg * 10) / 10,
+    stdDev: Math.round(stdDev * 10) / 10,
+    min: sorted[0],
+    max: sorted[sorted.length - 1],
+    p25: Math.round(percentile(25) * 10) / 10,
+    p75: Math.round(percentile(75) * 10) / 10,
+  };
+}
+
+function trendDirection(values) {
+  // values sorted newest-first; compare avg of first 14 vs last 14
+  if (values.length < 7) return "insufficient_data";
+  const half = Math.min(14, Math.floor(values.length / 2));
+  const recent = values.slice(0, half);
+  const older = values.slice(-half);
+  const avgRecent = recent.reduce((s, v) => s + v, 0) / recent.length;
+  const avgOlder = older.reduce((s, v) => s + v, 0) / older.length;
+  const delta = avgRecent - avgOlder;
+  const threshold = avgOlder * 0.02; // 2% change threshold
+  if (Math.abs(delta) < threshold) return "stable";
+  return delta > 0 ? "increasing" : "declining";
+}
+
 /**
- * Build the full athlete context payload for AI analysis.
- * Pulls from ALL connected data sources to maximize cross-domain insight potential.
+ * Reduce 90 days of daily_metrics into statistical summaries.
+ */
+function computeBaselines(dailyMetrics) {
+  if (!dailyMetrics || dailyMetrics.length < 7) return null;
+
+  const vals = (field) => dailyMetrics.map((d) => d[field]).filter((v) => v != null);
+
+  const hrvVals = vals("hrv_ms");
+  const rhrVals = vals("resting_hr_bpm");
+  const sleepTotalVals = vals("total_sleep_seconds");
+  const deepSleepVals = vals("deep_sleep_seconds");
+  const remSleepVals = vals("rem_sleep_seconds");
+  const sleepScoreVals = vals("sleep_score");
+  const weightVals = vals("weight_kg");
+  const bodyFatVals = vals("body_fat_pct");
+  const recoveryVals = vals("recovery_score");
+
+  return {
+    period: `${dailyMetrics.length}d`,
+    hrv: statsFor(hrvVals),
+    rhr: statsFor(rhrVals),
+    sleep: {
+      avgTotalSec: sleepTotalVals.length ? Math.round(sleepTotalVals.reduce((s, v) => s + v, 0) / sleepTotalVals.length) : null,
+      avgDeepSec: deepSleepVals.length ? Math.round(deepSleepVals.reduce((s, v) => s + v, 0) / deepSleepVals.length) : null,
+      avgRemSec: remSleepVals.length ? Math.round(remSleepVals.reduce((s, v) => s + v, 0) / remSleepVals.length) : null,
+      avgScore: sleepScoreVals.length ? Math.round(sleepScoreVals.reduce((s, v) => s + v, 0) / sleepScoreVals.length) : null,
+    },
+    weight: weightVals.length
+      ? { avg: Math.round(weightVals.reduce((s, v) => s + v, 0) / weightVals.length * 10) / 10, min: Math.min(...weightVals), max: Math.max(...weightVals), trend: trendDirection(weightVals) }
+      : null,
+    bodyFat: bodyFatVals.length
+      ? { avg: Math.round(bodyFatVals.reduce((s, v) => s + v, 0) / bodyFatVals.length * 10) / 10, trend: trendDirection(bodyFatVals) }
+      : null,
+    recoveryScore: statsFor(recoveryVals),
+  };
+}
+
+/**
+ * Extract current training load snapshot and trend directions.
+ */
+function computeTrainingLoadSummary(dailyMetrics) {
+  if (!dailyMetrics || !dailyMetrics.length) return null;
+
+  const latest = dailyMetrics[0]; // sorted descending
+  const current = {
+    ctl: latest.ctl != null ? Math.round(latest.ctl * 10) / 10 : null,
+    atl: latest.atl != null ? Math.round(latest.atl * 10) / 10 : null,
+    tsb: latest.tsb != null ? Math.round(latest.tsb * 10) / 10 : null,
+    rampRate: latest.ramp_rate != null ? Math.round(latest.ramp_rate * 10) / 10 : null,
+  };
+
+  // 7-day trend
+  const day7 = dailyMetrics.find((d, i) => i >= 6 && d.ctl != null);
+  const trend7d = day7
+    ? {
+        ctlDelta: Math.round(((latest.ctl || 0) - (day7.ctl || 0)) * 10) / 10,
+        atlDelta: Math.round(((latest.atl || 0) - (day7.atl || 0)) * 10) / 10,
+        tsbDirection: (latest.tsb || 0) > (day7.tsb || 0) ? "improving" : "declining",
+      }
+    : null;
+
+  // 30-day trend
+  const day30 = dailyMetrics.find((d, i) => i >= 28 && d.ctl != null);
+  const trend30d = day30
+    ? {
+        ctlDelta: Math.round(((latest.ctl || 0) - (day30.ctl || 0)) * 10) / 10,
+        atlDelta: Math.round(((latest.atl || 0) - (day30.atl || 0)) * 10) / 10,
+        tsbDirection: (latest.tsb || 0) > (day30.tsb || 0) ? "improving" : "declining",
+      }
+    : null;
+
+  // ACWR
+  const acwr = current.ctl && current.ctl >= 1
+    ? Math.round((current.atl / current.ctl) * 100) / 100
+    : null;
+
+  const flags = [];
+  if (current.rampRate != null && current.rampRate > 7) flags.push("ramp_rate_high");
+  if (acwr != null && acwr > 1.5) flags.push("acwr_danger");
+  else if (acwr != null && acwr > 1.3) flags.push("acwr_caution");
+
+  return { current, trend7d, trend30d, acwr, flags };
+}
+
+/**
+ * Find 3-5 past activities most similar to the current one,
+ * enriched with that day's recovery context.
+ */
+function findSimilarEfforts(activity, allActivities, dailyMetricsByDate) {
+  if (!allActivities || !allActivities.length) return [];
+
+  const sameType = allActivities.filter(
+    (a) => a.activity_type === activity.activity_type && a.started_at !== activity.started_at
+  );
+  if (!sameType.length) return [];
+
+  const actDuration = activity.duration_seconds || 0;
+  const actPower = activity.normalized_power_watts || activity.avg_power_watts || 0;
+
+  const scored = sameType
+    .map((a) => {
+      const dur = a.duration_seconds || 0;
+      const pow = a.normalized_power_watts || a.avg_power_watts || 0;
+      // Duration similarity (0-1, higher = more similar)
+      const durSim = actDuration > 0 ? 1 - Math.min(Math.abs(dur - actDuration) / actDuration, 1) : 0.5;
+      // Power similarity
+      const powSim = actPower > 0 && pow > 0 ? 1 - Math.min(Math.abs(pow - actPower) / actPower, 1) : 0.5;
+      const score = durSim * 0.5 + powSim * 0.5;
+      return { ...a, _score: score };
+    })
+    .filter((a) => a._score > 0.5) // at least 50% similar
+    .sort((a, b) => b._score - a._score)
+    .slice(0, 5);
+
+  return scored.map((a) => {
+    const dateStr = a.started_at ? a.started_at.split("T")[0] : null;
+    const dayMetrics = dateStr ? dailyMetricsByDate[dateStr] : null;
+    return {
+      name: a.name,
+      started_at: a.started_at,
+      duration_seconds: a.duration_seconds,
+      normalized_power_watts: a.normalized_power_watts,
+      tss: a.tss,
+      intensity_factor: a.intensity_factor,
+      efficiency_factor: a.efficiency_factor,
+      hr_drift_pct: a.hr_drift_pct,
+      avg_hr_bpm: a.avg_hr_bpm,
+      temperature_celsius: a.temperature_celsius,
+      dayHrv: dayMetrics?.hrv_ms ?? dayMetrics?.hrv_overnight_avg_ms ?? null,
+      dayRecovery: dayMetrics?.recovery_score ?? null,
+      daySleepScore: dayMetrics?.sleep_score ?? null,
+    };
+  });
+}
+
+/**
+ * Identify days where key metrics deviated significantly from baseline.
+ */
+function findNotableOutliers(dailyMetrics, baselines) {
+  if (!dailyMetrics || dailyMetrics.length < 14 || !baselines) return [];
+
+  const outliers = [];
+
+  const checks = [
+    { field: "hrv_ms", baseline: baselines.hrv, labelLow: "hrv_low", labelHigh: "hrv_high", name: "HRV" },
+    { field: "resting_hr_bpm", baseline: baselines.rhr, labelLow: "rhr_low", labelHigh: "rhr_high", name: "RHR" },
+    { field: "sleep_score", baseline: baselines.sleep ? { avg: baselines.sleep.avgScore, stdDev: 12 } : null, labelLow: "sleep_poor", labelHigh: "sleep_great", name: "Sleep score" },
+    { field: "recovery_score", baseline: baselines.recoveryScore, labelLow: "recovery_low", labelHigh: "recovery_high", name: "Recovery" },
+  ];
+
+  for (const day of dailyMetrics) {
+    for (const check of checks) {
+      if (!check.baseline || !check.baseline.avg || !check.baseline.stdDev) continue;
+      const val = day[check.field];
+      if (val == null) continue;
+      const z = (val - check.baseline.avg) / check.baseline.stdDev;
+      if (Math.abs(z) >= 1.5) {
+        outliers.push({
+          date: day.date,
+          type: z < 0 ? check.labelLow : check.labelHigh,
+          value: val,
+          baseline: check.baseline.avg,
+          zScore: Math.round(z * 100) / 100,
+          note: `${check.name} ${Math.round(Math.abs((val - check.baseline.avg) / check.baseline.avg) * 100)}% ${z < 0 ? "below" : "above"} baseline`,
+        });
+      }
+    }
+  }
+
+  return outliers
+    .sort((a, b) => Math.abs(b.zScore) - Math.abs(a.zScore))
+    .slice(0, 8);
+}
+
+/**
+ * Summarize best/worst/average performance for this activity type over 90 days.
+ */
+function computePerformanceRange(activity, allActivities) {
+  if (!allActivities || !allActivities.length) return null;
+
+  const sameType = allActivities.filter(
+    (a) => a.activity_type === activity.activity_type && a.normalized_power_watts
+  );
+  if (!sameType.length) return null;
+
+  const byNp = [...sameType].sort((a, b) => b.normalized_power_watts - a.normalized_power_watts);
+  const withEf = sameType.filter((a) => a.efficiency_factor);
+  const byEf = withEf.length ? [...withEf].sort((a, b) => b.efficiency_factor - a.efficiency_factor) : [];
+
+  return {
+    activityType: activity.activity_type,
+    count: sameType.length,
+    bestNp: { value: byNp[0].normalized_power_watts, date: byNp[0].started_at?.split("T")[0], name: byNp[0].name },
+    worstNp: { value: byNp[byNp.length - 1].normalized_power_watts, date: byNp[byNp.length - 1].started_at?.split("T")[0], name: byNp[byNp.length - 1].name },
+    bestEf: byEf.length ? { value: Math.round(byEf[0].efficiency_factor * 100) / 100, date: byEf[0].started_at?.split("T")[0] } : null,
+    worstEf: byEf.length ? { value: Math.round(byEf[byEf.length - 1].efficiency_factor * 100) / 100, date: byEf[byEf.length - 1].started_at?.split("T")[0] } : null,
+    avgNp: Math.round(sameType.reduce((s, a) => s + a.normalized_power_watts, 0) / sameType.length),
+    avgTss: Math.round(sameType.filter((a) => a.tss).reduce((s, a) => s + a.tss, 0) / sameType.filter((a) => a.tss).length) || null,
+    avgDuration: Math.round(sameType.reduce((s, a) => s + (a.duration_seconds || 0), 0) / sameType.length),
+  };
+}
+
+/**
+ * Compare recent 14-day window to prior 14-day window.
+ */
+function computeSeasonalComparison(dailyMetrics, allActivities) {
+  if (!dailyMetrics || dailyMetrics.length < 14) return null;
+
+  const now = new Date();
+  const d14ago = new Date(now - 14 * 86400000);
+  const d28ago = new Date(now - 28 * 86400000);
+
+  const recent14dMetrics = dailyMetrics.filter((d) => new Date(d.date) >= d14ago);
+  const prior14dMetrics = dailyMetrics.filter((d) => new Date(d.date) >= d28ago && new Date(d.date) < d14ago);
+
+  if (!recent14dMetrics.length || !prior14dMetrics.length) return null;
+
+  const avg = (arr, field) => {
+    const vals = arr.map((d) => d[field]).filter((v) => v != null);
+    return vals.length ? Math.round(vals.reduce((s, v) => s + v, 0) / vals.length * 10) / 10 : null;
+  };
+
+  const recentActivities = allActivities
+    ? allActivities.filter((a) => a.started_at && new Date(a.started_at) >= d14ago)
+    : [];
+  const priorActivities = allActivities
+    ? allActivities.filter((a) => a.started_at && new Date(a.started_at) >= d28ago && new Date(a.started_at) < d14ago)
+    : [];
+
+  const avgNp = (acts) => {
+    const withNp = acts.filter((a) => a.normalized_power_watts);
+    return withNp.length ? Math.round(withNp.reduce((s, a) => s + a.normalized_power_watts, 0) / withNp.length) : null;
+  };
+
+  const recent = {
+    avgTss: avg(recent14dMetrics, "daily_tss"),
+    avgNp: avgNp(recentActivities),
+    avgHrv: avg(recent14dMetrics, "hrv_ms"),
+    avgSleep: avg(recent14dMetrics, "total_sleep_seconds"),
+    rideCount: recentActivities.length,
+  };
+
+  const prior = {
+    avgTss: avg(prior14dMetrics, "daily_tss"),
+    avgNp: avgNp(priorActivities),
+    avgHrv: avg(prior14dMetrics, "hrv_ms"),
+    avgSleep: avg(prior14dMetrics, "total_sleep_seconds"),
+    rideCount: priorActivities.length,
+  };
+
+  const pctChange = (r, p) => {
+    if (r == null || p == null || p === 0) return null;
+    const pct = ((r - p) / p) * 100;
+    return `${pct >= 0 ? "+" : ""}${Math.round(pct * 10) / 10}%`;
+  };
+
+  return {
+    recent14d: recent,
+    prior14d: prior,
+    changes: {
+      tss: pctChange(recent.avgTss, prior.avgTss),
+      np: pctChange(recent.avgNp, prior.avgNp),
+      hrv: pctChange(recent.avgHrv, prior.avgHrv),
+      sleep: pctChange(recent.avgSleep, prior.avgSleep),
+      volume: pctChange(recent.rideCount, prior.rideCount),
+    },
+  };
+}
+
+/**
+ * Compare this activity's power curve to personal bests.
+ */
+function computeActivityVsBests(activity, powerProfile) {
+  if (!activity?.power_curve || !powerProfile) return null;
+
+  const durations = ["5s", "30s", "1m", "5m", "20m", "60m"];
+  const profileFields = {
+    "5s": "best_5s_watts",
+    "30s": "best_30s_watts",
+    "1m": "best_1m_watts",
+    "5m": "best_5m_watts",
+    "20m": "best_20m_watts",
+    "60m": "best_60m_watts",
+  };
+
+  const result = {};
+  for (const dur of durations) {
+    const actWatts = activity.power_curve[dur];
+    const bestWatts = powerProfile[profileFields[dur]];
+    if (actWatts && bestWatts) {
+      result[dur] = {
+        activityWatts: actWatts,
+        bestWatts: bestWatts,
+        pctOfBest: Math.round((actWatts / bestWatts) * 1000) / 10,
+      };
+    }
+  }
+
+  return Object.keys(result).length ? result : null;
+}
+
+/**
+ * Build the athlete context payload for AI analysis.
+ * Uses smart pre-filtering: recent window (7d raw) + computed historical summaries.
  */
 export async function buildAnalysisContext(userId, activityId) {
   // Fetch activity
@@ -325,10 +688,9 @@ export async function buildAnalysisContext(userId, activityId) {
   // Run all queries in parallel for speed
   const [
     profileResult,
-    recentResult,
+    activitiesResult,
     dailyMetricsResult,
     powerProfileResult,
-    recoveryResult,
     bloodWorkResult,
     dexaResult,
     integrationsResult,
@@ -341,22 +703,22 @@ export async function buildAnalysisContext(userId, activityId) {
       .eq("id", userId)
       .single(),
 
-    // Recent 14 days of activities (excluding current)
+    // 90 days of activities (trimmed fields — no power_curve/zone_distribution)
     supabaseAdmin
       .from("activities")
-      .select("name, activity_type, started_at, duration_seconds, distance_meters, avg_power_watts, normalized_power_watts, tss, intensity_factor, avg_hr_bpm, max_hr_bpm, efficiency_factor, hr_drift_pct, zone_distribution, power_curve, avg_cadence_rpm, calories, temperature_celsius, lr_balance, user_notes, user_rating, user_rpe, user_tags")
+      .select("name, activity_type, started_at, duration_seconds, distance_meters, avg_power_watts, normalized_power_watts, tss, intensity_factor, avg_hr_bpm, max_hr_bpm, efficiency_factor, hr_drift_pct, avg_cadence_rpm, calories, temperature_celsius, lr_balance, user_notes, user_rating, user_rpe, user_tags")
       .eq("user_id", userId)
       .neq("id", activityId)
-      .gte("started_at", new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString())
+      .gte("started_at", new Date(Date.now() - 90 * 86400000).toISOString())
       .order("started_at", { ascending: false })
-      .limit(20),
+      .limit(100),
 
-    // 90 days of daily metrics (sleep, HRV, recovery, body comp, cycle)
+    // 90 days of daily metrics (used for computation, only recent 7d sent raw)
     supabaseAdmin
       .from("daily_metrics")
       .select("date, daily_tss, ctl, atl, tsb, ramp_rate, sleep_score, total_sleep_seconds, deep_sleep_seconds, rem_sleep_seconds, hrv_ms, hrv_overnight_avg_ms, resting_hr_bpm, recovery_score, readiness_score, strain_score, weight_kg, body_fat_pct, muscle_mass_kg, hydration_pct, bone_mass_kg, cycle_day, cycle_phase, blood_oxygen_pct, skin_temperature_deviation")
       .eq("user_id", userId)
-      .gte("date", new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0])
+      .gte("date", new Date(Date.now() - 90 * 86400000).toISOString().split("T")[0])
       .order("date", { ascending: false }),
 
     // Latest power profile
@@ -367,14 +729,6 @@ export async function buildAnalysisContext(userId, activityId) {
       .order("computed_date", { ascending: false })
       .limit(1)
       .single(),
-
-    // Last 48h recovery data
-    supabaseAdmin
-      .from("daily_metrics")
-      .select("date, sleep_score, total_sleep_seconds, deep_sleep_seconds, rem_sleep_seconds, hrv_ms, hrv_overnight_avg_ms, resting_hr_bpm, recovery_score, readiness_score, strain_score, blood_oxygen_pct, skin_temperature_deviation, hydration_pct")
-      .eq("user_id", userId)
-      .gte("date", new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split("T")[0])
-      .order("date", { ascending: false }),
 
     // Latest blood panel (if any)
     supabaseAdmin
@@ -414,17 +768,37 @@ export async function buildAnalysisContext(userId, activityId) {
     result.status === "fulfilled" ? result.value.data : null;
 
   const profile = getData(profileResult) || {};
+  const allActivities = getData(activitiesResult) || [];
   const dailyMetrics = getData(dailyMetricsResult) || [];
+  const powerProfile = getData(powerProfileResult) || null;
   const integrations = getData(integrationsResult) || [];
   const settings = getData(settingsResult);
-  const recentActivities = getData(recentResult) || [];
 
   // Strip source_data from the activity to keep the payload manageable
   const { source_data, ...activityClean } = activity;
 
-  // Extract recent sessions that have user annotations (notes or RPE)
-  const recentNotes = recentActivities
+  // ── Compute historical summaries server-side ──
+  const baselines = computeBaselines(dailyMetrics);
+  const trainingLoad = computeTrainingLoadSummary(dailyMetrics);
+  const dailyMetricsByDate = Object.fromEntries(dailyMetrics.map((d) => [d.date, d]));
+  const similarEfforts = findSimilarEfforts(activityClean, allActivities, dailyMetricsByDate);
+  const outliers = findNotableOutliers(dailyMetrics, baselines);
+  const performanceRange = computePerformanceRange(activityClean, allActivities);
+  const seasonalComparison = computeSeasonalComparison(dailyMetrics, allActivities);
+  const activityVsBests = computeActivityVsBests(activityClean, powerProfile);
+
+  // ── Recent window: last 7 days raw ──
+  const sevenDaysAgo = new Date(Date.now() - 7 * 86400000);
+  const recentWindowActivities = allActivities
+    .filter((a) => a.started_at && new Date(a.started_at) >= sevenDaysAgo)
+    .slice(0, 10);
+  const recentWindowMetrics = dailyMetrics
+    .filter((d) => new Date(d.date) >= sevenDaysAgo);
+
+  // Recent annotated sessions
+  const recentAnnotations = allActivities
     .filter((a) => a.user_notes || a.user_rpe)
+    .slice(0, 10)
     .map((a) => ({
       name: a.name,
       started_at: a.started_at,
@@ -435,21 +809,42 @@ export async function buildAnalysisContext(userId, activityId) {
     }));
 
   return {
+    // Layer 1: Current activity + profile
     activity: activityClean,
     profile,
-    recentActivities,
-    dailyMetrics,
-    powerProfile: getData(powerProfileResult) || null,
-    recoveryLast48h: getData(recoveryResult) || [],
+
+    // Layer 1: Recent window (7 days raw)
+    recentWindow: {
+      activities: recentWindowActivities,
+      dailyMetrics: recentWindowMetrics,
+    },
+
+    // Layer 2: Computed historical summaries (90-day)
+    historicalContext: {
+      trainingLoad,
+      baselines,
+      similarEfforts,
+      outliers,
+      performanceRange,
+      seasonalComparison,
+      recentAnnotations,
+    },
+
+    // Layer 2: Power profile + how this activity compares
+    powerProfile,
+    activityVsBests,
+
+    // Layer 3: Health snapshot
     bloodWork: getData(bloodWorkResult) || null,
     dexa: getData(dexaResult) || null,
+
+    // Metadata
     activeBoosters: settings?.active_boosters || [],
     connectedSources: integrations.map((i) => i.provider),
     cyclePhase: dailyMetrics[0]?.cycle_phase || null,
     cycleDay: dailyMetrics[0]?.cycle_day || null,
     usesCycleTracking: profile.uses_cycle_tracking || false,
     raceCalendar: settings?.race_calendar || null,
-    recentNotes,
   };
 }
 

@@ -6,6 +6,7 @@ import { Check, ArrowRight, MessageCircle, Eye, EyeOff, ExternalLink } from "luc
 import { integrations, catLabels, catIcons } from "../data/integrations";
 import { supabase } from "../lib/supabase";
 import BloodPanelUpload from "../components/BloodPanelUpload";
+import TrainingPeaksImport from "../components/TrainingPeaksImport";
 
 // Apps that support real OAuth connect
 const OAUTH_APPS = {
@@ -21,15 +22,21 @@ const CREDENTIAL_APPS = {
   EightSleep: "/api/auth/connect/eightsleep",
 };
 
+// Apps that use file import (no API, user exports data manually)
+const FILE_IMPORT_APPS = {
+  TrainingPeaks: true,
+};
+
 // Map display names to provider keys in the database
-const NAME_TO_PROVIDER = { Strava: "strava", Wahoo: "wahoo", Whoop: "whoop", "Oura Ring": "oura", Withings: "withings", EightSleep: "eightsleep" };
+const NAME_TO_PROVIDER = { Strava: "strava", Wahoo: "wahoo", Whoop: "whoop", "Oura Ring": "oura", Withings: "withings", EightSleep: "eightsleep", TrainingPeaks: "trainingpeaks" };
 
 // ── APP CARD COMPONENT ──
 function AppCard({ app, isConnected, onToggle }) {
   const [hover, setHover] = useState(false);
   const isOAuth = !!OAUTH_APPS[app.name];
   const isCredential = !!CREDENTIAL_APPS[app.name];
-  const isConnectable = isOAuth || isCredential;
+  const isFileImport = !!FILE_IMPORT_APPS[app.name];
+  const isConnectable = isOAuth || isCredential || isFileImport;
   const isUnavailable = !!app.note;
   const showDisconnect = isConnected && isConnectable && hover;
 
@@ -58,7 +65,7 @@ function AppCard({ app, isConnected, onToggle }) {
           fontFamily: font, transition: "all 0.2s", display: "flex", alignItems: "center", gap: 6,
           opacity: isUnavailable ? 0.5 : 1,
         }}>
-        {showDisconnect ? "Disconnect" : isConnected ? <><Check size={14} /> Connected</> : isUnavailable ? "Soon" : isConnectable ? "Connect" : "Connect"}
+        {showDisconnect ? "Disconnect" : isConnected ? <><Check size={14} /> Connected</> : isUnavailable ? "Soon" : isFileImport ? "Import" : isConnectable ? "Connect" : "Connect"}
       </button>
     </div>
   );
@@ -82,6 +89,7 @@ export default function ConnectApps() {
   const [credLoading, setCredLoading] = useState(false);
   const [credError, setCredError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(null);
 
   // Handle OAuth return query params
   useEffect(() => {
@@ -108,7 +116,7 @@ export default function ConnectApps() {
       .then(({ data }) => {
         const map = {};
         // Map provider names back to display names
-        const providerToName = { strava: "Strava", wahoo: "Wahoo", whoop: "Whoop", oura: "Oura Ring", withings: "Withings", eightsleep: "EightSleep" };
+        const providerToName = { strava: "Strava", wahoo: "Wahoo", whoop: "Whoop", oura: "Oura Ring", withings: "Withings", eightsleep: "EightSleep", trainingpeaks: "TrainingPeaks" };
         (data || []).forEach(row => {
           const display = providerToName[row.provider] || row.provider;
           map[display] = true;
@@ -152,7 +160,35 @@ export default function ConnectApps() {
   const toggleConnect = async (name) => {
     const isOAuth = !!OAUTH_APPS[name];
     const isCredential = !!CREDENTIAL_APPS[name];
+    const isFileImport = !!FILE_IMPORT_APPS[name];
     const isCurrentlyConnected = !!connected[name];
+
+    // File import apps: open import modal
+    if (isFileImport && !isCurrentlyConnected) {
+      setShowImportModal(name);
+      return;
+    }
+
+    // File import apps: disconnect
+    if (isFileImport && isCurrentlyConnected) {
+      const provider = NAME_TO_PROVIDER[name];
+      if (!provider) return;
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        await fetch("/api/user/disconnect", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+          body: JSON.stringify({ provider }),
+        });
+        setConnected(prev => ({ ...prev, [name]: false }));
+        setToast(`${name} disconnected`);
+        setTimeout(() => setToast(""), 3000);
+      } catch {
+        setToast("Failed to disconnect");
+        setTimeout(() => setToast(""), 3000);
+      }
+      return;
+    }
 
     // Credential-based apps: open modal
     if (isCredential && !isCurrentlyConnected) {
@@ -355,6 +391,23 @@ export default function ConnectApps() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* TrainingPeaks import modal */}
+      {showImportModal === "TrainingPeaks" && (
+        <TrainingPeaksImport
+          onClose={() => setShowImportModal(null)}
+          onComplete={(results) => {
+            setShowImportModal(null);
+            setConnected(prev => ({ ...prev, TrainingPeaks: true }));
+            const parts = [];
+            if (results.imported) parts.push(`${results.imported} imported`);
+            if (results.merged) parts.push(`${results.merged} merged`);
+            if (results.skipped) parts.push(`${results.skipped} skipped`);
+            setToast(`TrainingPeaks: ${parts.join(", ") || "No new activities"}`);
+            setTimeout(() => setToast(""), 5000);
+          }}
+        />
       )}
 
       {/* Main content */}
