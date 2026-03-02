@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { T, font } from "../theme/tokens";
+import { T, font, mono } from "../theme/tokens";
 import { btn, inputStyle } from "../theme/styles";
-import { Check, ArrowRight, MessageCircle, Eye, EyeOff } from "lucide-react";
+import { Check, ArrowRight, MessageCircle, Eye, EyeOff, ExternalLink } from "lucide-react";
 import { integrations, catLabels, catIcons } from "../data/integrations";
 import { supabase } from "../lib/supabase";
+import BloodPanelUpload from "../components/BloodPanelUpload";
 
 // Apps that support real OAuth connect
 const OAUTH_APPS = {
@@ -595,6 +596,27 @@ export default function ConnectApps() {
             )}
           </div>
         )}
+
+        {/* Blood Panel Upload */}
+        <div style={{ marginTop: 28, padding: "24px", background: T.card, borderRadius: 16, border: `1px solid ${T.border}` }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 18 }}>🩸</span>
+              <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>Blood Panels</h3>
+            </div>
+            <button onClick={() => navigate("/health-lab")} style={{
+              background: "none", border: `1px solid ${T.border}`, padding: "5px 12px", borderRadius: 7,
+              fontSize: 11, fontWeight: 600, color: T.textSoft, cursor: "pointer", fontFamily: font,
+              display: "flex", alignItems: "center", gap: 5, transition: "all 0.2s",
+            }}>
+              View All <ExternalLink size={11} />
+            </button>
+          </div>
+          <p style={{ fontSize: 13, color: T.textSoft, margin: "0 0 16px", lineHeight: 1.6 }}>
+            Upload lab results (PDF or photo) and AI will automatically extract all biomarkers, flag abnormal values using athlete-optimal ranges, and track trends over time.
+          </p>
+          <BloodPanelUpload onUploadComplete={() => {}} compact />
+        </div>
 
         {/* Request integration */}
         <div style={{ marginTop: 32, padding: "24px", background: T.card, borderRadius: 16, border: `1px solid ${T.border}`, textAlign: "center" }}>

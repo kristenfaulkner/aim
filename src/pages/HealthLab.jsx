@@ -1,14 +1,36 @@
-import { useState, useRef } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { T, font, mono } from "../theme/tokens";
-import { biomarkerDB, mockPanels, mockDexa, mockInsights, mockReminders } from "../data/biomarkers";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Area, AreaChart } from "recharts";
+import { biomarkerDB, DB_COLUMN_TO_KEY } from "../data/biomarkers";
+import { useAuth } from "../context/AuthContext";
+import { supabase } from "../lib/supabase";
+import BloodPanelUpload from "../components/BloodPanelUpload";
+import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis } from "recharts";
+import { LogOut, Trash2, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 
-// ── HELPER: Status badge ──
-function StatusBadge({ value, biomarkerKey, sex = "male" }) {
+// ── Transform a blood_panels DB row into { id, date, source, values } ──
+function transformPanel(row) {
+  const values = {};
+  for (const [dbCol, bmKey] of Object.entries(DB_COLUMN_TO_KEY)) {
+    if (row[dbCol] != null) values[bmKey] = Number(row[dbCol]);
+  }
+  return {
+    id: row.id,
+    date: row.test_date,
+    source: row.lab_name || "Lab Report",
+    values,
+    allResults: row.all_results,
+    aiAnalysis: row.ai_analysis,
+    createdAt: row.created_at,
+  };
+}
+
+// ── Status Badge ──
+function StatusBadge({ value, biomarkerKey, sex = "female" }) {
   const bm = biomarkerDB[biomarkerKey];
   if (!bm || value == null) return null;
-  const [optLow, optHigh] = bm.athleteOptimal[sex];
-  const [clinLow, clinHigh] = bm.clinicalRange[sex];
+  const [optLow, optHigh] = bm.athleteOptimal[sex] || bm.athleteOptimal.male;
+  const [clinLow, clinHigh] = bm.clinicalRange[sex] || bm.clinicalRange.male;
   let label, color, bg;
   if (value >= optLow && value <= optHigh) {
     label = "Optimal"; color = T.green; bg = "rgba(0,229,160,0.1)";
@@ -22,23 +44,33 @@ function StatusBadge({ value, biomarkerKey, sex = "male" }) {
   );
 }
 
-// ── COMPONENT: Biomarker Trend Sparkline ──
-function BiomarkerTrend({ biomarkerKey, panels, sex = "male" }) {
+// ── Biomarker Trend Card ──
+function BiomarkerTrend({ biomarkerKey, panels, sex = "female", onExpand, expanded }) {
   const bm = biomarkerDB[biomarkerKey];
   if (!bm) return null;
-  const [optLow, optHigh] = bm.athleteOptimal[sex];
+  const [optLow, optHigh] = bm.athleteOptimal[sex] || bm.athleteOptimal.male;
   const data = panels.map(p => ({
     date: new Date(p.date).toLocaleDateString("en-US", { month: "short", year: "2-digit" }),
     value: p.values[biomarkerKey],
   })).filter(d => d.value != null);
+  if (data.length === 0) return null;
+
   const latest = data[data.length - 1]?.value;
   const prev = data.length > 1 ? data[data.length - 2]?.value : null;
   const delta = prev != null ? latest - prev : null;
   const trend = delta > 0 ? "\u2191" : delta < 0 ? "\u2193" : "\u2192";
   const trendColor = delta > 0 ? (latest <= optHigh ? T.green : T.amber) : delta < 0 ? (latest >= optLow ? T.green : T.amber) : T.textDim;
 
+  // Determine status for action items
+  const [clinLow, clinHigh] = bm.clinicalRange[sex] || bm.clinicalRange.male;
+  const isLow = latest < clinLow;
+  const isHigh = latest > clinHigh;
+  const isBelowOptimal = latest < optLow && !isLow;
+  const isAboveOptimal = latest > optHigh && !isHigh;
+
   return (
-    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "18px 20px", transition: "all 0.2s" }}
+    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "18px 20px", transition: "all 0.2s", cursor: "pointer" }}
+      onClick={onExpand}
       onMouseOver={e => e.currentTarget.style.borderColor = T.borderHover}
       onMouseOut={e => e.currentTarget.style.borderColor = T.border}>
       {/* Header */}
@@ -50,7 +82,10 @@ function BiomarkerTrend({ biomarkerKey, panels, sex = "male" }) {
             <div style={{ fontSize: 10, color: T.textDim }}>{bm.category}</div>
           </div>
         </div>
-        <StatusBadge value={latest} biomarkerKey={biomarkerKey} sex={sex} />
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <StatusBadge value={latest} biomarkerKey={biomarkerKey} sex={sex} />
+          {expanded ? <ChevronUp size={14} color={T.textDim} /> : <ChevronDown size={14} color={T.textDim} />}
+        </div>
       </div>
       {/* Value */}
       <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
@@ -65,213 +100,86 @@ function BiomarkerTrend({ biomarkerKey, panels, sex = "male" }) {
       {/* Range bar */}
       <div style={{ marginBottom: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: T.textDim, marginBottom: 3 }}>
-          <span>Athlete Optimal: {optLow}\u2013{optHigh} {bm.unit}</span>
+          <span>Athlete Optimal: {optLow}&ndash;{optHigh} {bm.unit}</span>
         </div>
         <div style={{ position: "relative", height: 6, borderRadius: 3, background: "rgba(255,255,255,0.04)" }}>
-          {/* Optimal zone */}
           <div style={{
             position: "absolute",
             left: `${Math.max(0, ((optLow - (optLow * 0.5)) / (optHigh * 1.5 - optLow * 0.5)) * 100)}%`,
             width: `${((optHigh - optLow) / (optHigh * 1.5 - optLow * 0.5)) * 100}%`,
             height: "100%", borderRadius: 3, background: "rgba(0,229,160,0.2)",
           }} />
-          {/* Current value dot */}
           <div style={{
             position: "absolute",
             left: `${Math.min(100, Math.max(0, ((latest - optLow * 0.5) / (optHigh * 1.5 - optLow * 0.5)) * 100))}%`,
             top: -3, width: 12, height: 12, borderRadius: "50%",
-            background: latest >= optLow && latest <= optHigh ? T.green : latest >= (bm.clinicalRange[sex]?.[0] ?? 0) && latest <= (bm.clinicalRange[sex]?.[1] ?? 999) ? T.amber : T.red,
+            background: latest >= optLow && latest <= optHigh ? T.green : latest >= clinLow && latest <= clinHigh ? T.amber : T.red,
             border: `2px solid ${T.card}`, transform: "translateX(-50%)",
           }} />
         </div>
       </div>
       {/* Sparkline */}
-      <div style={{ height: 50 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
-            <defs>
-              <linearGradient id={`grad-${biomarkerKey}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={T.accent} stopOpacity={0.3} />
-                <stop offset="100%" stopColor={T.accent} stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <Area type="monotone" dataKey="value" stroke={T.accent} strokeWidth={2} fill={`url(#grad-${biomarkerKey})`} dot={{ r: 3, fill: T.accent, strokeWidth: 0 }} />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  );
-}
-
-// ── COMPONENT: DEXA Composition Chart ──
-function DexaChart({ data }) {
-  const chartData = data.map(d => ({
-    date: new Date(d.date).toLocaleDateString("en-US", { month: "short", year: "2-digit" }),
-    "Body Fat %": d.totalBF,
-    "Lean Mass (kg)": d.leanMass,
-    "Bone Density": d.boneDensity,
-  }));
-
-  return (
-    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <div>
-          <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 4px" }}>DEXA Body Composition</h3>
-          <p style={{ fontSize: 11, color: T.textDim, margin: 0 }}>{data.length} scans tracked</p>
+      {data.length > 1 && (
+        <div style={{ height: 50 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
+              <defs>
+                <linearGradient id={`grad-${biomarkerKey}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={T.accent} stopOpacity={0.3} />
+                  <stop offset="100%" stopColor={T.accent} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <Tooltip contentStyle={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 11 }} formatter={(v) => [v, bm.name]} />
+              <Area type="monotone" dataKey="value" stroke={T.accent} strokeWidth={2} fill={`url(#grad-${biomarkerKey})`} dot={{ r: 3, fill: T.accent, strokeWidth: 0 }} />
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
-        <div style={{ display: "flex", gap: 12, fontSize: 11 }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: T.pink }} />Body Fat %</span>
-          <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: T.blue }} />Lean Mass</span>
-        </div>
-      </div>
-      {/* Stats row */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 10, marginBottom: 18 }}>
-        {[
-          { label: "Body Fat", value: `${data[data.length-1].totalBF}%`, delta: data.length > 1 ? `${(data[data.length-1].totalBF - data[0].totalBF).toFixed(1)}%` : null, good: true },
-          { label: "Lean Mass", value: `${data[data.length-1].leanMass}kg`, delta: data.length > 1 ? `+${(data[data.length-1].leanMass - data[0].leanMass).toFixed(1)}kg` : null, good: true },
-          { label: "Bone Density", value: `${data[data.length-1].boneDensity}`, delta: null, good: true },
-          { label: "Visceral Fat", value: `${data[data.length-1].visceralFat}kg`, delta: data.length > 1 ? `${(data[data.length-1].visceralFat - data[0].visceralFat).toFixed(1)}kg` : null, good: true },
-          { label: "A:G Ratio", value: data[data.length-1].androidGynoid.toFixed(2), delta: null, good: data[data.length-1].androidGynoid < 1 },
-        ].map((s, i) => (
-          <div key={i} style={{ background: T.surface, borderRadius: 10, padding: "10px 12px", textAlign: "center" }}>
-            <div style={{ fontSize: 10, color: T.textDim, marginBottom: 4 }}>{s.label}</div>
-            <div style={{ fontSize: 18, fontWeight: 800, fontFamily: mono }}>{s.value}</div>
-            {s.delta && <div style={{ fontSize: 10, color: T.green, fontWeight: 600, marginTop: 2 }}>{s.delta}</div>}
+      )}
+
+      {/* Expanded detail: why it matters + action items */}
+      {expanded && (
+        <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${T.border}` }}>
+          <div style={{ fontSize: 12, color: T.textSoft, lineHeight: 1.65, marginBottom: 12 }}>
+            <strong style={{ color: T.text }}>Why it matters:</strong> {bm.whyItMatters}
           </div>
-        ))}
-      </div>
-      {/* Chart */}
-      <div style={{ height: 160 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 5, right: 10, bottom: 0, left: 10 }}>
-            <CartesianGrid stroke="rgba(255,255,255,0.03)" />
-            <XAxis dataKey="date" tick={{ fontSize: 10, fill: T.textDim }} axisLine={false} tickLine={false} />
-            <YAxis yAxisId="left" tick={{ fontSize: 10, fill: T.textDim }} axisLine={false} tickLine={false} domain={[12, 20]} />
-            <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10, fill: T.textDim }} axisLine={false} tickLine={false} domain={[70, 78]} />
-            <Tooltip contentStyle={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 12 }} />
-            <Line yAxisId="left" type="monotone" dataKey="Body Fat %" stroke={T.pink} strokeWidth={2} dot={{ r: 4, fill: T.pink }} />
-            <Line yAxisId="right" type="monotone" dataKey="Lean Mass (kg)" stroke={T.blue} strokeWidth={2} dot={{ r: 4, fill: T.blue }} />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  );
-}
-
-// ── COMPONENT: Upload Zone ──
-function UploadZone({ onUpload }) {
-  const [dragging, setDragging] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [done, setDone] = useState(false);
-  const fileRef = useRef(null);
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setDragging(false);
-    setUploading(true);
-    setTimeout(() => { setUploading(false); setDone(true); setTimeout(() => setDone(false), 3000); }, 2000);
-  };
-
-  return (
-    <div
-      onDragOver={e => { e.preventDefault(); setDragging(true); }}
-      onDragLeave={() => setDragging(false)}
-      onDrop={handleDrop}
-      onClick={() => fileRef.current?.click()}
-      style={{
-        border: `2px dashed ${dragging ? T.accent : T.border}`,
-        borderRadius: 16,
-        padding: "40px 24px",
-        textAlign: "center",
-        cursor: "pointer",
-        background: dragging ? "rgba(0,229,160,0.04)" : T.card,
-        transition: "all 0.3s",
-      }}>
-      <input ref={fileRef} type="file" accept=".pdf,.jpg,.png,.csv,.xlsx" multiple style={{ display: "none" }}
-        onChange={() => { setUploading(true); setTimeout(() => { setUploading(false); setDone(true); setTimeout(() => setDone(false), 3000); }, 2000); }} />
-      {uploading ? (
-        <div>
-          <div style={{ fontSize: 36, marginBottom: 12, animation: "spin 1s linear infinite" }}>&#x23F3;</div>
-          <p style={{ fontSize: 15, fontWeight: 700, color: T.accent, margin: "0 0 6px" }}>Analyzing document with AI...</p>
-          <p style={{ fontSize: 12, color: T.textDim, margin: 0 }}>Extracting biomarkers, parsing lab values, cross-referencing with your profile</p>
-        </div>
-      ) : done ? (
-        <div>
-          <div style={{ fontSize: 36, marginBottom: 12 }}>&#x2705;</div>
-          <p style={{ fontSize: 15, fontWeight: 700, color: T.green, margin: "0 0 6px" }}>Panel uploaded & analyzed!</p>
-          <p style={{ fontSize: 12, color: T.textSoft, margin: 0 }}>9 biomarkers extracted. 3 new AI insights generated.</p>
-        </div>
-      ) : (
-        <div>
-          <div style={{ fontSize: 36, marginBottom: 12 }}>&#x1F4C4;</div>
-          <p style={{ fontSize: 15, fontWeight: 700, color: T.text, margin: "0 0 6px" }}>Upload Blood Panel, DEXA Scan, or Lab Report</p>
-          <p style={{ fontSize: 12, color: T.textSoft, margin: "0 0 12px" }}>Drag & drop PDF, image, or CSV — AI extracts all biomarkers automatically</p>
-          <div style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
-            {["PDF", "JPG/PNG", "CSV", "XLSX"].map(f => (
-              <span key={f} style={{ padding: "3px 10px", borderRadius: 6, background: T.surface, fontSize: 10, color: T.textDim, fontWeight: 600 }}>{f}</span>
-            ))}
-          </div>
+          {(isLow || isBelowOptimal) && bm.actionLow && (
+            <div style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(255,71,87,0.05)", border: "1px solid rgba(255,71,87,0.15)", marginBottom: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: T.red, marginBottom: 4 }}>
+                {isLow ? "Below clinical range" : "Below athlete-optimal range"}
+              </div>
+              <div style={{ fontSize: 12, color: T.textSoft, lineHeight: 1.6 }}>{bm.actionLow}</div>
+            </div>
+          )}
+          {(isHigh || isAboveOptimal) && bm.actionHigh && (
+            <div style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(245,158,11,0.05)", border: "1px solid rgba(245,158,11,0.15)", marginBottom: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: T.amber, marginBottom: 4 }}>
+                {isHigh ? "Above clinical range" : "Above athlete-optimal range"}
+              </div>
+              <div style={{ fontSize: 12, color: T.textSoft, lineHeight: 1.6 }}>{bm.actionHigh}</div>
+            </div>
+          )}
+          {!isLow && !isHigh && !isBelowOptimal && !isAboveOptimal && (
+            <div style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(0,229,160,0.05)", border: "1px solid rgba(0,229,160,0.15)" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: T.green, marginBottom: 4 }}>In athlete-optimal range</div>
+              <div style={{ fontSize: 12, color: T.textSoft, lineHeight: 1.6 }}>This value is within the ideal range for endurance athletes. Continue current protocols.</div>
+            </div>
+          )}
+          {bm.linkedMetrics && bm.linkedMetrics.length > 0 && (
+            <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 10, color: T.textDim, fontWeight: 600 }}>Linked to:</span>
+              {bm.linkedMetrics.map(m => (
+                <span key={m} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 5, background: T.surface, color: T.textSoft }}>{m}</span>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-// ── COMPONENT: Insight Card ──
-function InsightCard({ insight }) {
-  const colors = { success: T.green, warning: T.amber, info: T.blue, danger: T.red };
-  const icons = { success: "\u2705", warning: "\u26A0\uFE0F", info: "\uD83D\uDCA1", danger: "\uD83D\uDEA8" };
-  const color = colors[insight.severity];
-  return (
-    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "18px 20px", borderLeft: `3px solid ${color}` }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 16 }}>{icons[insight.severity]}</span>
-          <span style={{ fontSize: 14, fontWeight: 700 }}>{insight.title}</span>
-        </div>
-        <span style={{ fontSize: 10, color: T.textDim }}>{new Date(insight.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
-      </div>
-      <p style={{ fontSize: 13, color: T.textSoft, lineHeight: 1.65, margin: 0 }}>{insight.body}</p>
-      {insight.linkedBiomarkers.length > 0 && (
-        <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
-          {insight.linkedBiomarkers.map(bk => (
-            <span key={bk} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 5, background: T.surface, color: T.textSoft, fontWeight: 600 }}>
-              {biomarkerDB[bk]?.icon} {biomarkerDB[bk]?.name}
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── COMPONENT: Reminder Card ──
-function ReminderCard({ reminder }) {
-  const urgent = reminder.daysUntil <= 7;
-  const icons = { blood: "\uD83E\uDE78", dexa: "\uD83E\uDDB4", vo2: "\uD83E\uDEC1" };
-  return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", background: T.card, border: `1px solid ${urgent ? "rgba(245,158,11,0.3)" : T.border}`, borderRadius: 12 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <span style={{ fontSize: 20 }}>{icons[reminder.type]}</span>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 700 }}>{reminder.name}</div>
-          <div style={{ fontSize: 11, color: T.textDim }}>Last: {new Date(reminder.lastDone).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</div>
-        </div>
-      </div>
-      <div style={{ textAlign: "right" }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: urgent ? T.amber : T.textSoft }}>
-          {urgent ? `Due in ${reminder.daysUntil} days` : `${reminder.daysUntil} days`}
-        </div>
-        <div style={{ fontSize: 10, color: T.textDim }}>
-          {new Date(reminder.nextDue).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── COMPONENT: Panel History ──
-function PanelHistory({ panels }) {
+// ── Panel History ──
+function PanelHistory({ panels, onDelete }) {
   return (
     <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "18px 20px" }}>
       <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 14px" }}>Upload History</h3>
@@ -281,13 +189,54 @@ function PanelHistory({ panels }) {
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ fontSize: 18 }}>{"\uD83D\uDCC4"}</span>
               <div>
-                <div style={{ fontSize: 12, fontWeight: 600 }}>{p.fileName}</div>
-                <div style={{ fontSize: 10, color: T.textDim }}>{p.source} · {Object.keys(p.values).length} biomarkers</div>
+                <div style={{ fontSize: 12, fontWeight: 600 }}>{p.source}</div>
+                <div style={{ fontSize: 10, color: T.textDim }}>{Object.keys(p.values).length} biomarkers extracted</div>
               </div>
             </div>
-            <div style={{ fontSize: 11, color: T.textDim }}>{new Date(p.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ fontSize: 11, color: T.textDim }}>{new Date(p.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</div>
+              {onDelete && (
+                <button onClick={(e) => { e.stopPropagation(); onDelete(p.id); }}
+                  style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: T.textDim, transition: "color 0.2s" }}
+                  onMouseOver={e => e.currentTarget.style.color = "#ef4444"}
+                  onMouseOut={e => e.currentTarget.style.color = T.textDim}>
+                  <Trash2 size={14} />
+                </button>
+              )}
+            </div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Additional Results (biomarkers not in our DB) ──
+function AdditionalResults({ panels }) {
+  const latest = panels[panels.length - 1];
+  const otherResults = latest?.allResults?.other_results || [];
+  if (otherResults.length === 0) return null;
+
+  return (
+    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "18px 20px" }}>
+      <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 14px" }}>Additional Results</h3>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+        {otherResults.map((r, i) => {
+          const flagColor = r.flag === "normal" ? T.green : r.flag === "high" ? T.red : r.flag === "low" ? T.amber : T.textDim;
+          return (
+            <div key={i} style={{ padding: "10px 14px", background: T.surface, borderRadius: 10 }}>
+              <div style={{ fontSize: 10, color: T.textDim, marginBottom: 4 }}>{r.name}</div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                <span style={{ fontSize: 18, fontWeight: 800, fontFamily: mono }}>{r.value}</span>
+                <span style={{ fontSize: 10, color: T.textDim }}>{r.unit}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
+                <span style={{ fontSize: 9, color: T.textDim }}>Ref: {r.reference_range}</span>
+                <span style={{ fontSize: 9, fontWeight: 700, color: flagColor, textTransform: "uppercase" }}>{r.flag}</span>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -297,132 +246,265 @@ function PanelHistory({ panels }) {
 // MAIN HEALTH LAB PAGE
 // ══════════════════════════════════════
 export default function HealthLab() {
-  const [activeSection, setActiveSection] = useState("overview");
-  const sex = "male";
+  const navigate = useNavigate();
+  const { signout, profile } = useAuth();
+  const sex = profile?.sex || "female";
 
-  const sections = [
-    { id: "overview", label: "Overview", icon: "\uD83D\uDCCA" },
-    { id: "blood", label: "Blood Panels", icon: "\uD83E\uDE78" },
-    { id: "dexa", label: "DEXA / Body Comp", icon: "\uD83E\uDDB4" },
-    { id: "insights", label: "AI Insights", icon: "\uD83E\uDDE0" },
-    { id: "reminders", label: "Reminders", icon: "\uD83D\uDD14" },
-  ];
+  const [panels, setPanels] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedBiomarker, setExpandedBiomarker] = useState(null);
+
+  // Fetch blood panels
+  useEffect(() => {
+    supabase.from("blood_panels")
+      .select("*")
+      .order("test_date", { ascending: true })
+      .then(({ data }) => {
+        if (data) setPanels(data.map(transformPanel));
+        setLoading(false);
+      });
+  }, []);
+
+  const handleUploadComplete = (data) => {
+    // Re-fetch panels after upload
+    supabase.from("blood_panels")
+      .select("*")
+      .order("test_date", { ascending: true })
+      .then(({ data: rows }) => {
+        if (rows) setPanels(rows.map(transformPanel));
+      });
+  };
+
+  const handleDelete = async (panelId) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const res = await fetch(`/api/health/panels?id=${panelId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (res.ok) {
+      setPanels(prev => prev.filter(p => p.id !== panelId));
+    }
+  };
+
+  const handleSignout = async () => {
+    await signout();
+    navigate("/");
+  };
+
+  // Determine which biomarkers have data
+  const biomarkersWithData = Object.keys(biomarkerDB).filter(key =>
+    panels.some(p => p.values[key] != null)
+  );
+
+  // Count flagged biomarkers
+  const latestPanel = panels[panels.length - 1];
+  const flagCounts = { optimal: 0, inRange: 0, outOfRange: 0 };
+  if (latestPanel) {
+    for (const key of biomarkersWithData) {
+      const value = latestPanel.values[key];
+      if (value == null) continue;
+      const bm = biomarkerDB[key];
+      const [optLow, optHigh] = bm.athleteOptimal[sex] || bm.athleteOptimal.male;
+      const [clinLow, clinHigh] = bm.clinicalRange[sex] || bm.clinicalRange.male;
+      if (value >= optLow && value <= optHigh) flagCounts.optimal++;
+      else if (value >= clinLow && value <= clinHigh) flagCounts.inRange++;
+      else flagCounts.outOfRange++;
+    }
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: T.bg, color: T.text, fontFamily: font }}>
       <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
-      <style>{`
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
-      `}</style>
 
       {/* Nav */}
-      <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px", height: 56, borderBottom: `1px solid ${T.border}`, background: `${T.surface}cc`, backdropFilter: "blur(16px)", position: "sticky", top: 0, zIndex: 100 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 28, height: 28, borderRadius: 7, background: "linear-gradient(135deg, #00e5a0, #3b82f6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: T.bg }}>AI</div>
-            <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.03em" }}>M</span>
+      <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px", height: 52, borderBottom: `1px solid ${T.border}`, background: `${T.surface}cc`, backdropFilter: "blur(16px)", position: "sticky", top: 0, zIndex: 100 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }} onClick={() => navigate("/dashboard")}>
+            <div style={{ width: 26, height: 26, borderRadius: 7, background: T.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: T.bg, letterSpacing: "-0.02em" }}>AI</div>
+            <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.03em" }}><span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>AI</span>M</span>
+            <span style={{ fontSize: 8, color: T.accent, fontWeight: 600, letterSpacing: "0.1em", marginLeft: -3 }}>BETA</span>
           </div>
           <div style={{ display: "flex", gap: 3 }}>
-            {["Dashboard", "Calendar", "Trends", "Boosters", "Health Lab", "Race Planner"].map(item => (
-              <button key={item} style={{ background: item === "Health Lab" ? "rgba(0,229,160,0.1)" : "none", border: "none", padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, color: item === "Health Lab" ? T.accent : T.textDim, cursor: "pointer", fontFamily: font }}>{item}</button>
+            {["Dashboard", "Health Lab", "Connect"].map(item => (
+              <button key={item} onClick={() => {
+                if (item === "Dashboard") navigate("/dashboard");
+                if (item === "Connect") navigate("/connect");
+              }} style={{ background: item === "Health Lab" ? T.accentDim : "none", border: "none", padding: "5px 12px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: item === "Health Lab" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font }}>{item}</button>
             ))}
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 9, background: "linear-gradient(135deg, #8b5cf6, #ec4899)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 }}>JD</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{ width: 30, height: 30, borderRadius: 9, background: `linear-gradient(135deg, ${T.purple}, ${T.pink})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 }}>
+            {profile?.full_name ? profile.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() : "U"}
+          </div>
+          <button onClick={handleSignout} style={{ background: "none", border: `1px solid rgba(239,68,68,0.2)`, padding: "5px 10px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: "#ef4444", cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 5 }}>
+            <LogOut size={13} /> Sign Out
+          </button>
         </div>
       </nav>
 
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "32px" }}>
         {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 28 }}>
-          <div>
-            <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 6px" }}>
-              Health <span style={{ background: "linear-gradient(135deg, #8b5cf6, #ec4899)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Lab</span>
-            </h1>
-            <p style={{ fontSize: 14, color: T.textSoft, margin: 0 }}>Blood panels, DEXA scans, and health data — analyzed by AI in the context of your training.</p>
+        <div style={{ marginBottom: 28 }}>
+          <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 6px" }}>
+            Health <span style={{ background: `linear-gradient(135deg, ${T.purple}, ${T.pink})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Lab</span>
+          </h1>
+          <p style={{ fontSize: 14, color: T.textSoft, margin: 0 }}>Upload blood panels and track biomarkers over time — analyzed with athlete-optimal ranges.</p>
+        </div>
+
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "60px 0" }}>
+            <div style={{ fontSize: 14, color: T.textDim }}>Loading your health data...</div>
           </div>
-        </div>
+        ) : panels.length === 0 ? (
+          /* ── Empty State ── */
+          <div style={{ display: "flex", flexDirection: "column", gap: 24, maxWidth: 600, margin: "0 auto" }}>
+            <div style={{ textAlign: "center", padding: "20px 0" }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>🩸</div>
+              <h2 style={{ fontSize: 22, fontWeight: 800, margin: "0 0 8px" }}>Upload Your First Blood Panel</h2>
+              <p style={{ fontSize: 14, color: T.textSoft, margin: "0 0 24px", lineHeight: 1.6 }}>
+                Upload a PDF or photo of your lab results. AI will extract all biomarkers, flag values using athlete-optimal ranges, and track trends over time.
+              </p>
+            </div>
+            <BloodPanelUpload onUploadComplete={handleUploadComplete} />
 
-        {/* Section tabs */}
-        <div style={{ display: "flex", gap: 6, marginBottom: 28, borderBottom: `1px solid ${T.border}`, paddingBottom: 0 }}>
-          {sections.map(s => (
-            <button key={s.id} onClick={() => setActiveSection(s.id)}
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 18px", background: "none", border: "none", borderBottom: `2px solid ${activeSection === s.id ? T.accent : "transparent"}`, fontSize: 13, fontWeight: activeSection === s.id ? 700 : 500, color: activeSection === s.id ? T.text : T.textDim, cursor: "pointer", fontFamily: font, transition: "all 0.2s" }}>
-              <span style={{ fontSize: 14 }}>{s.icon}</span> {s.label}
-            </button>
-          ))}
-        </div>
+            {/* What we track */}
+            <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px" }}>
+              <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 14px" }}>What AIM Tracks</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                {["Iron & Oxygen", "Vitamins", "Hormones", "Thyroid", "Lipids", "Kidney", "Liver", "Inflammation", "Minerals"].map(cat => {
+                  const count = Object.values(biomarkerDB).filter(b => b.category === cat).length;
+                  return (
+                    <div key={cat} style={{ padding: "10px 14px", background: T.surface, borderRadius: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: 12, fontWeight: 600 }}>{cat}</span>
+                      <span style={{ fontSize: 11, fontFamily: mono, color: T.textDim }}>{count}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <p style={{ fontSize: 11, color: T.textDim, margin: "12px 0 0", lineHeight: 1.5 }}>
+                {Object.keys(biomarkerDB).length} biomarkers with athlete-specific optimal ranges. Plus any additional results from your lab report.
+              </p>
+            </div>
 
-        {/* === OVERVIEW === */}
-        {activeSection === "overview" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-            {/* Upload */}
-            <UploadZone />
-
-            {/* Quick stats row */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
-              {[
-                { label: "Blood Panels", value: mockPanels.length, icon: "\uD83E\uDE78", sub: `Latest: ${new Date(mockPanels[mockPanels.length-1].date).toLocaleDateString("en-US", { month: "short", year: "numeric" })}` },
-                { label: "DEXA Scans", value: mockDexa.length, icon: "\uD83E\uDDB4", sub: `Latest: ${new Date(mockDexa[mockDexa.length-1].date).toLocaleDateString("en-US", { month: "short", year: "numeric" })}` },
-                { label: "Biomarkers Tracked", value: Object.keys(biomarkerDB).length, icon: "\uD83D\uDCCA", sub: "All in athlete-optimal context" },
-                { label: "Next Test Due", value: `${mockReminders[0].daysUntil}d`, icon: "\uD83D\uDD14", sub: mockReminders[0].name },
-              ].map((s, i) => (
-                <div key={i} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "18px 20px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <span style={{ fontSize: 10, color: T.textDim, textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.06em" }}>{s.label}</span>
-                    <span style={{ fontSize: 16 }}>{s.icon}</span>
+            {/* Pre-test tips */}
+            <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px" }}>
+              <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 10px" }}>Tips for Accurate Results</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+                {[
+                  { rule: "Fast 10-12 hours", why: "Required for accurate lipid and glucose readings" },
+                  { rule: "No exercise 24h before", why: "Training elevates CK, cortisol, and inflammatory markers" },
+                  { rule: "Morning draw (before 10 AM)", why: "Cortisol and testosterone follow circadian rhythms" },
+                  { rule: "Hydrate well", why: "Dehydration inflates hemoglobin and hematocrit" },
+                ].map((t, i) => (
+                  <div key={i} style={{ padding: "10px 14px", background: T.surface, borderRadius: 10, fontSize: 12 }}>
+                    <div style={{ fontWeight: 700, color: T.text, marginBottom: 2 }}>{t.rule}</div>
+                    <div style={{ color: T.textSoft, lineHeight: 1.5 }}>{t.why}</div>
                   </div>
-                  <div style={{ fontSize: 28, fontWeight: 800, fontFamily: mono, margin: "6px 0 2px" }}>{s.value}</div>
-                  <div style={{ fontSize: 10, color: T.textDim }}>{s.sub}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Latest insights */}
-            <div>
-              <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 12px", display: "flex", alignItems: "center", gap: 6 }}>
-                <span>{"\uD83E\uDDE0"}</span> Latest AI Insights
-              </h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {mockInsights.slice(0, 3).map(i => <InsightCard key={i.id} insight={i} />)}
-              </div>
-            </div>
-
-            {/* Upcoming reminders */}
-            <div>
-              <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 12px", display: "flex", alignItems: "center", gap: 6 }}>
-                <span>{"\uD83D\uDD14"}</span> Upcoming Tests
-              </h3>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
-                {mockReminders.map((r, i) => <ReminderCard key={i} reminder={r} />)}
+                ))}
               </div>
             </div>
           </div>
-        )}
-
-        {/* === BLOOD PANELS === */}
-        {activeSection === "blood" && (
+        ) : (
+          /* ── Panels Exist ── */
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-            <UploadZone />
+            {/* Upload + Summary Row */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              <BloodPanelUpload onUploadComplete={handleUploadComplete} compact />
 
-            {/* Biomarker grid */}
+              {/* Quick summary */}
+              <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px" }}>
+                <div style={{ fontSize: 10, color: T.textDim, textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.06em", marginBottom: 10 }}>Latest Panel Summary</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 14 }}>
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: 24, fontWeight: 800, fontFamily: mono, color: T.green }}>{flagCounts.optimal}</div>
+                    <div style={{ fontSize: 10, color: T.textDim }}>Optimal</div>
+                  </div>
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: 24, fontWeight: 800, fontFamily: mono, color: T.amber }}>{flagCounts.inRange}</div>
+                    <div style={{ fontSize: 10, color: T.textDim }}>In Range</div>
+                  </div>
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: 24, fontWeight: 800, fontFamily: mono, color: T.red }}>{flagCounts.outOfRange}</div>
+                    <div style={{ fontSize: 10, color: T.textDim }}>Out of Range</div>
+                  </div>
+                </div>
+                <div style={{ fontSize: 11, color: T.textDim }}>
+                  {panels.length} panel{panels.length !== 1 ? "s" : ""} uploaded &middot; Latest: {new Date(latestPanel.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                </div>
+              </div>
+            </div>
+
+            {/* Biomarker Grid */}
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
                 <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Biomarker Trends</h3>
-                <span style={{ fontSize: 11, color: T.textDim }}>{mockPanels.length} panels · {Object.keys(biomarkerDB).length} biomarkers tracked</span>
+                <span style={{ fontSize: 11, color: T.textDim }}>
+                  {biomarkersWithData.length} biomarkers tracked &middot; Click any card for details
+                </span>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
-                {Object.keys(biomarkerDB).map(key => (
-                  <BiomarkerTrend key={key} biomarkerKey={key} panels={mockPanels} sex={sex} />
+                {biomarkersWithData.map(key => (
+                  <BiomarkerTrend
+                    key={key}
+                    biomarkerKey={key}
+                    panels={panels}
+                    sex={sex}
+                    expanded={expandedBiomarker === key}
+                    onExpand={() => setExpandedBiomarker(expandedBiomarker === key ? null : key)}
+                  />
                 ))}
               </div>
             </div>
 
-            {/* How to interpret */}
+            {/* Additional results not in biomarkerDB */}
+            <AdditionalResults panels={panels} />
+
+            {/* AI Analysis from latest panel */}
+            {latestPanel?.aiAnalysis && (() => {
+              let analysis = null;
+              try { analysis = JSON.parse(latestPanel.aiAnalysis); } catch {}
+              if (!analysis) return null;
+              return (
+                <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px" }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 12px", display: "flex", alignItems: "center", gap: 6 }}>
+                    <span>🧠</span> AI Analysis
+                  </h3>
+                  {analysis.summary && (
+                    <p style={{ fontSize: 13, color: T.textSoft, lineHeight: 1.65, margin: "0 0 16px" }}>{analysis.summary}</p>
+                  )}
+                  {analysis.insights && analysis.insights.length > 0 && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
+                      {analysis.insights.map((ins, i) => {
+                        const colors = { positive: T.green, warning: T.amber, action: T.blue, info: T.textSoft };
+                        return (
+                          <div key={i} style={{ padding: "12px 16px", borderRadius: 10, background: T.surface, borderLeft: `3px solid ${colors[ins.type] || T.textDim}` }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>{ins.title}</div>
+                            <div style={{ fontSize: 12, color: T.textSoft, lineHeight: 1.6 }}>{ins.body}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {analysis.actionItems && analysis.actionItems.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>Action Items</div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {analysis.actionItems.map((item, i) => (
+                          <div key={i} style={{ display: "flex", gap: 8, fontSize: 12, color: T.textSoft, lineHeight: 1.5 }}>
+                            <span style={{ color: T.accent, fontWeight: 700 }}>{i + 1}.</span>
+                            <span>{item}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Range legend */}
             <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px" }}>
               <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 10px" }}>Understanding Your Ranges</h3>
               <div style={{ display: "flex", gap: 16, fontSize: 12, color: T.textSoft }}>
@@ -436,148 +518,7 @@ export default function HealthLab() {
             </div>
 
             {/* Panel history */}
-            <PanelHistory panels={mockPanels} />
-          </div>
-        )}
-
-        {/* === DEXA === */}
-        {activeSection === "dexa" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-            <UploadZone />
-            <DexaChart data={mockDexa} />
-
-            {/* Individual scan comparison */}
-            <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px" }}>
-              <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 14px" }}>Scan-by-Scan Comparison</h3>
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                  <thead>
-                    <tr style={{ borderBottom: `1px solid ${T.border}` }}>
-                      {["Date", "Body Fat %", "Lean Mass", "Bone Density", "Visceral Fat", "A:G Ratio"].map(h => (
-                        <th key={h} style={{ padding: "8px 12px", textAlign: "left", fontSize: 10, color: T.textDim, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {mockDexa.map((d, i) => {
-                      const prev = i > 0 ? mockDexa[i - 1] : null;
-                      return (
-                        <tr key={i} style={{ borderBottom: `1px solid ${T.border}` }}>
-                          <td style={{ padding: "10px 12px", fontWeight: 600 }}>{new Date(d.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</td>
-                          <td style={{ padding: "10px 12px" }}>
-                            <span style={{ fontFamily: mono, fontWeight: 700 }}>{d.totalBF}%</span>
-                            {prev && <span style={{ fontSize: 10, color: d.totalBF < prev.totalBF ? T.green : T.red, marginLeft: 6 }}>{d.totalBF < prev.totalBF ? "\u2193" : "\u2191"}{Math.abs(d.totalBF - prev.totalBF).toFixed(1)}%</span>}
-                          </td>
-                          <td style={{ padding: "10px 12px" }}>
-                            <span style={{ fontFamily: mono, fontWeight: 700 }}>{d.leanMass}kg</span>
-                            {prev && <span style={{ fontSize: 10, color: d.leanMass > prev.leanMass ? T.green : T.red, marginLeft: 6 }}>{d.leanMass > prev.leanMass ? "\u2191" : "\u2193"}{Math.abs(d.leanMass - prev.leanMass).toFixed(1)}kg</span>}
-                          </td>
-                          <td style={{ padding: "10px 12px", fontFamily: mono }}>{d.boneDensity}</td>
-                          <td style={{ padding: "10px 12px", fontFamily: mono }}>{d.visceralFat}kg</td>
-                          <td style={{ padding: "10px 12px", fontFamily: mono }}>{d.androidGynoid.toFixed(2)}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* What DEXA measures */}
-            <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px" }}>
-              <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 10px" }}>What DEXA Measures & Why Athletes Care</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, fontSize: 12, color: T.textSoft, lineHeight: 1.6 }}>
-                <div style={{ padding: "10px 14px", background: T.surface, borderRadius: 10 }}>
-                  <strong style={{ color: T.text }}>Body Fat %</strong> — More accurate than calipers, bioimpedance, or DEXA alternatives. Competitive male cyclists: 6-15%. Female: 12-22%. Lower isn't always better — underfueling risks RED-S.
-                </div>
-                <div style={{ padding: "10px 14px", background: T.surface, borderRadius: 10 }}>
-                  <strong style={{ color: T.text }}>Lean Mass</strong> — Muscle + organ weight. For cyclists, increasing lean mass while reducing fat improves W/kg. Track regional lean mass to identify muscle imbalances.
-                </div>
-                <div style={{ padding: "10px 14px", background: T.surface, borderRadius: 10 }}>
-                  <strong style={{ color: T.text }}>Bone Density</strong> — Cyclists are at higher risk of osteoporosis (non-weight-bearing sport). DEXA T-score &gt;-1.0 is normal. Strength training and vitamin D help maintain density.
-                </div>
-                <div style={{ padding: "10px 14px", background: T.surface, borderRadius: 10 }}>
-                  <strong style={{ color: T.text }}>Android:Gynoid Ratio</strong> — Trunk fat vs. hip fat distribution. &lt;1.0 is healthier. Decreasing A:G ratio means you're losing fat from the metabolically riskier abdominal region first.
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* === AI INSIGHTS === */}
-        {activeSection === "insights" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "18px 20px", marginBottom: 10 }}>
-              <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 6px" }}>How AI Insights Work</h3>
-              <p style={{ fontSize: 12, color: T.textSoft, lineHeight: 1.6, margin: 0 }}>
-                Every time you upload a blood panel or DEXA scan, AIM cross-references your biomarkers with your training data (power, volume, TSS), recovery data (HRV, sleep, readiness), body composition trends, and dietary profile. This produces insights that no single data source could generate alone — like connecting a ferritin drop to an FTP plateau, or linking cortisol spikes to overtraining patterns visible in your Oura data.
-              </p>
-            </div>
-            {mockInsights.map(i => <InsightCard key={i.id} insight={i} />)}
-          </div>
-        )}
-
-        {/* === REMINDERS === */}
-        {activeSection === "reminders" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "18px 20px" }}>
-              <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 6px" }}>Smart Test Reminders</h3>
-              <p style={{ fontSize: 12, color: T.textSoft, lineHeight: 1.6, margin: 0 }}>
-                AIM recommends testing cadences based on sports science best practices and your individual needs. Blood panels every 3 months (quarterly) catch seasonal deficiencies and training-related changes. DEXA scans every 6-12 months track body composition trends. VO2max lab tests annually to validate training improvements.
-              </p>
-            </div>
-
-            <div>
-              <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 12px" }}>Upcoming</h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {mockReminders.map((r, i) => <ReminderCard key={i} reminder={r} />)}
-              </div>
-            </div>
-
-            {/* Recommended testing schedule */}
-            <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px" }}>
-              <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 14px" }}>Recommended Testing Schedule</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
-                {[
-                  { name: "Comprehensive Blood Panel", freq: "Every 3 months", why: "Catches iron depletion, vitamin D seasonal drops, overtraining hormonal shifts, and inflammation before they impact performance.", icon: "\uD83E\uDE78", cost: "$80-200" },
-                  { name: "DEXA Body Composition Scan", freq: "Every 6-12 months", why: "Tracks lean mass gain, fat loss distribution, bone density (critical for cyclists), and regional muscle balance.", icon: "\uD83E\uDDB4", cost: "$75-150" },
-                  { name: "VO2max Lab Test", freq: "Annually or at phase transitions", why: "Validates training improvements against gold-standard measurement. Best done at the start and end of your training season.", icon: "\uD83E\uDEC1", cost: "$100-250" },
-                  { name: "Iron Panel Follow-up", freq: "8-12 weeks after supplementation starts", why: "Confirms supplementation is working. Ferritin should increase 10-20 ng/mL per 8 weeks with proper supplementation.", icon: "\uD83D\uDC8A", cost: "$30-60" },
-                ].map((t, i) => (
-                  <div key={i} style={{ padding: "16px", background: T.surface, borderRadius: 12, border: `1px solid ${T.border}` }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                      <span style={{ fontSize: 18 }}>{t.icon}</span>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 700 }}>{t.name}</div>
-                        <div style={{ fontSize: 11, color: T.accent, fontWeight: 600 }}>{t.freq}</div>
-                      </div>
-                    </div>
-                    <p style={{ fontSize: 12, color: T.textSoft, lineHeight: 1.5, margin: "0 0 6px" }}>{t.why}</p>
-                    <div style={{ fontSize: 10, color: T.textDim }}>Estimated cost: {t.cost}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Pre-test instructions */}
-            <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px" }}>
-              <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 10px" }}>Pre-Test Instructions (for accurate results)</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, fontSize: 12, color: T.textSoft }}>
-                {[
-                  { rule: "Fast 10-12 hours before blood draw", why: "Glucose, insulin, and lipid panels require fasting for accuracy" },
-                  { rule: "Hydrate well (500ml water before)", why: "Dehydration concentrates blood, artificially inflating hemoglobin and hematocrit" },
-                  { rule: "No exercise 24h before", why: "Training elevates CK, cortisol, and inflammatory markers — gives false overtraining signal" },
-                  { rule: "Morning draw (before 10 AM)", why: "Cortisol and testosterone follow circadian rhythms — morning values are most informative" },
-                  { rule: "Note your menstrual cycle day", why: "Iron, estradiol, FSH, and LH vary significantly across cycle phases" },
-                  { rule: "Avoid supplements morning of", why: "Iron, B12, and vitamin D supplements can spike levels artificially for 6-8 hours" },
-                ].map((r, i) => (
-                  <div key={i} style={{ padding: "12px", background: T.surface, borderRadius: 10 }}>
-                    <div style={{ fontWeight: 700, color: T.text, marginBottom: 4 }}>{r.rule}</div>
-                    <div style={{ lineHeight: 1.5 }}>{r.why}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <PanelHistory panels={panels} onDelete={handleDelete} />
           </div>
         )}
       </div>
