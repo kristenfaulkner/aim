@@ -258,16 +258,27 @@ export default function ConnectApps() {
     navigate("/dashboard");
   };
 
+  const isConnectable = (app) => !!OAUTH_APPS[app.name] || !!CREDENTIAL_APPS[app.name] || !!FILE_IMPORT_APPS[app.name];
+
   const filtered = integrations.filter(app => {
     const matchesCat = filter === "all" || app.category === filter;
     const matchesSearch = !search || app.name.toLowerCase().includes(search.toLowerCase()) || app.desc.toLowerCase().includes(search.toLowerCase());
     return matchesCat && matchesSearch;
   });
 
-  const grouped = {};
-  filtered.forEach(app => {
-    if (!grouped[app.category]) grouped[app.category] = [];
-    grouped[app.category].push(app);
+  const availableApps = filtered.filter(isConnectable);
+  const comingSoonApps = filtered.filter(app => !isConnectable(app));
+
+  const groupedAvailable = {};
+  availableApps.forEach(app => {
+    if (!groupedAvailable[app.category]) groupedAvailable[app.category] = [];
+    groupedAvailable[app.category].push(app);
+  });
+
+  const groupedComingSoon = {};
+  comingSoonApps.forEach(app => {
+    if (!groupedComingSoon[app.category]) groupedComingSoon[app.category] = [];
+    groupedComingSoon[app.category].push(app);
   });
 
   return (
@@ -450,27 +461,62 @@ export default function ConnectApps() {
           </div>
         </div>
 
-        {/* Apps grouped by category */}
-        {filter === "all" ? (
-          Object.entries(grouped).map(([cat, apps]) => (
-            <div key={cat} style={{ marginBottom: 28 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                <span style={{ fontSize: 16 }}>{catIcons[cat]}</span>
-                <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0 }}>{catLabels[cat]}</h3>
-                <span style={{ fontSize: 11, color: T.textDim }}>({apps.length})</span>
+        {/* Available apps */}
+        {availableApps.length > 0 && (
+          filter === "all" ? (
+            Object.entries(groupedAvailable).map(([cat, apps]) => (
+              <div key={cat} style={{ marginBottom: 28 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                  <span style={{ fontSize: 16 }}>{catIcons[cat]}</span>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0 }}>{catLabels[cat]}</h3>
+                  <span style={{ fontSize: 11, color: T.textDim }}>({apps.length})</span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)", gap: 10 }}>
+                  {apps.map(app => (
+                    <AppCard key={app.name} app={app} isConnected={!!connected[app.name]} onToggle={() => toggleConnect(app.name)} />
+                  ))}
+                </div>
               </div>
+            ))
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)", gap: 10, marginBottom: 28 }}>
+              {availableApps.map(app => (
+                <AppCard key={app.name} app={app} isConnected={!!connected[app.name]} onToggle={() => toggleConnect(app.name)} />
+              ))}
+            </div>
+          )
+        )}
+
+        {/* Coming Soon section */}
+        {comingSoonApps.length > 0 && (
+          <div style={{ marginTop: availableApps.length > 0 ? 16 : 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, paddingBottom: 12, borderBottom: `1px solid ${T.border}` }}>
+              <span style={{ fontSize: 16 }}>🚀</span>
+              <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: T.textSoft }}>Coming Soon</h3>
+              <span style={{ fontSize: 11, color: T.textDim }}>({comingSoonApps.length})</span>
+            </div>
+            {filter === "all" ? (
+              Object.entries(groupedComingSoon).map(([cat, apps]) => (
+                <div key={cat} style={{ marginBottom: 28 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                    <span style={{ fontSize: 16 }}>{catIcons[cat]}</span>
+                    <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0 }}>{catLabels[cat]}</h3>
+                    <span style={{ fontSize: 11, color: T.textDim }}>({apps.length})</span>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)", gap: 10 }}>
+                    {apps.map(app => (
+                      <AppCard key={app.name} app={app} isConnected={!!connected[app.name]} onToggle={() => toggleConnect(app.name)} />
+                    ))}
+                  </div>
+                </div>
+              ))
+            ) : (
               <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)", gap: 10 }}>
-                {apps.map(app => (
+                {comingSoonApps.map(app => (
                   <AppCard key={app.name} app={app} isConnected={!!connected[app.name]} onToggle={() => toggleConnect(app.name)} />
                 ))}
               </div>
-            </div>
-          ))
-        ) : (
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)", gap: 10 }}>
-            {filtered.map(app => (
-              <AppCard key={app.name} app={app} isConnected={!!connected[app.name]} onToggle={() => toggleConnect(app.name)} />
-            ))}
+            )}
           </div>
         )}
 
