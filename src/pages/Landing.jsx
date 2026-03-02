@@ -74,13 +74,13 @@ const exampleInsights = [
   {
     type: "insight", icon: "\uD83D\uDCC9", category: "recovery",
     title: "3-Night HRV Decline \u2192 Power Fade Pattern",
-    body: "Your overnight HRV has declined 74ms \u2192 62ms \u2192 38ms over 3 nights. Historically, when HRV drops below 45ms for 2+ consecutive days, your NP drops 8-14% on comparable efforts. Today's NP was 272W vs. your 285W average \u2014 a 4.6% drop. Z1/Z2 only tomorrow.",
+    body: "Your overnight HRV has declined 74ms \u2192 62ms \u2192 38ms over 3 nights. Historically, when HRV drops below 45ms for 2+ consecutive days, your NP drops 8-14% on comparable efforts. Today's NP was 272W vs. your 285W average \u2014 a 4.6% drop. Consider keeping tomorrow to Z1/Z2.",
     confidence: "high",
   },
   {
     type: "action", icon: "\uD83C\uDF21\uFE0F", category: "recovery",
     title: "EightSleep + Sleep Timing Optimization",
-    body: "Your deep sleep is 34% higher at -4\u00B0C vs. -1\u00B0C (last night's setting). Combined with your optimal sleep window (before 10:15 PM = best performances), tonight set bed to -4\u00B0C and lights out by 10 PM. Your HRV should rebound 15-20ms within 48 hours based on your historical recovery curves.",
+    body: "Your deep sleep is 34% higher at -4\u00B0C vs. -1\u00B0C (last night's setting). Combined with your optimal sleep window (before 10:15 PM = best performances), consider trying -4\u00B0C tonight and aiming for lights out by 10 PM. Your HRV may rebound 15-20ms within 48 hours based on your historical recovery curves.",
     confidence: "medium",
   },
   {
@@ -99,13 +99,13 @@ const exampleInsights = [
   {
     type: "warning", icon: "\u26A1", category: "performance",
     title: "VO2max Power: Cat 3 \u2014 Your Weakest Link",
-    body: "Your 5-min power of 355W (3.99 W/kg) classifies as Cat 3, while your 20-min threshold is Cat 2 at 3.35 W/kg. That's a 2-tier gap. Your VO2/FTP ratio is 1.19 \u2014 well below the 1.25 target. You need +19W at 5-min to reach Cat 2. I'd recommend 2\u00D7 per week VO2 sessions for 6-8 weeks.",
+    body: "Your 5-min power of 355W (3.99 W/kg) classifies as Cat 3, while your 20-min threshold is Cat 2 at 3.35 W/kg. That's a 2-tier gap. Your VO2/FTP ratio is 1.19 \u2014 well below the 1.25 target. You need +19W at 5-min to reach Cat 2. Consider adding 2\u00D7 per week VO2 sessions for 6-8 weeks.",
     confidence: "high",
   },
   {
     type: "action", icon: "\uD83C\uDFCB\uFE0F", category: "performance",
-    title: "Prescribed: VO2max Block (6-8 weeks)",
-    body: "Based on your power profile, VO2max is your biggest limiter. Target intensity: 322-343W (108-115% FTP). Start with 4\u00D74min / 3min rest, progress to 5\u00D75min / 5min rest. On recovery weeks, use 30/30s (358-387W) to maintain stimulus. Goal: raise 5-min from 355W \u2192 380W+ (4.27 W/kg = Cat 2).",
+    title: "Suggested: VO2max Block (6-8 weeks)",
+    body: "Based on your power profile, VO2max is your biggest limiter. Consider targeting 322-343W (108-115% FTP). A progression from 4\u00D74min / 3min rest to 5\u00D75min / 5min rest may work well. On recovery weeks, 30/30s (358-387W) can help maintain stimulus. Goal: raise 5-min from 355W \u2192 380W+ (4.27 W/kg = Cat 2).",
     confidence: "high",
   },
   {
@@ -124,7 +124,7 @@ const exampleInsights = [
   {
     type: "action", icon: "\uD83D\uDCCA", category: "training",
     title: "Taper Protocol for Race Day",
-    body: "CTL 85, TSB -7. Race in 18 days \u2192 begin taper in ~4 days. Target TSB +15 to +20 by race day. Reduce volume 40% next week, maintain 2 short intensity sessions (10-12 min total at VO2/threshold). Predicted race-day CTL: ~80, which historically correlates with your best performances.",
+    body: "CTL 85, TSB -7. Race in 18 days \u2192 consider beginning a taper in ~4 days. Targeting TSB +15 to +20 by race day may be optimal. Research suggests reducing volume ~40% while maintaining 2 short intensity sessions (10-12 min total at VO2/threshold). Predicted race-day CTL: ~80, which historically correlates with your best performances.",
     confidence: "high",
   },
   {
@@ -263,7 +263,7 @@ export default function Landing() {
             <a href="#why" style={{ color: T.textSoft, textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Why AIM</a>
             <a href="#features" style={{ color: T.textSoft, textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Features</a>
             <a href="#pricing" style={{ color: T.textSoft, textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Pricing</a>
-            <a href="#testimonials" style={{ color: T.textSoft, textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Athletes</a>
+            <a href="#testimonials" style={{ color: T.textSoft, textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Testimonials</a>
             {user ? (
               <button onClick={() => navigate("/dashboard")} style={{ ...btn(true), padding: "10px 24px", fontSize: 13 }}>My Dashboard</button>
             ) : (
@@ -284,7 +284,7 @@ export default function Landing() {
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
               <button onClick={() => setMenuOpen(false)} style={{ background: "none", border: "none", color: T.text, cursor: "pointer", padding: 8, minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}><X size={22} /></button>
             </div>
-            {[{ href: "#why", label: "Why AIM" }, { href: "#features", label: "Features" }, { href: "#pricing", label: "Pricing" }, { href: "#testimonials", label: "Athletes" }].map(link => (
+            {[{ href: "#why", label: "Why AIM" }, { href: "#features", label: "Features" }, { href: "#pricing", label: "Pricing" }, { href: "#testimonials", label: "Testimonials" }].map(link => (
               <a key={link.href} href={link.href} onClick={() => setMenuOpen(false)} style={{ color: T.text, textDecoration: "none", fontSize: 16, fontWeight: 600, padding: "14px 0", borderBottom: `1px solid ${T.border}` }}>{link.label}</a>
             ))}
             <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
