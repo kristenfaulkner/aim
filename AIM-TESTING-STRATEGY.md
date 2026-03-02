@@ -72,6 +72,28 @@ tests/
 - Duplicate activities aren't created (UNIQUE constraint on source + source_id)
 - Metric calculations match expected values (write tests with known inputs/outputs)
 
+**Adaptive Dashboard:**
+- Mode detection returns correct mode (POST_RIDE when today's activity exists, PRE_RIDE_PLANNED when training_calendar has today's workout, DAILY_COACH otherwise)
+- Readiness score calculation is correct and returns green/yellow/red
+- Weather fetches from Open-Meteo API and caches in daily_metrics.weather_data
+- Fueling plan calculation is correct (carbs/hr, fluid/hr adjust for temperature and intensity)
+- Dashboard renders without crashing in all 3 modes
+- Dashboard renders without crashing with zero data (new user, no rides, no integrations)
+
+**Working Goals:**
+- Goals CRUD works (create, read, update, archive)
+- metric_history updates automatically when new data arrives (e.g., new 5-min power best updates VO2 goal)
+- Suggested goals generate correctly when patterns are detected
+- Weekly checklist state persists across sessions
+- RLS: user can only see their own goals
+
+**Nutrition Logger:**
+- Raw text input is sent to Claude and parsed response is stored correctly
+- Parsed items match expected macros for known products (Maurten 320 = 80g carbs per serving)
+- Carbs per hour calculation is correct (total carbs / ride duration in hours)
+- Quick log ("same as last ride") copies previous nutrition_log correctly
+- Nutrition log links to correct activity_id
+
 ### Priority 2: SHOULD TEST (bad UX if wrong)
 
 **Dashboard:**
@@ -80,31 +102,49 @@ tests/
 - Charts render with correct data
 - AI insights display and filtering works
 - Mobile layout renders correctly at 375px width
+- Readiness ring animates and shows correct score
+- Action items tabs switch correctly (Today / This Week / Big Picture)
+- Right panel tabs switch correctly (Today's Intelligence / Working Goals / Ask Claude)
+- Last ride card displays correct metrics and links to ride detail page
 
-**Onboarding:**
-- All form fields validate correctly (DOB format, weight range, etc.)
-- Profile saves to Supabase
-- Redirect to Connect Apps after completion
-- Partially completed profile can be resumed
+**Working Goals UI:**
+- Goal cards expand/collapse correctly
+- Inner tabs switch (Action Plan / Why It Matters / This Week)
+- Weekly checklist items toggle on/off
+- Suggested goals appear and "+ Start This Goal" moves them to active
+- Progress bar and sparkline render with correct data
+- "Add Goal" button opens custom goal creation
 
-**Connect Apps:**
-- Shows correct connected/disconnected state for each integration
-- Disconnect removes tokens from integrations table
-- Strava shows as connected if user signed up via Strava SSO
+**Nutrition Logger UI:**
+- Quick log shows previous ride's items correctly
+- "Same as last time" button saves and closes modal
+- Text input submits and shows follow-up questions
+- Follow-up option pills are tappable, custom input works
+- "Skip — estimate for me" option works
+- Parsed summary shows correct totals and carbs/hr
+- "Confirm & Save" stores to database and closes modal
 
-**Activity Detail:**
+**Ride Detail Page:**
+- Loads separately from dashboard (at /activity/:id)
 - Displays all metrics correctly
 - User notes save and persist
 - AI analysis panel loads async
 - Star rating and RPE save correctly
+- Nutrition log section shows logged data or prompt to log
+- "Show All Metrics" toggle expands full metrics table
 
 ### Priority 3: NICE TO TEST (polish)
 
 - Boosters page renders all 12 boosters with correct data
 - Health Lab upload flow works end-to-end
-- Dark theme is consistent across all pages
+- Light theme is consistent across all pages (no dark theme remnants)
 - Animations don't cause layout shifts
 - No console errors on any page
+- Training Calendar renders planned vs completed workouts correctly
+- Weather pill displays correct data and handles API failures gracefully
+- Onboarding location permission step works and stores lat/lng
+- Connect Apps shows correct connected/disconnected state
+- Onboarding form validates correctly and saves to Supabase
 
 ## Metric Calculation Tests (Critical)
 
@@ -131,6 +171,37 @@ test('calculates TSS from NP, IF, and duration', () => {
 // Example test: Efficiency Factor
 test('calculates EF as NP / avgHR', () => {
   expect(calculateEF(287, 155)).toBeCloseTo(1.85, 2);
+});
+
+// Example test: Dashboard mode detection
+test('returns POST_RIDE when activity exists today', () => {
+  const todayActivity = { started_at: new Date().toISOString() };
+  expect(getDashboardMode({ todayActivity, plannedWorkout: null })).toBe('POST_RIDE');
+});
+
+test('returns PRE_RIDE_PLANNED when workout scheduled but not done', () => {
+  const plannedWorkout = { date: today, completed: false };
+  expect(getDashboardMode({ todayActivity: null, plannedWorkout })).toBe('PRE_RIDE_PLANNED');
+});
+
+test('returns DAILY_COACH when no activity and no plan', () => {
+  expect(getDashboardMode({ todayActivity: null, plannedWorkout: null })).toBe('DAILY_COACH');
+});
+
+// Example test: Fueling plan calculation
+test('calculates carbs/hr correctly for high intensity', () => {
+  expect(calculateCarbsPerHour('high')).toBe(90);
+});
+
+test('increases fluid recommendation above 25°C', () => {
+  const cool = calculateFluidPerHour(18); // 600ml
+  const hot = calculateFluidPerHour(30);  // 900ml
+  expect(hot).toBeGreaterThan(cool);
+});
+
+// Example test: Nutrition parsing
+test('calculates carbs per hour from total and duration', () => {
+  expect(calculateCarbsPerHourFromLog(388, 7.02)).toBeCloseTo(55.3, 0);
 });
 ```
 
@@ -160,6 +231,33 @@ test('calculates EF as NP / avgHR', () => {
 4. Verify AI analysis loads (mock Claude API response)
 5. Add a note, verify it saves
 
+### Flow 4: Dashboard Adaptive Modes
+1. Sign in as test user with no activities today, no planned workout
+2. Verify dashboard shows DAILY_COACH mode (AI recommendations, working goals)
+3. Add a planned workout to training_calendar for today
+4. Refresh — verify dashboard shows PRE_RIDE_PLANNED mode (workout card, fueling plan)
+5. Create an activity with today's date
+6. Refresh — verify dashboard shows POST_RIDE mode (ride analysis, recovery actions)
+
+### Flow 5: Nutrition Logger
+1. Sign in as test user with a completed ride and no nutrition log
+2. Verify nutrition prompt appears ("How did you fuel this ride?")
+3. Type plain text: "2 bottles maurten, 1 gel, banana"
+4. Verify follow-up questions appear (bottle size options)
+5. Select an option
+6. Verify parsed summary shows correct carbs/hr
+7. Click "Confirm & Save"
+8. Verify nutrition log appears on ride detail page
+
+### Flow 6: Working Goals
+1. Sign in as test user
+2. Navigate to Working Goals tab in right panel
+3. Verify suggested goals appear
+4. Click "+ Start This Goal" on a suggested goal
+5. Verify it moves to active goals with progress bar
+6. Expand the goal, check a weekly checklist item
+7. Refresh — verify checklist state persists
+
 ## Mock Data
 
 Create a `tests/fixtures/` folder with:
@@ -175,6 +273,10 @@ tests/
     mock-strava-streams.json   — raw Strava streams response
     mock-blood-panel.json      — sample blood work results
     mock-claude-analysis.json  — sample AI analysis response
+    mock-working-goals.json    — sample active + suggested goals with all fields
+    mock-nutrition-log.json    — sample parsed nutrition items with macros
+    mock-training-calendar.json — sample week of planned workouts
+    mock-weather.json          — sample Open-Meteo API response
 ```
 
 Use these fixtures consistently across all tests so results are predictable.

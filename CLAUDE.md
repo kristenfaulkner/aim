@@ -34,7 +34,7 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 - `App.jsx` — route definitions; protected routes wrap with `ProtectedRoute`
 - `context/AuthContext.jsx` — user auth state, profile management, Supabase auth listeners
 - `pages/` — 17 route-level pages (Dashboard, ActivityDetail, HealthLab, Boosters, ConnectApps, Settings, Onboarding, AcceptTerms, Auth, ResetPassword, Landing, Contact, 5 legal pages)
-- `components/` — reusable: `TrainingPeaksImport`, `BloodPanelUpload` (multi-file drag-and-drop), `ActivityBrowser` (popover with time filters/search/pagination), `ProtectedRoute` (auth + consent gate), `NeuralBackground`, `SEO` (React 19 native metadata: title, description, OG, Twitter cards, canonical URL)
+- `components/` — reusable: `TrainingPeaksImport`, `BloodPanelUpload` (multi-file drag-and-drop), `DexaScanUpload` (single-file drag-and-drop with body composition extraction), `ActivityBrowser` (popover with time filters/search/pagination), `ProtectedRoute` (auth + consent gate), `NeuralBackground`, `SEO` (React 19 native metadata: title, description, OG, Twitter cards, canonical URL)
 - `hooks/useDashboardData.js` — parallel Supabase queries (7 concurrent) using `Promise.allSettled`
 - `hooks/useActivities.js` — paginated activity list (legacy, replaced by useActivityBrowser on Dashboard)
 - `hooks/useActivityBrowser.js` — cursor-based paginated activity browser with time period filtering (Week/Month/Year/All) and client-side search
@@ -67,7 +67,7 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 - `cron/sync-eightsleep.js` — hourly Vercel Cron syncs last 2 days of Eight Sleep data; skips users synced in last 6 hours
 - `webhooks/` — inbound webhooks (strava activity events, wahoo workout summaries)
 - `activities/` — list, detail, annotate, analyze endpoints
-- `health/` — blood panel upload (Claude AI extraction from PDF/image) and panel management
+- `health/` — blood panel upload (Claude AI extraction from PDF/image), DEXA scan upload (Claude AI extraction of body composition/regional data), and panel management
 - `sleep/summary.js` — Claude-powered morning readiness assessment
 - `chat/ask.js` — AI coach conversation endpoint with full athlete context
 - `sms/` — Twilio SMS: send workout summaries, test/preview, inbound webhook (STOP/START/HELP + conversational AI replies)
@@ -297,8 +297,7 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 - Morning sleep summary (Claude-powered readiness assessment from Eight Sleep data)
 - Dashboard (activities feed with View Details navigation, quick stats, recovery metrics, training load PMC chart, sleep summary, fuel breakdown, power classification, workout prescriptions, AI insights panel with "Unlock More Insights")
 - Activity detail page with tabbed AI panel (Summary / AI Analysis / Ask Claude tabs, category filters, confidence badges, data gaps, regenerate analysis)
-- Health Lab: blood panel upload with Claude AI OCR extraction (25 biomarkers), AI analysis cross-referencing training data, biomarker trend charts with athlete-optimal ranges, panel management
-- DEXA scan tracking
+- Health Lab: blood panel upload with Claude AI OCR extraction (25 biomarkers), AI analysis cross-referencing training data, biomarker trend charts with athlete-optimal ranges, panel management; DEXA scan upload with Claude AI extraction (body fat %, lean/fat mass, BMD, visceral fat, regional L/R breakdown), AI analysis cross-referencing power/training data, scan history with summary cards
 - Boosters page (searchable/filterable protocol library)
 - Connect Apps page with integration management, sync buttons, feature request form
 - Settings page (full profile editor with 4 cards: personal info, physical stats with unit conversion, training profile with zone recomputation, preferences with cycle tracking; password reset via email; SMS opt-in, notification preferences; Account & Data tab with data export + account deletion)

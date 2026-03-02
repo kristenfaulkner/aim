@@ -5,6 +5,7 @@ import ConnectApps from "./pages/ConnectApps";
 import Dashboard from "./pages/Dashboard";
 import Boosters from "./pages/Boosters";
 import HealthLab from "./pages/HealthLab";
+import Sleep from "./pages/Sleep";
 import Contact from "./pages/Contact";
 import PrivacyPolicy from "./pages/legal/PrivacyPolicy";
 import Terms from "./pages/legal/Terms";
@@ -31,6 +32,7 @@ export default function App() {
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/boosters" element={<ProtectedRoute><Boosters /></ProtectedRoute>} />
       <Route path="/activity/:id" element={<ProtectedRoute><ActivityDetail /></ProtectedRoute>} />
+      <Route path="/sleep" element={<ProtectedRoute><Sleep /></ProtectedRoute>} />
       <Route path="/health-lab" element={<ProtectedRoute><HealthLab /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/contact" element={<Contact />} />
