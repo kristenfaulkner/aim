@@ -360,7 +360,7 @@ export default function Sleep() {
         </div>
       )}
 
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: isMobile ? "16px" : isTablet ? "24px" : "32px" }}>
+      <div style={{ maxWidth: 1400, margin: "0 auto", padding: isMobile ? "16px" : isTablet ? "24px" : "32px" }}>
         {/* Header */}
         <div style={{ marginBottom: isMobile ? 20 : 28 }}>
           <h1 style={{ fontSize: isMobile ? 24 : 32, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 6px" }}>
@@ -414,6 +414,14 @@ export default function Sleep() {
             }}>Connect Apps</button>
           </div>
         ) : (
+          /* ── Two-column layout: sleep data (left) + AI panel (right) ── */
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: isMobile ? "1fr" : "1fr 380px",
+            gap: 20,
+            alignItems: "start",
+          }}>
+          {/* ── LEFT COLUMN: Sleep data ── */}
           <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 16 : 20 }}>
             {/* Summary Cards */}
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : isTablet ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: isMobile ? 10 : 14 }}>
@@ -552,6 +560,21 @@ export default function Sleep() {
                 ))}
               </div>
             </div>
+          </div>
+
+          {/* ── RIGHT COLUMN: AI Panel ── */}
+          <div style={isMobile
+            ? { display: "flex", flexDirection: "column", gap: 16 }
+            : { position: "sticky", top: 72, display: "flex", flexDirection: "column", gap: 16, maxHeight: "calc(100vh - 92px)", overflow: "auto" }
+          }>
+            <SleepAIPanel
+              analysis={sleepAnalysis}
+              onRequestAnalysis={() => triggerSleepAnalysis(true)}
+              analysisLoading={sleepAnalysisLoading}
+              analysisError={sleepAnalysisError}
+              cachedAt={sleepAnalysisCachedAt}
+            />
+          </div>
           </div>
         )}
       </div>

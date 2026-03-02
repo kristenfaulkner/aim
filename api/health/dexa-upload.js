@@ -9,9 +9,9 @@ export const config = {
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const EXTRACTION_PROMPT = `You are a DEXA scan extraction engine for AIM, a performance intelligence platform for endurance athletes.
+const EXTRACTION_PROMPT = `You are a body composition extraction engine for AIM, a performance intelligence platform for endurance athletes.
 
-You will receive a DEXA scan report (PDF or image). Extract all body composition values you can find.
+You will receive a body composition report (DEXA scan, Fit3D, InBody, BodPod, or similar). Extract all body composition values you can find.
 
 ## REQUIRED OUTPUT FORMAT
 
@@ -45,8 +45,11 @@ Return valid JSON with this exact structure:
 - If a value is reported in lbs, convert to kg (divide by 2.2046).
 - If a value is reported in g, convert to kg (divide by 1000) for mass fields.
 - For regional_data, include whatever regions are available. Common regions: left_arm, right_arm, left_leg, right_leg, trunk, android, gynoid, head.
+- If circumference measurements are available (neck, waist, hips, biceps, thighs, calves, etc.), include them in a "measurements" object with values in cm. Convert inches to cm (multiply by 2.54).
+- If waist-to-hip ratio is available, include it as "waist_to_hip_ratio".
 - Only include fields that have actual values — omit any field that is null or not present.
 - If you cannot determine the scan date, set to null.
+- The report may be from various scan types: DEXA, Fit3D, InBody, BodPod, etc. Extract whatever body composition data is present.
 - Return ONLY valid JSON. No markdown, no explanation, no code fences.`;
 
 /**

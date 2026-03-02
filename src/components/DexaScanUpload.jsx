@@ -101,7 +101,7 @@ export default function DexaScanUpload({ onUploadComplete, compact = false }) {
           <Check size={20} color={T.accent} />
         </div>
         <div style={{ fontSize: 15, fontWeight: 700, color: T.accent, marginBottom: 4 }}>
-          DEXA Scan Uploaded
+          Body Scan Uploaded
         </div>
         {metrics.length > 0 && (
           <div style={{ fontSize: 13, color: T.textSoft, marginBottom: 4 }}>
@@ -130,10 +130,10 @@ export default function DexaScanUpload({ onUploadComplete, compact = false }) {
           <Loader size={28} color={T.accent} style={{ animation: "spin 1.5s linear infinite" }} />
         </div>
         <div style={{ fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 4 }}>
-          Extracting body composition data...
+          Extracting body composition data…
         </div>
         <div style={{ fontSize: 12, color: T.textSoft }}>
-          AI is reading your DEXA scan. This may take 10-20 seconds.
+          AI is reading your body scan. This may take 10–20 seconds.
         </div>
         <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
       </div>
@@ -170,13 +170,13 @@ export default function DexaScanUpload({ onUploadComplete, compact = false }) {
           {dragging ? <FileText size={22} color={T.accent} /> : <Upload size={22} color={T.accent} />}
         </div>
         <div style={{ fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 4 }}>
-          {dragging ? "Drop your DEXA scan here" : "Upload DEXA Scan"}
+          {dragging ? "Drop your body scan here" : "Upload Body Scan"}
         </div>
         <div style={{ fontSize: 12, color: T.textSoft, marginBottom: 8 }}>
           Drag & drop or click to browse
         </div>
         <div style={{ fontSize: 11, color: T.textDim }}>
-          PDF, JPG, or PNG up to {MAX_SIZE_MB}MB
+          DEXA, Fit3D, InBody, BodPod — PDF, JPG, or PNG up to {MAX_SIZE_MB}MB
         </div>
         <div style={{ fontSize: 10, color: T.textDim, marginTop: 4 }}>
           Files cannot be password-protected

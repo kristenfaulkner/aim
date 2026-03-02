@@ -596,9 +596,9 @@ export default function HealthLab() {
               <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 600, margin: "0 auto" }}>
                 <div style={{ textAlign: "center", padding: "12px 0" }}>
                   <div style={{ fontSize: 40, marginBottom: 12 }}>{"\uD83E\uDDB4"}</div>
-                  <h3 style={{ fontSize: 18, fontWeight: 800, margin: "0 0 6px" }}>Upload Your First DEXA Scan</h3>
+                  <h3 style={{ fontSize: 18, fontWeight: 800, margin: "0 0 6px" }}>Upload Your First Body Scan</h3>
                   <p style={{ fontSize: 13, color: T.textSoft, margin: "0 0 20px", lineHeight: 1.6 }}>
-                    Upload a PDF or photo of your DEXA scan results. AI will extract body composition, regional data, and bone density — then cross-reference with your training and power data.
+                    Upload a PDF or photo of your body scan results (DEXA, Fit3D, InBody, BodPod). AI will extract body composition, regional data, and bone density — then cross-reference with your training and power data.
                   </p>
                 </div>
                 <DexaScanUpload onUploadComplete={handleDexaUploadComplete} />
