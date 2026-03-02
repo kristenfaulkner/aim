@@ -22,6 +22,60 @@ function metersToFeet(m) { return m ? Math.round(m * 3.28084) : "—"; }
 function mpsToMph(mps) { return mps ? (mps * 2.23694).toFixed(1) : "—"; }
 function celsiusToF(c) { return c != null ? Math.round(c * 9 / 5 + 32) : null; }
 
+/**
+ * Estimate macronutrient oxidation (carbs, fat, protein) from total calories and intensity factor.
+ * Based on: Romijn 1993, van Loon 2001, Achten/Jeukendrup 2002, Brooks crossover concept.
+ * Maps IF → %VO2max → substrate split using ShapeSense/Venables regression model.
+ * Protein held constant at ~3.5% of total energy (meta-analysis: 3.28% ± 0.15%).
+ */
+function estimateFuelBreakdown(calories, intensityFactor) {
+  if (!calories || calories <= 0 || intensityFactor == null) return null;
+
+  const PROTEIN_PCT = 3.5;
+  // Convert IF to approx %VO2max for trained cyclist (FTP ≈ 80% VO2max)
+  const vo2pct = 5 + (intensityFactor * 80);
+
+  // Fat % of non-protein energy (piecewise model from published data)
+  // Calibrated against Romijn 1993 (25/65/85% VO2max) and van Loon 2001 (50/65/85% VO2max)
+  let fatNP;
+  if (vo2pct <= 37) {
+    fatNP = 72; // plateau at very low intensity
+  } else if (vo2pct <= 48) {
+    // Quadratic rise to fatmax zone
+    fatNP = -0.0497 * vo2pct * vo2pct + 3.8528 * vo2pct - 23.55;
+  } else if (vo2pct <= 85) {
+    // Linear decline through moderate-to-hard intensity
+    // Anchored at: ~50% fat at 50% VO2max, ~25% fat at 85% VO2max (van Loon/Romijn)
+    fatNP = Math.max(0, -0.74 * vo2pct + 87.5);
+  } else if (vo2pct <= 97) {
+    // Steep decline above threshold — fat oxidation drops sharply
+    fatNP = Math.max(0, -1.9 * vo2pct + 186);
+  } else {
+    fatNP = 0; // above VO2max: essentially all carbs
+  }
+
+  // Scale for protein allocation
+  const fatPct = fatNP * (100 - PROTEIN_PCT) / 100;
+  const carbPct = 100 - fatPct - PROTEIN_PCT;
+
+  // Convert percentages → grams (fat=9 kcal/g, carbs=4 kcal/g, protein=4 kcal/g)
+  const fatCals = calories * (fatPct / 100);
+  const carbCals = calories * (carbPct / 100);
+  const proteinCals = calories * (PROTEIN_PCT / 100);
+
+  return {
+    fatPct: Math.round(fatPct),
+    carbPct: Math.round(carbPct),
+    proteinPct: Math.round(PROTEIN_PCT),
+    fatGrams: Math.round(fatCals / 9),
+    carbGrams: Math.round(carbCals / 4),
+    proteinGrams: Math.round(proteinCals / 4),
+    fatCals: Math.round(fatCals),
+    carbCals: Math.round(carbCals),
+    proteinCals: Math.round(proteinCals),
+  };
+}
+
 function safe(v, decimals) {
   if (v == null || isNaN(v)) return "—";
   return decimals != null ? Number(v).toFixed(decimals) : v;
@@ -671,6 +725,9 @@ export default function Dashboard() {
       return (full - lighter).toFixed(1);
     })();
 
+    // Fuel breakdown from calories + IF
+    const fuel = estimateFuelBreakdown(calories, IF);
+
     // CTL/ATL/TSB from daily_metrics
     const CTL = dailyMetrics?.ctl ?? null;
     const ATL = dailyMetrics?.atl ?? null;
@@ -699,6 +756,7 @@ export default function Dashboard() {
       bikeWeight,
       ftp,
       leanMass,
+      fuel,
     };
   }, [activity, profile, dailyMetrics]);
 
@@ -949,7 +1007,7 @@ export default function Dashboard() {
           {/* Row 3: HR + cadence + detailed */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginBottom: 16 }}>
             <MetricCard label="Avg HR" value={safe(activity.avg_hr_bpm)} unit="bpm" trend={computed.hrDrift !== "—" ? `${computed.hrDrift}% drift` : undefined} color={T.pink} icon={"\u2764\uFE0F"} />
-            <MetricCard label="Calories" value={computed.calories !== "—" ? computed.calories.toLocaleString() : "—"} unit="kcal" trend={activity.work_kj ? `${activity.work_kj} kJ work` : undefined} color={T.orange} icon={"\uD83D\uDD25"} />
+            <MetricCard label="Calories" value={computed.calories !== "—" ? computed.calories.toLocaleString() : "—"} unit="kcal" trend={computed.fuel ? `${computed.fuel.carbGrams}g carb · ${computed.fuel.fatGrams}g fat · ${computed.fuel.proteinGrams}g protein` : activity.work_kj ? `${activity.work_kj} kJ work` : undefined} color={T.orange} icon={"\uD83D\uDD25"} />
             <MetricCard label="L/R Balance" value={lrBalance ? `${lrBalance.avg?.[0] || "—"}/${lrBalance.avg?.[1] || "—"}` : "—"} unit="%" color={T.warn} icon={"\u2696\uFE0F"} />
             <MetricCard label="Cadence" value={safe(activity.avg_cadence_rpm)} unit="rpm" color={T.accent} icon={"\uD83D\uDD04"} />
             <MetricCard label="Power:HR" value={computed.pwHR} unit="W/bpm" color={T.accent} icon={"\uD83D\uDC93"} />
@@ -1123,6 +1181,9 @@ export default function Dashboard() {
                 <StatRow label="Avg Speed" value={mpsToMph(activity.avg_speed_mps)} unit="mph" />
                 <StatRow label="VAM" value={computed.VAM} unit="m/hr" color={T.purple} />
                 <StatRow label="Calories" value={computed.calories !== "—" ? computed.calories.toLocaleString() : "—"} unit="kcal" />
+                {computed.fuel && <StatRow label="Carbs Burned" value={computed.fuel.carbGrams} unit="g" color="#3b82f6" />}
+                {computed.fuel && <StatRow label="Fat Burned" value={computed.fuel.fatGrams} unit="g" color="#f59e0b" />}
+                {computed.fuel && <StatRow label="Protein Burned" value={computed.fuel.proteinGrams} unit="g" color="#8b5cf6" />}
                 <StatRow label="Temperature" value={activity.temperature_celsius != null ? `${activity.temperature_celsius}\u00B0C / ${celsiusToF(activity.temperature_celsius)}\u00B0F` : "—"} />
                 <StatRow label="L/R Balance" value={lrBalance ? `${lrBalance.avg?.[0] || "—"}/${lrBalance.avg?.[1] || "—"}` : "—"} />
               </div>
@@ -1133,6 +1194,43 @@ export default function Dashboard() {
               <span style={{ color: T.textSoft }}>ATL: <span style={{ color: T.pink, fontWeight: 700 }}>{computed.ATL}</span></span>
               <span style={{ color: T.textSoft }}>TSB: <span style={{ color: typeof computed.TSB === "number" && computed.TSB < 0 ? T.danger : T.accent, fontWeight: 700 }}>{computed.TSB}</span></span>
             </div>
+
+            {/* Fuel Breakdown */}
+            {computed.fuel && (
+              <div style={{ marginTop: 12, padding: "12px 14px", background: T.bg, borderRadius: 8 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 8, color: T.text }}>Estimated Fuel Breakdown</div>
+                {/* Stacked bar */}
+                <div style={{ display: "flex", height: 18, borderRadius: 6, overflow: "hidden", marginBottom: 8 }}>
+                  <div style={{ width: `${computed.fuel.carbPct}%`, background: "linear-gradient(90deg, #3b82f6, #60a5fa)", transition: "width 0.6s ease" }} title={`Carbs: ${computed.fuel.carbPct}%`} />
+                  <div style={{ width: `${computed.fuel.fatPct}%`, background: "linear-gradient(90deg, #f59e0b, #fbbf24)", transition: "width 0.6s ease" }} title={`Fat: ${computed.fuel.fatPct}%`} />
+                  <div style={{ width: `${computed.fuel.proteinPct}%`, background: "linear-gradient(90deg, #8b5cf6, #a78bfa)", transition: "width 0.6s ease" }} title={`Protein: ${computed.fuel.proteinPct}%`} />
+                </div>
+                {/* Legend with grams */}
+                <div style={{ display: "flex", gap: 16, fontSize: 10 }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: 2, background: "#3b82f6", display: "inline-block" }} />
+                    <span style={{ color: T.textSoft }}>Carbs</span>
+                    <span style={{ fontWeight: 700, color: T.text, fontFamily: mono }}>{computed.fuel.carbGrams}g</span>
+                    <span style={{ color: T.textDim }}>({computed.fuel.carbPct}%)</span>
+                  </span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: 2, background: "#f59e0b", display: "inline-block" }} />
+                    <span style={{ color: T.textSoft }}>Fat</span>
+                    <span style={{ fontWeight: 700, color: T.text, fontFamily: mono }}>{computed.fuel.fatGrams}g</span>
+                    <span style={{ color: T.textDim }}>({computed.fuel.fatPct}%)</span>
+                  </span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: 2, background: "#8b5cf6", display: "inline-block" }} />
+                    <span style={{ color: T.textSoft }}>Protein</span>
+                    <span style={{ fontWeight: 700, color: T.text, fontFamily: mono }}>{computed.fuel.proteinGrams}g</span>
+                    <span style={{ color: T.textDim }}>({computed.fuel.proteinPct}%)</span>
+                  </span>
+                </div>
+                <div style={{ fontSize: 9, color: T.textDim, marginTop: 6 }}>
+                  Based on IF {computed.IF} · Model: Romijn/van Loon/Achten substrate oxidation curves
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
