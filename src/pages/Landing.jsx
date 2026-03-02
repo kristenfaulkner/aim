@@ -5,6 +5,182 @@ import { T, font, mono } from "../theme/tokens";
 import { btn } from "../theme/styles";
 import NeuralBackground from "../components/NeuralBackground";
 
+const exampleInsights = [
+  // Body Composition → Performance
+  {
+    type: "insight", icon: "\u2696\uFE0F", category: "body",
+    title: "Weight Impact on Today's Climbing",
+    body: "At your current 89kg + 7.8kg bike (96.8kg system weight), you needed 66W to maintain 16 km/h on the 6% grades today. Every 1 lb (0.45kg) you gain or lose shifts that requirement by ~0.3W. Your recent 0.8kg drop saved you ~3.5W on every climb today \u2014 that's free speed.",
+    confidence: "high",
+  },
+  {
+    type: "positive", icon: "\uD83D\uDCCA", category: "body",
+    title: "FTP/Lean Mass Ratio Improving",
+    body: "Your FTP per kg of lean body mass is 3.82 W/kg \u2014 up from 3.62 W/kg six weeks ago. This is a better performance indicator than raw W/kg because it filters out fat mass changes. Your muscle mass is stable at 42.1% while body fat dropped from 14.2% \u2192 12.4%, meaning your power gains are genuine neuromuscular adaptations, not just weight loss.",
+    confidence: "high",
+  },
+  {
+    type: "warning", icon: "\uD83D\uDCA7", category: "body",
+    title: "Hydration Was Low Before This Ride",
+    body: "Your Withings hydration reading this morning was 62% \u2014 below your 65% baseline. In hot conditions (today was 35\u00B0C), starting under-hydrated compounds cardiac drift. Your 8.1% drift today vs. 3.2% on a similar effort when you weighed in at 65% hydration suggests ~2-3% of today's drift was hydration-related, not fitness.",
+    confidence: "medium",
+  },
+  {
+    type: "action", icon: "\uD83C\uDFD4\uFE0F", category: "body",
+    title: "Race Weight Projection for Mt. Tam Hillclimb",
+    body: "Your hillclimb race is in 18 days. At current rate (-0.5kg/week), you'll be ~86.4kg on race day = 3.45 W/kg. If you hold FTP at 298W, that's a projected VAM of ~1,340 m/hr on the 7.4% avg gradient \u2014 roughly 38:20 for the 8.2km climb. Every additional kg lost would save ~18 seconds. But dropping below 86kg at your muscle mass risks power loss.",
+    confidence: "medium",
+  },
+  // Recovery → Performance
+  {
+    type: "warning", icon: "\uD83D\uDE34", category: "recovery",
+    title: "Poor Sleep Drove Today's HR Drift",
+    body: "Deep sleep was 48 min last night (avg: 1h 42m) and HRV dropped to 38ms (avg: 68ms). This likely explains the 8.1% cardiac drift \u2014 on Feb 18 with similar power but 72ms HRV, drift was only 3.2%. Your aerobic engine is fit, but your body was under-recovered.",
+    confidence: "high",
+  },
+  {
+    type: "insight", icon: "\uD83D\uDCC9", category: "recovery",
+    title: "3-Night HRV Decline \u2192 Power Fade Pattern",
+    body: "Your overnight HRV has declined 74ms \u2192 62ms \u2192 38ms over 3 nights. Historically, when HRV drops below 45ms for 2+ consecutive days, your NP drops 8-14% on comparable efforts. Today's NP was 272W vs. your 285W average \u2014 a 4.6% drop. Z1/Z2 only tomorrow.",
+    confidence: "high",
+  },
+  {
+    type: "action", icon: "\uD83C\uDF21\uFE0F", category: "recovery",
+    title: "EightSleep + Sleep Timing Optimization",
+    body: "Your deep sleep is 34% higher at -4\u00B0C vs. -1\u00B0C (last night's setting). Combined with your optimal sleep window (before 10:15 PM = best performances), tonight set bed to -4\u00B0C and lights out by 10 PM. Your HRV should rebound 15-20ms within 48 hours based on your historical recovery curves.",
+    confidence: "medium",
+  },
+  {
+    type: "warning", icon: "\uD83D\uDD0B", category: "recovery",
+    title: "Whoop Strain Exceeding Recovery",
+    body: "7-day cumulative strain: 18.4 (daily avg: 15.2), but recovery averaging only 48%. Combined with declining HRV and elevated RHR (52 vs. baseline 48), you're accumulating more fatigue than you're absorbing. Your ATL (92) is 8% above CTL (85) \u2014 productive overreach, but approaching the red line.",
+    confidence: "high",
+  },
+  // Performance
+  {
+    type: "positive", icon: "\uD83C\uDFAF", category: "performance",
+    title: "Efficiency Factor: 1.79 W/bpm",
+    body: "Your EF (NP/avg HR) of 1.79 is your second-highest this season, despite poor recovery. On well-rested days, you've hit 1.84. This confirms your aerobic base is strong \u2014 the drift today was recovery-driven, not fitness-driven. Your 14.5 hrs/week of Z2 over the past month is paying off.",
+    confidence: "high",
+  },
+  {
+    type: "warning", icon: "\u26A1", category: "performance",
+    title: "VO2max Power: Cat 3 \u2014 Your Weakest Link",
+    body: "Your 5-min power of 355W (3.99 W/kg) classifies as Cat 3, while your 20-min threshold is Cat 2 at 3.35 W/kg. That's a 2-tier gap. Your VO2/FTP ratio is 1.19 \u2014 well below the 1.25 target. You need +19W at 5-min to reach Cat 2. I'd recommend 2\u00D7 per week VO2 sessions for 6-8 weeks.",
+    confidence: "high",
+  },
+  {
+    type: "action", icon: "\uD83C\uDFCB\uFE0F", category: "performance",
+    title: "Prescribed: VO2max Block (6-8 weeks)",
+    body: "Based on your power profile, VO2max is your biggest limiter. Target intensity: 322-343W (108-115% FTP). Start with 4\u00D74min / 3min rest, progress to 5\u00D75min / 5min rest. On recovery weeks, use 30/30s (358-387W) to maintain stimulus. Goal: raise 5-min from 355W \u2192 380W+ (4.27 W/kg = Cat 2).",
+    confidence: "high",
+  },
+  {
+    type: "positive", icon: "\uD83C\uDFC6", category: "performance",
+    title: "Sprint & Threshold: Cat 2 \u2014 Genuine Strengths",
+    body: "Your 5s sprint (12.92 W/kg) and 20-min threshold (3.35 W/kg) are both solidly Cat 2. You're only 31W away from Cat 1 at threshold. For a climber/rouleur profile, these numbers are competitive \u2014 your limiter is the VO2 gap between them.",
+    confidence: "high",
+  },
+  {
+    type: "insight", icon: "\uD83C\uDF21\uFE0F", category: "performance",
+    title: "Heat Adaptation Nearly Complete",
+    body: "Power:HR at 95\u00B0F today was 1.79 W/bpm vs. 1.45 at 68\u00B0F three weeks ago \u2014 only a 2% gap. Early summer, heat caused a 21% drop. Your plasma volume expansion is nearly complete. For your race, if temps exceed 90\u00B0F, you'll lose <3% power vs. cooler conditions.",
+    confidence: "high",
+  },
+  // Training Load
+  {
+    type: "action", icon: "\uD83D\uDCCA", category: "training",
+    title: "Taper Protocol for Race Day",
+    body: "CTL 85, TSB -7. Race in 18 days \u2192 begin taper in ~4 days. Target TSB +15 to +20 by race day. Reduce volume 40% next week, maintain 2 short intensity sessions (10-12 min total at VO2/threshold). Predicted race-day CTL: ~80, which historically correlates with your best performances.",
+    confidence: "high",
+  },
+  {
+    type: "insight", icon: "\u23F1\uFE0F", category: "training",
+    title: "Threshold Volume Driving FTP Gains",
+    body: "You've accumulated 312 minutes between 88-105% FTP in the last 8 weeks. Your FTP rose from 290W \u2192 298W during this period. Historically, your FTP responds to threshold volume with a ~6 week delay. The work you did in weeks 3-5 is what's showing up now. Keep this volume through your build phase.",
+    confidence: "high",
+  },
+];
+
+const insightCategoryMeta = [
+  { id: "all", label: "All Insights" },
+  { id: "performance", label: "Performance" },
+  { id: "body", label: "Body Composition" },
+  { id: "recovery", label: "Recovery" },
+  { id: "training", label: "Training Load" },
+];
+
+function InsightsShowcase({ navigate }) {
+  const [filter, setFilter] = useState("all");
+  const [expanded, setExpanded] = useState(null);
+
+  const filtered = filter === "all" ? exampleInsights : exampleInsights.filter(i => i.category === filter);
+  const typeColor = (type) => type === "positive" ? T.accent : type === "warning" ? T.warn : type === "action" ? T.purple : T.blue;
+
+  return (
+    <section style={{ padding: "100px 40px", background: T.surface, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}` }}>
+      <div style={{ maxWidth: 900, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 48 }}>
+          <p style={{ fontSize: 12, color: T.accent, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 16 }}>Real AI Analysis</p>
+          <h2 style={{ fontSize: 42, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 16px" }}>
+            Every insight comes with <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>a plan</span>
+          </h2>
+          <p style={{ fontSize: 17, color: T.textSoft, maxWidth: 580, margin: "0 auto" }}>These are real examples from a single ride analysis. AIM connects your power data, body composition, sleep, recovery, and training load to find patterns no single app can see.</p>
+        </div>
+
+        {/* Category filter pills */}
+        <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 32, flexWrap: "wrap" }}>
+          {insightCategoryMeta.map(cat => {
+            const count = cat.id === "all" ? exampleInsights.length : exampleInsights.filter(i => i.category === cat.id).length;
+            const active = filter === cat.id;
+            return (
+              <button key={cat.id} onClick={() => { setFilter(cat.id); setExpanded(null); }} style={{ background: active ? `${T.accent}18` : T.card, border: `1px solid ${active ? T.accentMid : T.border}`, borderRadius: 24, padding: "8px 18px", fontSize: 13, fontWeight: 600, color: active ? T.accent : T.textSoft, cursor: "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", gap: 8, fontFamily: font }}>
+                {cat.label}
+                <span style={{ fontSize: 11, background: active ? `${T.accent}30` : `${T.textDim}25`, padding: "2px 7px", borderRadius: 8, color: active ? T.accent : T.textDim, fontWeight: 700 }}>{count}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Insight cards */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {filtered.map((insight, i) => {
+            const isExpanded = expanded === i;
+            const needsTruncation = insight.body.length > 160;
+            return (
+              <div key={`${filter}-${i}`}
+                onClick={() => needsTruncation && setExpanded(isExpanded ? null : i)}
+                style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "18px 24px", borderLeft: `3px solid ${typeColor(insight.type)}`, cursor: needsTruncation ? "pointer" : "default", transition: "all 0.2s" }}
+                onMouseOver={e => { e.currentTarget.style.borderColor = T.borderHover; }}
+                onMouseOut={e => { e.currentTarget.style.borderColor = T.border; }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                  <span style={{ fontSize: 18 }}>{insight.icon}</span>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: T.text, flex: 1 }}>{insight.title}</span>
+                  <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 6, background: insight.confidence === "high" ? T.accentDim : `${T.warn}15`, color: insight.confidence === "high" ? T.accent : T.warn, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>{insight.confidence}</span>
+                </div>
+                <div style={{ fontSize: 14, lineHeight: 1.7, color: T.textSoft }}>
+                  {needsTruncation && !isExpanded ? insight.body.slice(0, 160) + "..." : insight.body}
+                </div>
+                {needsTruncation && (
+                  <div style={{ fontSize: 11, color: T.accent, marginTop: 6, fontWeight: 600 }}>
+                    {isExpanded ? "Show less" : "Read more"}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* CTA */}
+        <div style={{ textAlign: "center", marginTop: 48 }}>
+          <p style={{ fontSize: 15, color: T.textSoft, marginBottom: 20 }}>This is just one ride. Imagine this analysis for every workout, every night of sleep, every blood panel.</p>
+          <button onClick={() => navigate("/signup")} style={{ ...btn(true), fontSize: 15, padding: "14px 32px" }}>See Your Own Insights <ArrowRight size={16} /></button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function Landing() {
   const navigate = useNavigate();
   const [billingCycle, setBillingCycle] = useState("annual");
@@ -146,28 +322,8 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* AI Example */}
-      <section style={{ padding: "80px 40px", background: T.surface, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}` }}>
-        <div style={{ maxWidth: 900, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: 48 }}>
-            <h2 style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 12px" }}>Every insight comes with a plan</h2>
-            <p style={{ fontSize: 15, color: T.textSoft }}>Real recommendations you can act on today — not just charts and numbers</p>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {[
-              { type: "warning", label: "HEAT ADAPTATION", text: "Your HR:power ratio jumped 12% in yesterday's ride compared to last week's similar effort at a cooler temperature — your cardiac drift was 9.1% vs. 2.8%. You're not heat adapted yet, and your race is in 3 weeks. → Recommendation: Add post-ride sauna sessions 3× per week for 3 weeks. Track your drift weekly — you should see it decrease by week 2." },
-              { type: "positive", label: "BLOOD WORK × TRAINING", text: "Your ferritin dropped from 62 → 28 ng/mL over the past 3 months. Combined with your training volume increase and luteal phase timing, this is likely driving your VO2max plateau. → Recommendation: Begin iron bisglycinate with vitamin C, taken on an empty stomach away from coffee. Retest in 8-12 weeks." },
-              { type: "action", label: "BIOMECHANICS", text: "Your L:R power balance shifts from 50/50 on flats to 54/46 on climbs above 6% — your left leg is compensating, and the imbalance worsens with fatigue. → Prescription: Add single-leg pedal drills, Bulgarian split squats, and low-cadence force intervals to build right-leg recruitment." },
-              { type: "warning", label: "SLEEP × RECOVERY", text: "Your deep sleep dropped significantly this week and your EightSleep bed temp was set higher than your optimal. Combined with your HRV declining over 3 nights, tomorrow's planned VO2max session will be counterproductive. → Recommendation: Lower your bed temp tonight, skip tomorrow's intervals, replace with Z2 endurance. Your HRV should rebound within 48 hours." },
-            ].map((insight, i) => (
-              <div key={i} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px 24px", borderLeft: `3px solid ${insight.type === "positive" ? T.accent : insight.type === "warning" ? T.warn : T.purple}` }}>
-                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", color: insight.type === "positive" ? T.accent : insight.type === "warning" ? T.warn : T.purple, marginBottom: 8 }}>{insight.label}</div>
-                <div style={{ fontSize: 14, color: T.textSoft, lineHeight: 1.7 }}>{insight.text}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* AI Insights Showcase */}
+      <InsightsShowcase navigate={navigate} />
 
       {/* Features */}
       <section id="features" style={{ padding: "100px 40px", maxWidth: 1200, margin: "0 auto" }}>
