@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { T, font, mono } from "../theme/tokens";
 import {
   benchmarks, classifyPower, pctToNextLevel, getWorkoutPrescriptions,
 } from "../data/dashboard";
 import { useDashboardData } from "../hooks/useDashboardData";
 import { useActivities } from "../hooks/useActivities";
+import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabase";
+import { LogOut } from "lucide-react";
 
 // ── HELPERS ──
 
@@ -628,9 +631,16 @@ function FitnessChart({ fitnessData }) {
 
 // ── MAIN DASHBOARD ──
 export default function Dashboard() {
+  const navigate = useNavigate();
+  const { signout } = useAuth();
   const [selectedActivityId, setSelectedActivityId] = useState(null);
   const { activity, profile, dailyMetrics, fitnessHistory, powerProfile, recentActivities, connectedIntegrations, loading, error } = useDashboardData(selectedActivityId);
   const { activities: activityList } = useActivities();
+
+  const handleSignout = async () => {
+    await signout();
+    navigate("/");
+  };
 
   // ── AI Analysis: auto-trigger + manual trigger ──
   const [analysisLoading, setAnalysisLoading] = useState(false);
@@ -981,6 +991,9 @@ export default function Dashboard() {
           <div style={{ width: 30, height: 30, borderRadius: 9, background: `linear-gradient(135deg, ${T.purple}, ${T.pink})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 }}>
             {profile?.full_name ? profile.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() : "U"}
           </div>
+          <button onClick={handleSignout} style={{ background: "none", border: `1px solid rgba(239,68,68,0.2)`, padding: "5px 10px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: "#ef4444", cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 5 }}>
+            <LogOut size={13} /> Sign Out
+          </button>
         </div>
       </nav>
 
