@@ -19,15 +19,26 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    let resolved = false;
+
+    function finishLoading(session) {
+      if (resolved) return;
+      resolved = true;
       const u = session?.user ?? null;
       setUser(u);
       if (u) fetchProfile(u.id);
       setLoading(false);
+    }
+
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      finishLoading(session);
     }).catch(() => {
-      setLoading(false);
+      finishLoading(null);
     });
+
+    // Safety timeout — never spin for more than 3 seconds
+    const timeout = setTimeout(() => finishLoading(null), 3000);
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -39,10 +50,18 @@ export function AuthProvider({ children }) {
         } else {
           setProfile(null);
         }
+        // Also resolve loading if auth change fires first
+        if (!resolved) {
+          resolved = true;
+          setLoading(false);
+        }
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(timeout);
+      subscription.unsubscribe();
+    };
   }, []);
 
   async function signup(email, password, fullName) {
