@@ -1,0 +1,30 @@
+{
+  "id": 12345678,
+  "name": "Morning Endurance Ride",
+  "type": "Ride",
+  "sport_type": "Ride",
+  "start_date": "2025-03-01T08:00:00Z",
+  "start_date_local": "2025-03-01T00:00:00Z",
+  "elapsed_time": 7500,
+  "moving_time": 7200,
+  "distance": 80000.0,
+  "total_elevation_gain": 950.0,
+  "average_speed": 11.11,
+  "max_speed": 18.5,
+  "average_watts": 215.0,
+  "max_watts": 620,
+  "weighted_average_watts": 245,
+  "kilojoules": 1548.0,
+  "average_heartrate": 142.0,
+  "max_heartrate": 178.0,
+  "average_cadence": 88.0,
+  "calories": 1680,
+  "device_name": "Wahoo ELEMNT ROAM",
+  "gear_id": "g12345",
+  "map": {
+    "summary_polyline": "abc123..."
+  },
+  "has_power_meter": true,
+  "trainer": false,
+  "commute": false
+}

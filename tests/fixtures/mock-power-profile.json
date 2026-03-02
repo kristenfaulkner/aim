@@ -1,0 +1,19 @@
+{
+  "id": "pp-uuid-001",
+  "user_id": "test-user-uuid-1234",
+  "computed_date": "2025-03-01",
+  "period_days": 90,
+  "best_5s_watts": 750,
+  "best_5s_wkg": 13.16,
+  "best_30s_watts": 520,
+  "best_30s_wkg": 9.12,
+  "best_1m_watts": 440,
+  "best_1m_wkg": 7.72,
+  "best_5m_watts": 340,
+  "best_5m_wkg": 5.96,
+  "best_20m_watts": 287,
+  "best_20m_wkg": 5.04,
+  "best_60m_watts": 245,
+  "best_60m_wkg": 4.30,
+  "created_at": "2025-03-01T12:00:00Z"
+}

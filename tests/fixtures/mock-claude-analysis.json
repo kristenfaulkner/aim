@@ -1,0 +1,50 @@
+{
+  "summary": "Kristen, you crushed a 2-hour endurance ride averaging 245W normalized — that's 82% of your FTP with solid pacing. Your efficiency factor of 1.73 and low cardiac drift of 3.2% show strong aerobic fitness.",
+  "insights": [
+    {
+      "type": "positive",
+      "icon": "💪",
+      "category": "performance",
+      "title": "Normalized Power 245W at 82% IF — textbook endurance pace",
+      "body": "Your NP of 245W with an IF of 0.822 is right in the sweet spot for aerobic development rides. The variability index of 1.14 shows smooth, steady output — great pacing discipline.",
+      "confidence": "high"
+    },
+    {
+      "type": "insight",
+      "icon": "❤️",
+      "category": "recovery",
+      "title": "Low cardiac drift of 3.2% — aerobic engine firing well",
+      "body": "Your HR drift of just 3.2% over 2 hours indicates excellent aerobic fitness and likely adequate fueling. For comparison, your hill repeats on Feb 26 showed 7.4% drift at a higher IF (0.96), which is expected for that intensity.",
+      "confidence": "high"
+    },
+    {
+      "type": "insight",
+      "icon": "😴",
+      "category": "recovery",
+      "title": "HRV 62ms is above your 7-day average of 57ms",
+      "body": "Your HRV trending above baseline suggests good recovery status coming into this ride. Your sleep score of 82 with 7.8 hours and 22% deep sleep provided a solid foundation. This may explain the strong efficiency factor.",
+      "confidence": "medium"
+    },
+    {
+      "type": "warning",
+      "icon": "⚠️",
+      "category": "training",
+      "title": "TSB at -25.8 — accumulating fatigue, monitor recovery",
+      "body": "Your training stress balance has been negative for the past week (range: -10 to -35). While this is normal during a build phase, consider a lighter day if your HRV drops below 50ms or you notice RPE creeping up at the same power.",
+      "confidence": "high"
+    },
+    {
+      "type": "action",
+      "icon": "🎯",
+      "category": "nutrition",
+      "title": "Estimated 1680 kcal burned — aim for 60-90g carbs/hr on rides 2hr+",
+      "body": "At 245W NP for 2 hours, you likely burned ~60% carbohydrate. Ensuring 60-90g carbs/hr during the ride helps maintain power output and reduces recovery time. Your current ferritin of 65 ng/mL is in the athlete-optimal range, supporting oxygen delivery.",
+      "confidence": "medium"
+    }
+  ],
+  "dataGaps": [
+    "Connect Oura Ring for detailed sleep stage tracking to correlate deep sleep with next-day power output",
+    "Add body composition tracking via Withings for accurate W/kg and race weight planning",
+    "Upload a DEXA scan for lean mass W/kg — more accurate than scale-based estimates"
+  ]
+}
