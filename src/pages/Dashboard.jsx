@@ -641,6 +641,11 @@ export default function Dashboard() {
   // The effective AI analysis: live (just generated) takes priority over stored
   const effectiveAiAnalysis = liveAnalysis || activity?.ai_analysis || null;
 
+  // ── Sleep Summary ──
+  const [sleepSummary, setSleepSummary] = useState(null);
+  const [sleepSummaryLoading, setSleepSummaryLoading] = useState(false);
+  const sleepSummaryFetchedRef = useRef(false);
+
   const triggerAnalysis = useCallback(async () => {
     if (!activity?.id) return;
     setAnalysisLoading(true);
@@ -680,6 +685,27 @@ export default function Dashboard() {
       setLiveAnalysis(null);
     }
   }, [activity?.id, activity?.ai_analysis, analysisLoading, triggerAnalysis]);
+
+  // Auto-fetch sleep summary when dailyMetrics with sleep data loads
+  useEffect(() => {
+    if (sleepSummaryFetchedRef.current || sleepSummaryLoading) return;
+    if (!dailyMetrics?.sleep_score && !dailyMetrics?.total_sleep_seconds) return;
+    sleepSummaryFetchedRef.current = true;
+    setSleepSummaryLoading(true);
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const res = await fetch("/api/sleep/summary", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+        });
+        const data = await res.json();
+        if (res.ok && data.summary) setSleepSummary(data.summary);
+      } catch {} finally {
+        setSleepSummaryLoading(false);
+      }
+    })();
+  }, [dailyMetrics?.sleep_score, dailyMetrics?.total_sleep_seconds]);
 
   // ── Derive computed values from real data ──
   const computed = useMemo(() => {
@@ -1135,6 +1161,35 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+
+          {/* AI Sleep Summary */}
+          {(sleepSummary || sleepSummaryLoading) && (
+            <div style={{ marginTop: 12, background: T.card, border: `1px solid ${T.border}`, borderRadius: 13, padding: "14px 18px", position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, transparent, ${sleepSummary?.recovery_rating === "red" ? T.danger : sleepSummary?.recovery_rating === "yellow" ? T.warn : T.accent}40, transparent)` }} />
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                <span style={{ fontSize: 14 }}>{sleepSummary?.recovery_rating === "red" ? "\uD83D\uDFE5" : sleepSummary?.recovery_rating === "yellow" ? "\uD83D\uDFE8" : "\uD83D\uDFE9"}</span>
+                <span style={{ fontSize: 12, fontWeight: 700 }}>Morning Sleep Report</span>
+                {sleepSummaryLoading && <span style={{ fontSize: 10, color: T.textDim, fontStyle: "italic" }}>Generating...</span>}
+              </div>
+              {sleepSummary && (
+                <>
+                  {sleepSummary.metrics_line && (
+                    <div style={{ fontSize: 10, color: T.accent, fontFamily: mono, marginBottom: 8, padding: "6px 10px", background: T.bg, borderRadius: 6 }}>
+                      {sleepSummary.metrics_line}
+                    </div>
+                  )}
+                  {sleepSummary.summary && (
+                    <div style={{ fontSize: 11, color: T.textSoft, lineHeight: 1.6, marginBottom: 6 }}>{sleepSummary.summary}</div>
+                  )}
+                  {sleepSummary.recommendation && (
+                    <div style={{ fontSize: 11, color: sleepSummary.recovery_rating === "red" ? T.danger : sleepSummary.recovery_rating === "yellow" ? T.warn : T.accent, fontWeight: 600, lineHeight: 1.5 }}>
+                      {sleepSummary.recommendation}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
 
           {/* Full TrainingPeaks-style metrics table */}
           <div style={{ marginTop: 14, background: T.card, border: `1px solid ${T.border}`, borderRadius: 13, padding: "14px 18px" }}>
