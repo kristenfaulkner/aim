@@ -44,8 +44,14 @@ export default function DexaScanUpload({ onUploadComplete, compact = false }) {
       }),
     });
 
-    const data = await res.json();
+    let data;
+    try {
+      data = await res.json();
+    } catch {
+      throw new Error(`Server error (${res.status}). Please try again.`);
+    }
     if (!res.ok) throw new Error(data.error || "Upload failed");
+    if (!data.scan) throw new Error("No scan data returned — please try again.");
     return data.scan;
   };
 

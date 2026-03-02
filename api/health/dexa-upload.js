@@ -77,6 +77,7 @@ export default async function handler(req, res) {
 
   try {
     // 1. Send file to Claude for DEXA data extraction
+    console.log("DEXA upload: starting extraction, mediaType:", mediaType, "base64 length:", fileBase64.length);
     const contentBlock = mediaType === "application/pdf"
       ? { type: "document", source: { type: "base64", media_type: mediaType, data: fileBase64 } }
       : { type: "image", source: { type: "base64", media_type: mediaType, data: fileBase64 } };
@@ -93,6 +94,7 @@ export default async function handler(req, res) {
         ],
       }],
     });
+    console.log("DEXA upload: Claude responded, stop_reason:", response.stop_reason);
 
     const text = response.content[0].text;
 
@@ -108,6 +110,7 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: "Failed to parse AI extraction results" });
       }
     }
+    console.log("DEXA upload: parsed extraction, keys:", Object.keys(parsed));
 
     // 2. Upload original file to Supabase Storage
     let pdfUrl = null;
@@ -128,9 +131,10 @@ export default async function handler(req, res) {
     }
 
     // 3. Build database row
+    const parsedDate = parsed.scan_date && parsed.scan_date !== "null" ? parsed.scan_date : null;
     const dbRow = {
       user_id: session.userId,
-      scan_date: scanDate || parsed.scan_date || new Date().toISOString().split("T")[0],
+      scan_date: scanDate || parsedDate || new Date().toISOString().split("T")[0],
       facility_name: parsed.facility_name || null,
       pdf_url: pdfUrl,
       total_body_fat_pct: parsed.total_body_fat_pct ?? null,
@@ -142,6 +146,7 @@ export default async function handler(req, res) {
     };
 
     // 4. Insert into dexa_scans
+    console.log("DEXA upload: inserting to DB, scan_date:", dbRow.scan_date, "body_fat:", dbRow.total_body_fat_pct);
     const { data: scan, error: insertErr } = await supabaseAdmin
       .from("dexa_scans")
       .insert(dbRow)
@@ -149,9 +154,11 @@ export default async function handler(req, res) {
       .single();
 
     if (insertErr) {
-      console.error("Insert error:", insertErr);
-      return res.status(500).json({ error: insertErr.message });
+      console.error("DEXA insert error:", JSON.stringify(insertErr));
+      return res.status(500).json({ error: insertErr.message || "Database insert failed" });
     }
+
+    console.log("DEXA upload: success, scan id:", scan?.id);
 
     // 5. Fire-and-forget AI analysis
     generateDexaAnalysis(session.userId, scan.id).catch(err =>
