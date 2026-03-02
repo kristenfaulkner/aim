@@ -95,8 +95,8 @@ export default function DexaScanUpload({ onUploadComplete, compact = false }) {
     ].filter(Boolean);
 
     return (
-      <div style={{ padding: compact ? "16px" : "24px", background: "rgba(0,229,160,0.04)", border: `1px solid rgba(0,229,160,0.2)`, borderRadius: 14, textAlign: "center" }}>
-        <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(0,229,160,0.15)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
+      <div style={{ padding: compact ? "16px" : "24px", background: "rgba(16,185,129,0.04)", border: `1px solid rgba(16,185,129,0.2)`, borderRadius: 14, textAlign: "center" }}>
+        <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(16,185,129,0.15)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
           <Check size={20} color={T.accent} />
         </div>
         <div style={{ fontSize: 15, fontWeight: 700, color: T.accent, marginBottom: 4 }}>
@@ -149,7 +149,7 @@ export default function DexaScanUpload({ onUploadComplete, compact = false }) {
         onClick={() => fileRef.current?.click()}
         style={{
           padding: compact ? "24px" : "36px 24px",
-          background: dragging ? "rgba(0,229,160,0.06)" : T.card,
+          background: dragging ? "rgba(16,185,129,0.06)" : T.card,
           border: `2px dashed ${dragging ? T.accent : T.border}`,
           borderRadius: 14,
           textAlign: "center",

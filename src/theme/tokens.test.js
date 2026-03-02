@@ -6,10 +6,10 @@ import { T, font, mono, catColors, breakpoints, touchMin } from './tokens';
 
 describe('design tokens', () => {
   it('has all required color tokens', () => {
-    expect(T.bg).toBe('#05060a');
-    expect(T.surface).toBe('#0c0d14');
-    expect(T.card).toBe('#111219');
-    expect(T.accent).toBe('#00e5a0');
+    expect(T.bg).toBe('#f8f8fa');
+    expect(T.surface).toBe('#f0f0f3');
+    expect(T.card).toBe('#ffffff');
+    expect(T.accent).toBe('#10b981');
     expect(T.text).toBeTruthy();
     expect(T.textSoft).toBeTruthy();
     expect(T.textDim).toBeTruthy();
@@ -17,7 +17,7 @@ describe('design tokens', () => {
 
   it('has gradient token', () => {
     expect(T.gradient).toContain('linear-gradient');
-    expect(T.gradient).toContain('#00e5a0');
+    expect(T.gradient).toContain('#10b981');
     expect(T.gradient).toContain('#3b82f6');
   });
 
@@ -29,7 +29,7 @@ describe('design tokens', () => {
   });
 
   it('exports font families', () => {
-    expect(font).toContain('Outfit');
+    expect(font).toContain('DM Sans');
     expect(mono).toContain('JetBrains Mono');
   });
 

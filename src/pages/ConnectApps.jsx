@@ -42,7 +42,7 @@ function AppCard({ app, isConnected, onToggle }) {
   const showUploadMore = isConnected && isFileImport && hover;
 
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", background: isConnected ? "rgba(0,229,160,0.04)" : T.card, border: `1px solid ${isConnected ? "rgba(0,229,160,0.2)" : T.border}`, borderRadius: 14, transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)" }}
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", background: isConnected ? "rgba(16,185,129,0.04)" : T.card, border: `1px solid ${isConnected ? "rgba(16,185,129,0.2)" : T.border}`, borderRadius: 14, transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)" }}
       onMouseOver={e => { if (!isConnected) e.currentTarget.style.borderColor = T.borderHover; }}
       onMouseOut={e => { if (!isConnected) e.currentTarget.style.borderColor = T.border; }}>
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -60,8 +60,8 @@ function AppCard({ app, isConnected, onToggle }) {
           onMouseLeave={() => setHover(false)}
           style={{
             padding: "8px 20px", borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: "pointer",
-            background: showDisconnect ? "rgba(239,68,68,0.08)" : showUploadMore ? T.accentDim : isConnected ? "rgba(0,229,160,0.12)" : T.accentDim,
-            border: `1px solid ${showDisconnect ? "rgba(239,68,68,0.2)" : showUploadMore ? T.accentMid : isConnected ? "rgba(0,229,160,0.3)" : T.accentMid}`,
+            background: showDisconnect ? "rgba(239,68,68,0.08)" : showUploadMore ? T.accentDim : isConnected ? "rgba(16,185,129,0.12)" : T.accentDim,
+            border: `1px solid ${showDisconnect ? "rgba(239,68,68,0.2)" : showUploadMore ? T.accentMid : isConnected ? "rgba(16,185,129,0.3)" : T.accentMid}`,
             color: showDisconnect ? "#ef4444" : showUploadMore ? T.accent : isConnected ? T.accent : T.accent,
             fontFamily: font, transition: "all 0.2s", display: "flex", alignItems: "center", gap: 6,
           }}>
@@ -342,8 +342,8 @@ export default function ConnectApps() {
       {/* Toast notification */}
       {toast && (
         <div style={{ position: "fixed", top: 80, left: "50%", transform: "translateX(-50%)", padding: "12px 24px", borderRadius: 12, fontSize: 14, fontWeight: 600, zIndex: 100,
-          background: toast.includes("failed") ? "rgba(239,68,68,0.12)" : "rgba(0,229,160,0.12)",
-          border: `1px solid ${toast.includes("failed") ? "rgba(239,68,68,0.3)" : "rgba(0,229,160,0.3)"}`,
+          background: toast.includes("failed") ? "rgba(239,68,68,0.12)" : "rgba(16,185,129,0.12)",
+          border: `1px solid ${toast.includes("failed") ? "rgba(239,68,68,0.3)" : "rgba(16,185,129,0.3)"}`,
           color: toast.includes("failed") ? "#ef4444" : T.accent }}>
           {toast}
         </div>

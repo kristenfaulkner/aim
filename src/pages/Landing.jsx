@@ -541,7 +541,7 @@ export default function Landing() {
       {/* Final CTA */}
       <section style={{ padding: isMobile ? "60px 16px" : "80px 40px", textAlign: "center" }}>
         <div style={{ maxWidth: 640, margin: "0 auto", padding: isMobile ? "40px 24px" : "60px 40px", background: T.gradientSubtle, borderRadius: isMobile ? 20 : 24, border: `1px solid ${T.accentMid}`, position: "relative", overflow: "hidden" }}>
-          <div style={{ position: "absolute", top: -100, left: "50%", transform: "translateX(-50%)", width: 500, height: 500, background: "radial-gradient(circle, rgba(0,229,160,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", top: -100, left: "50%", transform: "translateX(-50%)", width: 500, height: 500, background: "radial-gradient(circle, rgba(16,185,129,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
           <h2 style={{ fontSize: isMobile ? 24 : 30, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 8px", position: "relative" }}>Your body deserves better than guesswork.</h2>
           <p style={{ fontSize: isMobile ? 14 : 15, color: T.textSoft, margin: "0 0 32px", position: "relative", maxWidth: 440, marginLeft: "auto", marginRight: "auto", lineHeight: 1.6 }}>Start your free trial today. Connect your apps, upload your blood work, and see what you've been missing.</p>
           <button onClick={() => navigate(user ? "/dashboard" : "/signup")} style={{ ...btn(true), fontSize: isMobile ? 15 : 16, padding: isMobile ? "14px 28px" : "16px 40px", position: "relative", width: isMobile ? "100%" : "auto", justifyContent: "center" }}>{user ? "Go to Dashboard" : "Get Started Free"} <ArrowRight size={18} /></button>

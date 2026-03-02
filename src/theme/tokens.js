@@ -1,35 +1,35 @@
 // ── DESIGN TOKENS ──
-// Unified design system for AIM
+// Unified design system for AIM (light theme)
 
 export const T = {
-  bg: "#05060a",
-  surface: "#0c0d14",
-  card: "#111219",
-  cardHover: "#161720",
-  border: "rgba(255,255,255,0.06)",
-  borderHover: "rgba(255,255,255,0.12)",
-  accent: "#00e5a0",
-  accentDim: "rgba(0,229,160,0.1)",
-  accentMid: "rgba(0,229,160,0.25)",
-  accentGlow: "rgba(0,229,160,0.4)",
-  text: "#eaeaf0",
-  textSoft: "#9495a5",
-  textDim: "#5c5d70",
+  bg: "#f8f8fa",
+  surface: "#f0f0f3",
+  card: "#ffffff",
+  cardHover: "#f5f5f8",
+  border: "rgba(0,0,0,0.08)",
+  borderHover: "rgba(0,0,0,0.15)",
+  accent: "#10b981",
+  accentDim: "rgba(16,185,129,0.08)",
+  accentMid: "rgba(16,185,129,0.2)",
+  accentGlow: "rgba(16,185,129,0.35)",
+  text: "#1a1a2e",
+  textSoft: "#6b7280",
+  textDim: "#9ca3af",
   white: "#ffffff",
-  danger: "#ff4757",
-  warn: "#ffb800",
+  danger: "#ef4444",
+  warn: "#f59e0b",
   blue: "#3b82f6",
   purple: "#8b5cf6",
   pink: "#ec4899",
   orange: "#f97316",
-  green: "#00e5a0",
-  red: "#ff4757",
+  green: "#10b981",
+  red: "#ef4444",
   amber: "#f59e0b",
-  gradient: "linear-gradient(135deg, #00e5a0, #3b82f6)",
-  gradientSubtle: "linear-gradient(135deg, rgba(0,229,160,0.08), rgba(59,130,246,0.08))",
+  gradient: "linear-gradient(135deg, #10b981, #3b82f6)",
+  gradientSubtle: "linear-gradient(135deg, rgba(16,185,129,0.06), rgba(59,130,246,0.06))",
 };
 
-export const font = "'Outfit', sans-serif";
+export const font = "'DM Sans', sans-serif";
 export const mono = "'JetBrains Mono', monospace";
 
 // Category colors for boosters

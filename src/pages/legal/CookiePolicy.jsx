@@ -177,7 +177,7 @@ const cookies = [
 /* ── type badge color map ── */
 const typeBadge = (type) => {
   const map = {
-    "Strictly Necessary": { bg: "rgba(0,229,160,0.10)", color: T.accent },
+    "Strictly Necessary": { bg: "rgba(16,185,129,0.10)", color: T.accent },
     Functional: { bg: "rgba(139,92,246,0.10)", color: T.purple },
     Analytics: { bg: "rgba(59,130,246,0.10)", color: T.blue },
     "Third-Party": { bg: "rgba(249,115,22,0.10)", color: T.orange },

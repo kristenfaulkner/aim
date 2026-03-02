@@ -1,9 +1,9 @@
 import { useMemo } from "react";
 
-const ACCENT = "#00e5a0";
+const ACCENT = "#10b981";
 const BLUE = "#3b82f6";
-const PURPLE = "#a078ff";
-const TEAL = "#00c8b4";
+const PURPLE = "#8b5cf6";
+const TEAL = "#06b6d4";
 
 const categoryColors = { power: ACCENT, recovery: BLUE, health: PURPLE, training: TEAL };
 
@@ -288,7 +288,7 @@ export default function NeuralBackground() {
       {/* Vignette */}
       <div style={{
         position: "absolute", inset: 0,
-        background: "radial-gradient(ellipse at center, transparent 30%, rgba(5,6,10,0.7) 100%)",
+        background: "radial-gradient(ellipse at center, transparent 30%, rgba(248,248,250,0.7) 100%)",
         zIndex: 5, pointerEvents: "none",
       }} />
     </div>

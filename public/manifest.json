@@ -4,8 +4,8 @@
   "description": "AI-powered performance intelligence for endurance athletes.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#05060a",
-  "theme_color": "#05060a",
+  "background_color": "#f8f8fa",
+  "theme_color": "#f8f8fa",
   "icons": [
     {
       "src": "/logos/aim-favicon-128.png",

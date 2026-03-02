@@ -7,7 +7,7 @@ import { Menu, X } from "lucide-react";
 // ── CONFIDENCE BADGE ──
 function ConfidenceBadge({ level }) {
   const configs = {
-    "strong": { label: "Strong Evidence", color: T.accent, bg: "rgba(0,229,160,0.1)" },
+    "strong": { label: "Strong Evidence", color: T.accent, bg: "rgba(16,185,129,0.1)" },
     "strong-sprint": { label: "Strong for Sprints · Mixed for Endurance", color: T.amber, bg: "rgba(245,158,11,0.1)" },
     "moderate": { label: "Moderate Evidence", color: T.amber, bg: "rgba(245,158,11,0.1)" },
     "emerging": { label: "Emerging Research", color: T.textSoft, bg: "rgba(148,149,165,0.1)" },
@@ -193,19 +193,19 @@ export default function Boosters() {
 
   return (
     <div style={{ minHeight: "100vh", background: T.bg, color: T.text, fontFamily: font }}>
-      <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+      {/* Fonts loaded via index.css */}
 
       {/* Nav */}
       <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: isMobile ? "0 12px" : "0 32px", height: isMobile ? 48 : 56, borderBottom: `1px solid ${T.border}`, background: `${T.surface}cc`, backdropFilter: "blur(16px)", position: "sticky", top: 0, zIndex: 100 }}>
         <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 10 : 24 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 28, height: 28, borderRadius: 7, background: "linear-gradient(135deg, #00e5a0, #3b82f6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: T.bg }}>AI</div>
+            <div style={{ width: 28, height: 28, borderRadius: 7, background: T.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: T.white }}>AI</div>
             <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.03em" }}>M</span>
           </div>
           {!isMobile && (
             <div style={{ display: "flex", gap: 3 }}>
               {["Dashboard", "Calendar", "Trends", "Boosters", "Race Planner"].map(item => (
-                <button key={item} style={{ background: item === "Boosters" ? "rgba(0,229,160,0.1)" : "none", border: "none", padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, color: item === "Boosters" ? T.accent : T.textDim, cursor: "pointer", fontFamily: font }}>{item}</button>
+                <button key={item} style={{ background: item === "Boosters" ? "rgba(16,185,129,0.1)" : "none", border: "none", padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, color: item === "Boosters" ? T.accent : T.textDim, cursor: "pointer", fontFamily: font }}>{item}</button>
               ))}
             </div>
           )}
@@ -228,7 +228,7 @@ export default function Boosters() {
               <button onClick={() => setMenuOpen(false)} style={{ background: "none", border: "none", color: T.text, cursor: "pointer", padding: 8, minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}><X size={20} /></button>
             </div>
             {["Dashboard", "Calendar", "Trends", "Boosters", "Race Planner"].map(item => (
-              <button key={item} onClick={() => setMenuOpen(false)} style={{ background: item === "Boosters" ? "rgba(0,229,160,0.1)" : "none", border: "none", padding: "12px 14px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: item === "Boosters" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font, textAlign: "left" }}>{item}</button>
+              <button key={item} onClick={() => setMenuOpen(false)} style={{ background: item === "Boosters" ? "rgba(16,185,129,0.1)" : "none", border: "none", padding: "12px 14px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: item === "Boosters" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font, textAlign: "left" }}>{item}</button>
             ))}
           </div>
         </div>
@@ -239,7 +239,7 @@ export default function Boosters() {
         <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "stretch" : "flex-end", marginBottom: isMobile ? 20 : 32, gap: isMobile ? 16 : 0 }}>
           <div>
             <h1 style={{ fontSize: isMobile ? 28 : 36, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 8px" }}>
-              Performance <span style={{ background: "linear-gradient(135deg, #00e5a0, #3b82f6)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Boosters</span>
+              Performance <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Boosters</span>
             </h1>
             <p style={{ fontSize: isMobile ? 14 : 15, color: T.textSoft, margin: 0 }}>
               Science-backed supplements, protocols, and training strategies. Every recommendation includes peer-reviewed research.

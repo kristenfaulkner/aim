@@ -212,7 +212,7 @@ export default function ActivityBrowser({ isOpen, onClose, selectedActivityId, o
         background: T.card,
         border: `1px solid ${T.borderHover}`,
         borderRadius: 14,
-        boxShadow: "0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)",
+        boxShadow: "0 20px 60px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.06)",
         zIndex: 200,
         display: "flex",
         flexDirection: "column",

@@ -167,7 +167,7 @@ function SkeletonCard({ height = 80 }) {
     <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "14px 16px", height, position: "relative", overflow: "hidden" }}>
       <div style={{ width: "40%", height: 10, background: T.border, borderRadius: 4, marginBottom: 12 }} />
       <div style={{ width: "60%", height: 20, background: T.border, borderRadius: 4 }} />
-      <div style={{ position: "absolute", top: 0, left: "-100%", width: "200%", height: "100%", background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.03) 50%, transparent 100%)", animation: "shimmer 2s infinite" }} />
+      <div style={{ position: "absolute", top: 0, left: "-100%", width: "200%", height: "100%", background: "linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.03) 50%, transparent 100%)", animation: "shimmer 2s infinite" }} />
     </div>
   );
 }

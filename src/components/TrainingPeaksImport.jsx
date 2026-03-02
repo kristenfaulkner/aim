@@ -121,7 +121,7 @@ export default function TrainingPeaksImport({ onClose, onComplete }) {
     return (
       <Overlay onClose={onClose}>
         <div style={{ textAlign: "center" }}>
-          <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(0,229,160,0.15)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+          <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(16,185,129,0.15)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
             <Check size={28} color={T.accent} />
           </div>
           <div style={{ fontSize: 20, fontWeight: 800, color: T.text, marginBottom: 4 }}>Import Complete</div>
@@ -415,7 +415,7 @@ function DropZone({ dragging, file, onDragOver, onDragLeave, onDrop, onClick, ic
       onClick={onClick}
       style={{
         padding: "16px 20px",
-        background: dragging ? "rgba(0,229,160,0.04)" : file ? "rgba(0,229,160,0.03)" : T.surface,
+        background: dragging ? "rgba(16,185,129,0.04)" : file ? "rgba(16,185,129,0.03)" : T.surface,
         border: `1.5px dashed ${borderColor}`,
         borderRadius: 12,
         cursor: "pointer",
@@ -425,7 +425,7 @@ function DropZone({ dragging, file, onDragOver, onDragLeave, onDrop, onClick, ic
     >
       <div style={{
         width: 40, height: 40, borderRadius: 10,
-        background: file ? "rgba(0,229,160,0.1)" : T.card,
+        background: file ? "rgba(16,185,129,0.1)" : T.card,
         display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
       }}>
         {file ? <Check size={18} color={accent || T.accent} /> : icon}

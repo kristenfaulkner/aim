@@ -189,7 +189,7 @@ export default function Onboarding() {
               </div>
             </div>
 
-            <label style={{ display: "flex", alignItems: "flex-start", gap: 12, cursor: "pointer", padding: "14px 16px", borderRadius: 10, minHeight: 44, background: healthDataConsent ? "rgba(0,229,160,0.04)" : "transparent", border: `1px solid ${healthDataConsent ? T.accentMid : T.border}`, transition: "all 0.2s" }}>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 12, cursor: "pointer", padding: "14px 16px", borderRadius: 10, minHeight: 44, background: healthDataConsent ? "rgba(16,185,129,0.04)" : "transparent", border: `1px solid ${healthDataConsent ? T.accentMid : T.border}`, transition: "all 0.2s" }}>
               <input type="checkbox" checked={healthDataConsent} onChange={e => setHealthDataConsent(e.target.checked)}
                 style={{ marginTop: 2, accentColor: T.accent, width: 18, height: 18, flexShrink: 0 }} />
               <span style={{ fontSize: 13, color: T.text, lineHeight: 1.6, fontWeight: 600 }}>

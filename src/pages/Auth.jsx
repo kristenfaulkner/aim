@@ -307,7 +307,7 @@ function ErrorBanner({ message }) {
 function RightPanel() {
   return (
     <div style={{ flex: 1, background: T.surface, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 60, position: "relative", overflow: "hidden", borderLeft: `1px solid ${T.border}` }}>
-      <div style={{ position: "absolute", top: -200, right: -200, width: 600, height: 600, background: "radial-gradient(circle, rgba(0,229,160,0.06) 0%, transparent 60%)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", top: -200, right: -200, width: 600, height: 600, background: "radial-gradient(circle, rgba(16,185,129,0.06) 0%, transparent 60%)", pointerEvents: "none" }} />
       <div style={{ position: "absolute", bottom: -150, left: -150, width: 500, height: 500, background: "radial-gradient(circle, rgba(59,130,246,0.04) 0%, transparent 60%)", pointerEvents: "none" }} />
 
       <div style={{ position: "relative", zIndex: 1, maxWidth: 400, textAlign: "center" }}>

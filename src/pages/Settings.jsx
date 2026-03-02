@@ -621,8 +621,8 @@ export default function Settings() {
 
                 {/* Consent Checkbox (TCPA required) */}
                 <div style={{
-                  padding: "14px 16px", background: "rgba(255,255,255,0.03)", borderRadius: 10,
-                  border: `1px solid ${smsConsent ? "rgba(0,229,160,0.3)" : T.border}`,
+                  padding: "14px 16px", background: "rgba(0,0,0,0.02)", borderRadius: 10,
+                  border: `1px solid ${smsConsent ? "rgba(16,185,129,0.3)" : T.border}`,
                   marginBottom: 16, transition: "border-color 0.2s",
                 }}>
                   <label style={{ display: "flex", gap: 12, cursor: "pointer", alignItems: "flex-start" }}>

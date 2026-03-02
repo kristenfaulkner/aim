@@ -35,7 +35,7 @@ function StatusBadge({ value, biomarkerKey, sex = "female" }) {
   const [clinLow, clinHigh] = bm.clinicalRange[sex] || bm.clinicalRange.male;
   let label, color, bg;
   if (value >= optLow && value <= optHigh) {
-    label = "Optimal"; color = T.green; bg = "rgba(0,229,160,0.1)";
+    label = "Optimal"; color = T.green; bg = "rgba(16,185,129,0.1)";
   } else if (value >= clinLow && value <= clinHigh) {
     label = "In Range"; color = T.amber; bg = "rgba(245,158,11,0.1)";
   } else {
@@ -104,12 +104,12 @@ function BiomarkerTrend({ biomarkerKey, panels, sex = "female", onExpand, expand
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: T.textDim, marginBottom: 3 }}>
           <span>Athlete Optimal: {optLow}&ndash;{optHigh} {bm.unit}</span>
         </div>
-        <div style={{ position: "relative", height: 6, borderRadius: 3, background: "rgba(255,255,255,0.04)" }}>
+        <div style={{ position: "relative", height: 6, borderRadius: 3, background: "rgba(0,0,0,0.04)" }}>
           <div style={{
             position: "absolute",
             left: `${Math.max(0, ((optLow - (optLow * 0.5)) / (optHigh * 1.5 - optLow * 0.5)) * 100)}%`,
             width: `${((optHigh - optLow) / (optHigh * 1.5 - optLow * 0.5)) * 100}%`,
-            height: "100%", borderRadius: 3, background: "rgba(0,229,160,0.2)",
+            height: "100%", borderRadius: 3, background: "rgba(16,185,129,0.2)",
           }} />
           <div style={{
             position: "absolute",
@@ -161,7 +161,7 @@ function BiomarkerTrend({ biomarkerKey, panels, sex = "female", onExpand, expand
             </div>
           )}
           {!isLow && !isHigh && !isBelowOptimal && !isAboveOptimal && (
-            <div style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(0,229,160,0.05)", border: "1px solid rgba(0,229,160,0.15)" }}>
+            <div style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(16,185,129,0.05)", border: "1px solid rgba(16,185,129,0.15)" }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: T.green, marginBottom: 4 }}>In athlete-optimal range</div>
               <div style={{ fontSize: 12, color: T.textSoft, lineHeight: 1.6 }}>This value is within the ideal range for endurance athletes. Continue current protocols.</div>
             </div>

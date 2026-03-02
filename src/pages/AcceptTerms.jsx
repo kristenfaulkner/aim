@@ -41,7 +41,7 @@ export default function AcceptTerms() {
   };
 
   const checkboxRow = (checked, onChange, label) => (
-    <label style={{ display: "flex", alignItems: "flex-start", gap: 12, cursor: "pointer", padding: "12px 16px", borderRadius: 10, minHeight: 44, background: checked ? "rgba(0,229,160,0.04)" : "transparent", border: `1px solid ${checked ? T.accentMid : T.border}`, transition: "all 0.2s" }}>
+    <label style={{ display: "flex", alignItems: "flex-start", gap: 12, cursor: "pointer", padding: "12px 16px", borderRadius: 10, minHeight: 44, background: checked ? "rgba(16,185,129,0.04)" : "transparent", border: `1px solid ${checked ? T.accentMid : T.border}`, transition: "all 0.2s" }}>
       <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)}
         style={{ marginTop: 2, accentColor: T.accent, width: 18, height: 18, flexShrink: 0 }} />
       <span style={{ fontSize: 13, color: T.textSoft, lineHeight: 1.6 }}>{label}</span>
