@@ -487,6 +487,36 @@ export default function ConnectApps() {
           )
         )}
 
+        {/* Universal File Upload */}
+        <div style={{ marginTop: 28, padding: "24px", background: T.card, borderRadius: 16, border: `1px solid ${T.border}` }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 18 }}>📁</span>
+              <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>Upload Files</h3>
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button onClick={() => navigate("/health-lab")} style={{
+                background: "none", border: `1px solid ${T.border}`, padding: "5px 12px", borderRadius: 7,
+                fontSize: 11, fontWeight: 600, color: T.textSoft, cursor: "pointer", fontFamily: font,
+                display: "flex", alignItems: "center", gap: 5, transition: "all 0.2s",
+              }}>
+                Health Lab <ExternalLink size={11} />
+              </button>
+              <button onClick={() => navigate("/dashboard")} style={{
+                background: "none", border: `1px solid ${T.border}`, padding: "5px 12px", borderRadius: 7,
+                fontSize: 11, fontWeight: 600, color: T.textSoft, cursor: "pointer", fontFamily: font,
+                display: "flex", alignItems: "center", gap: 5, transition: "all 0.2s",
+              }}>
+                Dashboard <ExternalLink size={11} />
+              </button>
+            </div>
+          </div>
+          <p style={{ fontSize: 13, color: T.textSoft, margin: "0 0 16px", lineHeight: 1.6 }}>
+            Upload blood labs, body scans, .FIT workouts, or any health data. AI detects the file type automatically and adds it to your profile.
+          </p>
+          <UniversalUpload compact />
+        </div>
+
         {/* Coming Soon section */}
         {comingSoonApps.length > 0 && (
           <div style={{ marginTop: availableApps.length > 0 ? 48 : 0 }}>
@@ -527,36 +557,6 @@ export default function ConnectApps() {
             <p style={{ fontSize: 15, color: T.textSoft }}>No apps match your search.</p>
           </div>
         )}
-
-        {/* Universal File Upload */}
-        <div style={{ marginTop: 28, padding: "24px", background: T.card, borderRadius: 16, border: `1px solid ${T.border}` }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 18 }}>📁</span>
-              <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>Upload Files</h3>
-            </div>
-            <div style={{ display: "flex", gap: 6 }}>
-              <button onClick={() => navigate("/health-lab")} style={{
-                background: "none", border: `1px solid ${T.border}`, padding: "5px 12px", borderRadius: 7,
-                fontSize: 11, fontWeight: 600, color: T.textSoft, cursor: "pointer", fontFamily: font,
-                display: "flex", alignItems: "center", gap: 5, transition: "all 0.2s",
-              }}>
-                Health Lab <ExternalLink size={11} />
-              </button>
-              <button onClick={() => navigate("/dashboard")} style={{
-                background: "none", border: `1px solid ${T.border}`, padding: "5px 12px", borderRadius: 7,
-                fontSize: 11, fontWeight: 600, color: T.textSoft, cursor: "pointer", fontFamily: font,
-                display: "flex", alignItems: "center", gap: 5, transition: "all 0.2s",
-              }}>
-                Dashboard <ExternalLink size={11} />
-              </button>
-            </div>
-          </div>
-          <p style={{ fontSize: 13, color: T.textSoft, margin: "0 0 16px", lineHeight: 1.6 }}>
-            Upload blood labs, body scans, .FIT workouts, or any health data. AI detects the file type automatically and adds it to your profile.
-          </p>
-          <UniversalUpload compact />
-        </div>
 
         {/* Request integration */}
         <div style={{ marginTop: 32, padding: "24px", background: T.card, borderRadius: 16, border: `1px solid ${T.border}`, textAlign: "center" }}>
