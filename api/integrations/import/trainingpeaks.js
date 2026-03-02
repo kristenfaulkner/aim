@@ -44,11 +44,13 @@ export default async function handler(req, res) {
 
     const zipBuffer = Buffer.from(await zipBlob.arrayBuffer());
 
-    // 2. Extract ZIP and filter to .FIT files
+    // 2. Extract ZIP and filter to .FIT / .FIT.GZ files
     const zip = new AdmZip(zipBuffer);
-    const entries = zip.getEntries().filter(e =>
-      !e.isDirectory && e.entryName.toLowerCase().endsWith(".fit")
-    );
+    const entries = zip.getEntries().filter(e => {
+      if (e.isDirectory) return false;
+      const name = e.entryName.toLowerCase();
+      return name.endsWith(".fit") || name.endsWith(".fit.gz");
+    });
 
     if (entries.length === 0) {
       return res.status(400).json({ error: "ZIP contains no .FIT files" });
@@ -99,7 +101,12 @@ export default async function handler(req, res) {
 
     for (const entry of entries) {
       try {
-        const fitBuffer = entry.getData();
+        let fitBuffer = entry.getData();
+        // Decompress .fit.gz files
+        if (entry.entryName.toLowerCase().endsWith(".fit.gz")) {
+          const { gunzipSync } = await import("zlib");
+          fitBuffer = gunzipSync(fitBuffer);
+        }
         const { metadata, streams } = parseFitFile(fitBuffer, entry.entryName);
 
         // 6a. Compute metrics from streams
