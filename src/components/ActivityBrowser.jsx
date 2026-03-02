@@ -7,8 +7,8 @@ const font = "'Outfit', sans-serif";
 const mono = "'JetBrains Mono', monospace";
 
 const TIME_PERIODS = [
-  { id: "week", label: "Week" },
-  { id: "month", label: "Month" },
+  { id: "week", label: "7 Days" },
+  { id: "month", label: "30 Days" },
   { id: "year", label: "Year" },
   { id: "all", label: "All" },
 ];

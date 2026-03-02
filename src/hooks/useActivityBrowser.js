@@ -23,13 +23,16 @@ export function useActivityBrowser({ enabled = false }) {
     switch (period) {
       case "week": {
         const d = new Date(now);
-        const day = d.getDay();
-        d.setDate(d.getDate() - ((day + 6) % 7)); // Monday
+        d.setDate(d.getDate() - 7);
         d.setHours(0, 0, 0, 0);
         return d.toISOString();
       }
-      case "month":
-        return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      case "month": {
+        const d = new Date(now);
+        d.setDate(d.getDate() - 30);
+        d.setHours(0, 0, 0, 0);
+        return d.toISOString();
+      }
       case "year":
         return new Date(now.getFullYear(), 0, 1).toISOString();
       default:
