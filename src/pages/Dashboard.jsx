@@ -5,10 +5,11 @@ import {
   benchmarks, classifyPower, pctToNextLevel, getWorkoutPrescriptions,
 } from "../data/dashboard";
 import { useDashboardData } from "../hooks/useDashboardData";
-import { useActivities } from "../hooks/useActivities";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabase";
-import { LogOut, Settings } from "lucide-react";
+import { LogOut, Settings, Menu, X } from "lucide-react";
+import { useResponsive } from "../hooks/useResponsive";
+import ActivityBrowser, { ActivityBrowserTrigger } from "../components/ActivityBrowser";
 
 // ── HELPERS ──
 
@@ -548,9 +549,9 @@ function AIAnalysisPanel({ aiAnalysis, activity, profile, dailyMetrics, computed
 
                 {/* Category pills */}
                 {insightCategories.length > 0 && (
-                  <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", gap: 5, overflowX: "auto", WebkitOverflowScrolling: "touch", paddingBottom: 2 }}>
                     {insightCategories.map(cat => (
-                      <button key={cat.id} onClick={() => setInsightFilter(cat.id)} style={{ background: insightFilter === cat.id ? `${T.accent}18` : T.bg, border: `1px solid ${insightFilter === cat.id ? T.accentMid : T.border}`, borderRadius: 20, padding: "4px 10px", fontSize: 10, fontWeight: 600, color: insightFilter === cat.id ? T.accent : T.textSoft, cursor: "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", gap: 5, fontFamily: font }}>
+                      <button key={cat.id} onClick={() => setInsightFilter(cat.id)} style={{ background: insightFilter === cat.id ? `${T.accent}18` : T.bg, border: `1px solid ${insightFilter === cat.id ? T.accentMid : T.border}`, borderRadius: 20, padding: "4px 10px", fontSize: 10, fontWeight: 600, color: insightFilter === cat.id ? T.accent : T.textSoft, cursor: "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", gap: 5, fontFamily: font, whiteSpace: "nowrap", flexShrink: 0 }}>
                         {cat.label}
                         <span style={{ fontSize: 8, background: insightFilter === cat.id ? `${T.accent}30` : `${T.textDim}30`, padding: "1px 4px", borderRadius: 6, color: insightFilter === cat.id ? T.accent : T.textDim }}>{cat.count}</span>
                       </button>
@@ -694,8 +695,11 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { signout } = useAuth();
   const [selectedActivityId, setSelectedActivityId] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [browserOpen, setBrowserOpen] = useState(false);
+  const browserTriggerRef = useRef(null);
+  const { isMobile, isTablet } = useResponsive();
   const { activity, profile, dailyMetrics, fitnessHistory, powerProfile, recentActivities, connectedIntegrations, loading, error } = useDashboardData(selectedActivityId);
-  const { activities: activityList } = useActivities();
 
   const handleSignout = async () => {
     await signout();
@@ -1046,42 +1050,74 @@ export default function Dashboard() {
       <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
       {/* Nav */}
-      <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", height: 52, borderBottom: `1px solid ${T.border}`, background: `${T.surface}cc`, backdropFilter: "blur(16px)", position: "sticky", top: 0, zIndex: 100 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+      <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: isMobile ? "0 12px" : "0 24px", height: isMobile ? 48 : 52, borderBottom: `1px solid ${T.border}`, background: `${T.surface}cc`, backdropFilter: "blur(16px)", position: "sticky", top: 0, zIndex: 100 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 10 : 20 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{ width: 26, height: 26, borderRadius: 7, background: T.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: T.bg, letterSpacing: "-0.02em" }}>AI</div>
             <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.03em" }}><span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>AI</span>M</span>
             <span style={{ fontSize: 8, color: T.accent, fontWeight: 600, letterSpacing: "0.1em", marginLeft: -3 }}>BETA</span>
           </div>
-          <div style={{ display: "flex", gap: 3 }}>
-            {["Dashboard", "Health Lab", "Connect", "Settings"].map(item => (
-              <button key={item} onClick={() => { if (item === "Connect") window.location.href = "/connect"; if (item === "Health Lab") window.location.href = "/health-lab"; if (item === "Settings") window.location.href = "/settings"; }} style={{ background: item === "Dashboard" ? T.accentDim : "none", border: "none", padding: "5px 12px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: item === "Dashboard" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 4 }}>{item === "Settings" ? <><Settings size={12} /> {item}</> : item}</button>
-            ))}
-          </div>
+          {!isMobile && (
+            <div style={{ display: "flex", gap: 3 }}>
+              {["Dashboard", "Health Lab", "Connect", "Settings"].map(item => (
+                <button key={item} onClick={() => { if (item === "Connect") window.location.href = "/connect"; if (item === "Health Lab") window.location.href = "/health-lab"; if (item === "Settings") window.location.href = "/settings"; }} style={{ background: item === "Dashboard" ? T.accentDim : "none", border: "none", padding: "5px 12px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: item === "Dashboard" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 4 }}>{item === "Settings" ? <><Settings size={12} /> {item}</> : item}</button>
+              ))}
+            </div>
+          )}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", background: T.card, borderRadius: 7, border: `1px solid ${T.border}` }}>
-            <div style={{ width: 5, height: 5, borderRadius: "50%", background: T.accent }} /><span style={{ fontSize: 10, color: T.textSoft }}>All synced</span>
+        {isMobile ? (
+          <button onClick={() => setMenuOpen(true)} style={{ background: "none", border: "none", color: T.text, cursor: "pointer", padding: 8, minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}><Menu size={20} /></button>
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", background: T.card, borderRadius: 7, border: `1px solid ${T.border}` }}>
+              <div style={{ width: 5, height: 5, borderRadius: "50%", background: T.accent }} /><span style={{ fontSize: 10, color: T.textSoft }}>All synced</span>
+            </div>
+            <div style={{ width: 30, height: 30, borderRadius: 9, background: `linear-gradient(135deg, ${T.purple}, ${T.pink})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 }}>
+              {profile?.full_name ? profile.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() : "U"}
+            </div>
+            <button onClick={handleSignout} style={{ background: "none", border: `1px solid rgba(239,68,68,0.2)`, padding: "5px 10px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: "#ef4444", cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 5 }}>
+              <LogOut size={13} /> Sign Out
+            </button>
           </div>
-          <div style={{ width: 30, height: 30, borderRadius: 9, background: `linear-gradient(135deg, ${T.purple}, ${T.pink})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 }}>
-            {profile?.full_name ? profile.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() : "U"}
-          </div>
-          <button onClick={handleSignout} style={{ background: "none", border: `1px solid rgba(239,68,68,0.2)`, padding: "5px 10px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: "#ef4444", cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 5 }}>
-            <LogOut size={13} /> Sign Out
-          </button>
-        </div>
+        )}
       </nav>
 
+      {/* Mobile nav drawer */}
+      {isMobile && menuOpen && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 200 }}>
+          <div onClick={() => setMenuOpen(false)} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }} />
+          <div style={{ position: "absolute", top: 0, right: 0, width: 260, height: "100vh", background: T.surface, borderLeft: `1px solid ${T.border}`, padding: "20px 24px", display: "flex", flexDirection: "column", gap: 4, overflowY: "auto" }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+              <button onClick={() => setMenuOpen(false)} style={{ background: "none", border: "none", color: T.text, cursor: "pointer", padding: 8, minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}><X size={20} /></button>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 0", marginBottom: 8 }}>
+              <div style={{ width: 30, height: 30, borderRadius: 9, background: `linear-gradient(135deg, ${T.purple}, ${T.pink})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 }}>
+                {profile?.full_name ? profile.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() : "U"}
+              </div>
+              <span style={{ fontSize: 14, fontWeight: 600 }}>{profile?.full_name || "Athlete"}</span>
+            </div>
+            {["Dashboard", "Health Lab", "Connect", "Settings"].map(item => (
+              <button key={item} onClick={() => { setMenuOpen(false); if (item === "Connect") window.location.href = "/connect"; if (item === "Health Lab") window.location.href = "/health-lab"; if (item === "Settings") window.location.href = "/settings"; }} style={{ background: item === "Dashboard" ? T.accentDim : "none", border: "none", padding: "12px 14px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: item === "Dashboard" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font, textAlign: "left", display: "flex", alignItems: "center", gap: 8 }}>{item === "Settings" ? <><Settings size={14} /> {item}</> : item}</button>
+            ))}
+            <div style={{ marginTop: "auto", paddingTop: 16, borderTop: `1px solid ${T.border}` }}>
+              <button onClick={() => { setMenuOpen(false); handleSignout(); }} style={{ background: "none", border: `1px solid rgba(239,68,68,0.2)`, padding: "12px 14px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: "#ef4444", cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
+                <LogOut size={14} /> Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Layout */}
-      <div style={{ display: "flex", height: "calc(100vh - 52px)" }}>
+      <div style={isMobile ? { display: "flex", flexDirection: "column" } : { display: "flex", height: "calc(100vh - 52px)" }}>
         {/* Left: Dashboard */}
-        <div style={{ flex: 1, overflow: "auto", padding: 20 }}>
+        <div style={isMobile ? { padding: 16 } : { flex: 1, overflow: "auto", padding: 20 }}>
           {/* Ride Header */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "flex-start" : "center", justifyContent: "space-between", marginBottom: 16, gap: isMobile ? 10 : 0 }}>
             <div>
               <div style={{ fontSize: 10, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 3 }}>{rideDateStr}</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0, letterSpacing: "-0.02em" }}>{activity.name || "Untitled Ride"}</h1>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                <h1 style={{ fontSize: isMobile ? 18 : 20, fontWeight: 700, margin: 0, letterSpacing: "-0.02em" }}>{activity.name || "Untitled Ride"}</h1>
                 <button
                   onClick={() => navigate(`/activity/${activity.id}`)}
                   style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 6, padding: "4px 10px", fontSize: 11, color: T.textSoft, cursor: "pointer", fontFamily: font, fontWeight: 500, whiteSpace: "nowrap" }}
@@ -1091,39 +1127,39 @@ export default function Dashboard() {
               </div>
               <div style={{ fontSize: 11, color: T.textSoft, marginTop: 3 }}>{rideSummary}</div>
             </div>
-            {/* Activity Selector */}
-            <div>
-              <select
-                value={selectedActivityId || ""}
-                onChange={e => setSelectedActivityId(e.target.value || null)}
-                style={{ background: T.card, border: `1px solid ${T.border}`, padding: "6px 12px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: T.text, cursor: "pointer", fontFamily: font, outline: "none", maxWidth: 220 }}
-              >
-                <option value="">Latest Ride</option>
-                {activityList.map(a => (
-                  <option key={a.id} value={a.id}>
-                    {new Date(a.started_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })} — {a.name || "Untitled"}
-                  </option>
-                ))}
-              </select>
+            {/* Activity Browser */}
+            <div style={{ position: "relative", ...(isMobile ? { width: "100%" } : {}) }}>
+              <ActivityBrowserTrigger
+                isOpen={browserOpen}
+                onClick={() => setBrowserOpen(!browserOpen)}
+                triggerRef={browserTriggerRef}
+              />
+              <ActivityBrowser
+                isOpen={browserOpen}
+                onClose={() => setBrowserOpen(false)}
+                selectedActivityId={selectedActivityId}
+                onSelectActivity={id => setSelectedActivityId(id)}
+                anchorRef={browserTriggerRef}
+              />
             </div>
           </div>
 
           {/* Row 1: Core power metrics */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(3, 1fr)", gap: 8, marginBottom: 10 }}>
             <MetricCard label="Avg Power" value={safe(activity.avg_power_watts)} unit="W" color={T.accent} icon={"\u26A1"} />
             <MetricCard label="Normalized Power" value={safe(activity.normalized_power_watts)} unit="W" trend={`IF: ${computed.IF}`} color={T.blue} icon={"\uD83D\uDCCA"} />
             <MetricCard label="TSS" value={computed.TSS} unit="" color={T.purple} icon={"\uD83D\uDCC8"} />
           </div>
 
           {/* Row 2: Efficiency + body */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(3, 1fr)", gap: 8, marginBottom: 10 }}>
             <MetricCard label="Efficiency Factor" value={computed.EF} unit="W/bpm" color={T.blue} icon={"\uD83C\uDFAF"} />
             <MetricCard label="W/kg (Avg)" value={computed.wPerKg} unit="" trend={`NP: ${computed.npPerKg} W/kg`} color={T.accent} icon={"\uD83C\uDFCB\uFE0F"} />
             <MetricCard label="Avg HR" value={safe(activity.avg_hr_bpm)} unit="bpm" trend={computed.hrDrift !== "—" ? `${computed.hrDrift}% drift` : undefined} color={T.pink} icon={"\u2764\uFE0F"} />
           </div>
 
           {/* Charts Row */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14, marginBottom: 14 }}>
             <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 13, padding: "14px 18px" }}>
               <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 10 }}>Power Duration Curve</div>
               <PowerCurveChart powerCurveData={powerCurveData} />
@@ -1135,7 +1171,7 @@ export default function Dashboard() {
           </div>
 
           {/* Zones + Weekly + Climbing Calculator */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1fr 1fr" : "1fr 1fr 1fr", gap: 14, marginBottom: 14 }}>
             {/* Power Zones */}
             <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 13, padding: "14px 18px" }}>
               <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 12 }}>Power Zones (Coggan)</div>
@@ -1172,7 +1208,7 @@ export default function Dashboard() {
           </div>
 
           {/* Power Profile + Benchmarks + Workouts */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1fr 1fr" : "1fr 1fr 1fr", gap: 14, marginBottom: 14 }}>
             {/* Radar */}
             <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 13, padding: "14px 18px" }}>
               <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>{"\uD83C\uDFAF"} Power Profile vs. Benchmarks</div>
@@ -1206,7 +1242,7 @@ export default function Dashboard() {
           </div>
 
           {/* Recovery + Body Comp + Sleep row */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1fr 1fr" : "1fr 1fr 1fr", gap: 12 }}>
             <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 13, padding: "14px 18px" }}>
               <div style={{ fontSize: 10, color: T.textSoft, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 7 }}>{"\uD83D\uDECF\uFE0F"} Recovery Score</div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}>
@@ -1277,7 +1313,7 @@ export default function Dashboard() {
           {/* Full TrainingPeaks-style metrics table */}
           <div style={{ marginTop: 14, background: T.card, border: `1px solid ${T.border}`, borderRadius: 13, padding: "14px 18px" }}>
             <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 12 }}>{"\uD83D\uDCCB"} Full Ride Metrics</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 20px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "0 20px" }}>
               <div>
                 <div style={{ fontSize: 9, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6, marginTop: 4 }}>Power</div>
                 <StatRow label="Avg Power" value={safe(activity.avg_power_watts)} unit="W" />
@@ -1327,7 +1363,7 @@ export default function Dashboard() {
               </div>
             </div>
             {/* PMC row */}
-            <div style={{ marginTop: 12, padding: "8px 12px", background: T.bg, borderRadius: 8, display: "flex", gap: 24, fontSize: 11 }}>
+            <div style={{ marginTop: 12, padding: "8px 12px", background: T.bg, borderRadius: 8, display: "flex", flexWrap: "wrap", gap: isMobile ? "4px 16px" : 24, fontSize: 11 }}>
               <span style={{ color: T.textSoft }}>CTL: <span style={{ color: T.blue, fontWeight: 700 }}>{computed.CTL}</span></span>
               <span style={{ color: T.textSoft }}>ATL: <span style={{ color: T.pink, fontWeight: 700 }}>{computed.ATL}</span></span>
               <span style={{ color: T.textSoft }}>TSB: <span style={{ color: typeof computed.TSB === "number" && computed.TSB < 0 ? T.danger : T.accent, fontWeight: 700 }}>{computed.TSB}</span></span>
@@ -1344,7 +1380,7 @@ export default function Dashboard() {
                   <div style={{ width: `${computed.fuel.proteinPct}%`, background: "linear-gradient(90deg, #8b5cf6, #a78bfa)", transition: "width 0.6s ease" }} title={`Protein: ${computed.fuel.proteinPct}%`} />
                 </div>
                 {/* Legend with grams */}
-                <div style={{ display: "flex", gap: 16, fontSize: 10 }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: isMobile ? "6px 12px" : 16, fontSize: 10 }}>
                   <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                     <span style={{ width: 8, height: 8, borderRadius: 2, background: "#3b82f6", display: "inline-block" }} />
                     <span style={{ color: T.textSoft }}>Carbs</span>
@@ -1373,7 +1409,7 @@ export default function Dashboard() {
         </div>
 
         {/* Right: AI Panel */}
-        <div style={{ flex: 1, borderLeft: `1px solid ${T.border}`, padding: 14, display: "flex", flexDirection: "column" }}>
+        <div style={isMobile ? { borderTop: `1px solid ${T.border}`, padding: 16, display: "flex", flexDirection: "column" } : { flex: 1, borderLeft: `1px solid ${T.border}`, padding: 14, display: "flex", flexDirection: "column" }}>
           <AIAnalysisPanel
             aiAnalysis={effectiveAiAnalysis}
             activity={activity}
