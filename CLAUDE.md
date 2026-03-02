@@ -9,9 +9,12 @@ npm run dev        # Vite dev server at http://localhost:5173
 npm run build      # Production build → /dist
 npm run lint       # ESLint
 npm run preview    # Preview production build
+npm run test       # Vitest in watch mode
+npm run test:ci    # Vitest single run (CI/CD)
+npm run test:e2e   # Playwright end-to-end tests
 ```
 
-No test framework is configured.
+Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING-STRATEGY.md` for conventions.
 
 ## Architecture
 
@@ -299,20 +302,27 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 
 ## Documentation Rules
 
-**After completing any new feature, integration, or significant change, you MUST update all relevant documentation before committing:**
+**Do not let documentation drift from the codebase. If you build it, document it.**
 
-1. **`CLAUDE.md`** (this file) — Update the relevant sections:
+### Pre-Push Checklist (MANDATORY)
+
+**Before every `git push`, you MUST complete ALL of the following steps. Do not push until every item is done:**
+
+1. **`npm run build`** — Verify the production build succeeds with zero errors
+2. **Update `CLAUDE.md`** (this file) — Review and update ALL relevant sections:
    - **Architecture / Backend** — add new endpoints, libs, or data flows
    - **Integrations** — update status (TODO → ✅) when an integration ships
    - **AI Analysis Engine** — add new AI-powered features or insight categories
    - **Build Status / Completed** — move items from Remaining → Completed, add new items
    - **Build Status / Remaining** — remove completed items, add newly discovered work
-2. **`docs/technical-architecture.md`** — Update if schema changes, new tables, new environment variables, or new API patterns are introduced
-3. **`docs/product-blueprint.md`** — Update if new user-facing features, onboarding changes, or pricing/plan changes are made
-4. **`docs/insights-catalog.md`** — Update if new insight categories or AI prompt changes are made
-5. **Memory file** (`~/.claude/projects/.../memory/MEMORY.md`) — Update with architecture decisions, key file locations, and known pending items
+3. **Update `docs/technical-architecture.md`** — If there are schema changes, new tables, new environment variables, or new API patterns
+4. **Update `docs/product-blueprint.md`** — If there are new user-facing features, onboarding changes, or pricing/plan changes
+5. **Update `docs/insights-catalog.md`** — If there are new insight categories or AI prompt changes
+6. **Update memory file** (`~/.claude/projects/.../memory/MEMORY.md`) — Architecture decisions, key file locations, and known pending items
+7. **Update `AIM-TESTING-STRATEGY.md`** — If testing patterns or conventions changed. Every new feature must include tests for its critical paths.
+8. **Include doc updates in the same commit** — Documentation changes must ship with the code they describe, not in a follow-up
 
-Do not let documentation drift from the codebase. If you build it, document it — in the same commit.
+**This is non-negotiable. If you are about to run `git push`, stop and verify you have completed steps 1-8 above. If any documentation is stale or missing, update it before pushing.**
 
 ## Conventions
 
