@@ -9,13 +9,14 @@ import { supabase } from "../lib/supabase";
 // Apps that support real OAuth connect
 const OAUTH_APPS = {
   Strava: "/api/auth/connect/strava",
+  Wahoo: "/api/auth/connect/wahoo",
   Whoop: "/api/auth/connect/whoop",
   "Oura Ring": "/api/auth/connect/oura",
   Withings: "/api/auth/connect/withings",
 };
 
 // Map display names to provider keys in the database
-const NAME_TO_PROVIDER = { Strava: "strava", Whoop: "whoop", "Oura Ring": "oura", Withings: "withings" };
+const NAME_TO_PROVIDER = { Strava: "strava", Wahoo: "wahoo", Whoop: "whoop", "Oura Ring": "oura", Withings: "withings" };
 
 // ── APP CARD COMPONENT ──
 function AppCard({ app, isConnected, onToggle }) {
@@ -91,7 +92,7 @@ export default function ConnectApps() {
       .then(({ data }) => {
         const map = {};
         // Map provider names back to display names
-        const providerToName = { strava: "Strava", whoop: "Whoop", oura: "Oura Ring", withings: "Withings" };
+        const providerToName = { strava: "Strava", wahoo: "Wahoo", whoop: "Whoop", oura: "Oura Ring", withings: "Withings" };
         (data || []).forEach(row => {
           const display = providerToName[row.provider] || row.provider;
           map[display] = true;
