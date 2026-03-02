@@ -4,6 +4,7 @@ import { Activity, Zap, Brain, Target, Heart, TrendingUp, ArrowRight, Check, Sta
 import { T, font, mono } from "../theme/tokens";
 import { btn } from "../theme/styles";
 import NeuralBackground from "../components/NeuralBackground";
+import { useAuth } from "../context/AuthContext";
 
 const exampleInsights = [
   // Body Composition → Performance
@@ -110,7 +111,7 @@ const insightCategoryMeta = [
   { id: "training", label: "Training Load" },
 ];
 
-function InsightsShowcase({ navigate }) {
+function InsightsShowcase({ navigate, user }) {
   const [filter, setFilter] = useState("all");
   const [expanded, setExpanded] = useState(null);
 
@@ -174,7 +175,7 @@ function InsightsShowcase({ navigate }) {
         {/* CTA */}
         <div style={{ textAlign: "center", marginTop: 48 }}>
           <p style={{ fontSize: 15, color: T.textSoft, marginBottom: 20 }}>This is just one ride. Imagine this analysis for every workout, every night of sleep, every blood panel.</p>
-          <button onClick={() => navigate("/signup")} style={{ ...btn(true), fontSize: 15, padding: "14px 32px" }}>See Your Own Insights <ArrowRight size={16} /></button>
+          <button onClick={() => navigate(user ? "/dashboard" : "/signup")} style={{ ...btn(true), fontSize: 15, padding: "14px 32px" }}>{user ? "Go to Dashboard" : "See Your Own Insights"} <ArrowRight size={16} /></button>
         </div>
       </div>
     </section>
@@ -183,6 +184,7 @@ function InsightsShowcase({ navigate }) {
 
 export default function Landing() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [billingCycle, setBillingCycle] = useState("annual");
 
   const features = [
@@ -220,8 +222,14 @@ export default function Landing() {
           <a href="#features" style={{ color: T.textSoft, textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Features</a>
           <a href="#pricing" style={{ color: T.textSoft, textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Pricing</a>
           <a href="#testimonials" style={{ color: T.textSoft, textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Athletes</a>
-          <button onClick={() => navigate("/signin")} style={{ ...btn(false), padding: "8px 20px", fontSize: 13 }}>Sign In</button>
-          <button onClick={() => navigate("/signup")} style={{ ...btn(true), padding: "10px 24px", fontSize: 13 }}>Get Started</button>
+          {user ? (
+            <button onClick={() => navigate("/dashboard")} style={{ ...btn(true), padding: "10px 24px", fontSize: 13 }}>My Dashboard</button>
+          ) : (
+            <>
+              <button onClick={() => navigate("/signin")} style={{ ...btn(false), padding: "8px 20px", fontSize: 13 }}>Sign In</button>
+              <button onClick={() => navigate("/signup")} style={{ ...btn(true), padding: "10px 24px", fontSize: 13 }}>Get Started</button>
+            </>
+          )}
         </div>
       </nav>
 
@@ -237,7 +245,7 @@ export default function Landing() {
             AIM connects all your fitness data — power, sleep, recovery, body composition, blood work, and DEXA scans — and uses AI to deliver actionable insights with specific recommendations, not just numbers.
           </p>
           <div style={{ display: "flex", justifyContent: "center", gap: 16 }}>
-            <button onClick={() => navigate("/signup")} style={{ ...btn(true), fontSize: 16, padding: "16px 36px" }}>Start Your Free Trial <ArrowRight size={18} /></button>
+            <button onClick={() => navigate(user ? "/dashboard" : "/signup")} style={{ ...btn(true), fontSize: 16, padding: "16px 36px" }}>{user ? "Go to Dashboard" : "Start Your Free Trial"} <ArrowRight size={18} /></button>
             <button style={{ ...btn(false), fontSize: 16, padding: "16px 36px" }}>Watch Demo</button>
           </div>
           <div style={{ marginTop: 48, display: "flex", justifyContent: "center", gap: 32, alignItems: "center" }}>
@@ -323,7 +331,7 @@ export default function Landing() {
       </section>
 
       {/* AI Insights Showcase */}
-      <InsightsShowcase navigate={navigate} />
+      <InsightsShowcase navigate={navigate} user={user} />
 
       {/* Features */}
       <section id="features" style={{ padding: "100px 40px", maxWidth: 1200, margin: "0 auto" }}>
@@ -428,7 +436,7 @@ export default function Landing() {
                     <span style={{ fontSize: 14, color: T.textDim }}>/mo</span>
                   </div>
                   {billingCycle === "annual" ? <p style={{ fontSize: 12, color: T.accent, margin: "0 0 20px" }}>Billed ${price * 12}/year (save ${(plan.monthlyPrice - plan.annualPrice) * 12}/yr)</p> : <div style={{ height: 20, marginBottom: 20 }} />}
-                  <button onClick={() => navigate("/signup")} style={{ ...btn(isPro), width: "100%", justifyContent: "center", marginBottom: 24, fontSize: 14, padding: "13px 24px" }}>{plan.cta} <ArrowRight size={16} /></button>
+                  <button onClick={() => navigate(user ? "/dashboard" : "/signup")} style={{ ...btn(isPro), width: "100%", justifyContent: "center", marginBottom: 24, fontSize: 14, padding: "13px 24px" }}>{user ? "Go to Dashboard" : plan.cta} <ArrowRight size={16} /></button>
                   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                     {plan.features.map((feat, j) => (
                       <div key={j} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
@@ -467,7 +475,7 @@ export default function Landing() {
           <div style={{ position: "absolute", top: -100, left: "50%", transform: "translateX(-50%)", width: 500, height: 500, background: "radial-gradient(circle, rgba(0,229,160,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
           <h2 style={{ fontSize: 30, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 8px", position: "relative" }}>Your body deserves better than guesswork.</h2>
           <p style={{ fontSize: 15, color: T.textSoft, margin: "0 0 32px", position: "relative", maxWidth: 440, marginLeft: "auto", marginRight: "auto", lineHeight: 1.6 }}>Start your free trial today. Connect your apps, upload your blood work, and see what you've been missing.</p>
-          <button onClick={() => navigate("/signup")} style={{ ...btn(true), fontSize: 16, padding: "16px 40px", position: "relative" }}>Get Started Free <ArrowRight size={18} /></button>
+          <button onClick={() => navigate(user ? "/dashboard" : "/signup")} style={{ ...btn(true), fontSize: 16, padding: "16px 40px", position: "relative" }}>{user ? "Go to Dashboard" : "Get Started Free"} <ArrowRight size={18} /></button>
         </div>
       </section>
 
