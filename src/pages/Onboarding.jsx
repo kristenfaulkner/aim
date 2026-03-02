@@ -53,6 +53,21 @@ export default function Onboarding() {
     setError("");
     setSubmitting(true);
     try {
+      // First check if the profile row exists (trigger may not have fired)
+      const { data: existing } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", user.id)
+        .single();
+
+      if (!existing) {
+        // Create the profile row if it doesn't exist
+        const { error: insertErr } = await supabase
+          .from("profiles")
+          .insert({ id: user.id, email: user.email });
+        if (insertErr) throw insertErr;
+      }
+
       await updateProfile({
         full_name: form.full_name.trim(),
         date_of_birth: form.date_of_birth,
@@ -66,16 +81,20 @@ export default function Onboarding() {
         onboarding_completed: true,
       });
 
+      // Save units preference (non-blocking)
       if (user) {
-        await supabase.from("user_settings").upsert({
+        supabase.from("user_settings").upsert({
           user_id: user.id,
           units: form.units,
-        }, { onConflict: "user_id" });
+        }, { onConflict: "user_id" }).then(({ error: settingsErr }) => {
+          if (settingsErr) console.error("Settings save failed:", settingsErr.message);
+        });
       }
 
       navigate("/connect");
     } catch (err) {
-      setError(err.message);
+      console.error("Onboarding error:", err);
+      setError(err.message || "Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
     }
