@@ -12,7 +12,6 @@ import TrainingPeaksImport from "../components/TrainingPeaksImport";
 // Apps that support real OAuth connect
 const OAUTH_APPS = {
   Strava: "/api/auth/connect/strava",
-  Wahoo: "/api/auth/connect/wahoo",
   Whoop: "/api/auth/connect/whoop",
   "Oura Ring": "/api/auth/connect/oura",
   Withings: "/api/auth/connect/withings",
@@ -29,7 +28,7 @@ const FILE_IMPORT_APPS = {
 };
 
 // Map display names to provider keys in the database
-const NAME_TO_PROVIDER = { Strava: "strava", Wahoo: "wahoo", Whoop: "whoop", "Oura Ring": "oura", Withings: "withings", EightSleep: "eightsleep", TrainingPeaks: "trainingpeaks" };
+const NAME_TO_PROVIDER = { Strava: "strava", Whoop: "whoop", "Oura Ring": "oura", Withings: "withings", EightSleep: "eightsleep", TrainingPeaks: "trainingpeaks" };
 
 // ── APP CARD COMPONENT ──
 function AppCard({ app, isConnected, onToggle }) {
