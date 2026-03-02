@@ -16,6 +16,10 @@ export default async function handler(req, res) {
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: "Missing activity id" });
 
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(500).json({ error: "ANTHROPIC_API_KEY not configured. Add it to your Vercel environment variables." });
+  }
+
   try {
     const analysis = await analyzeActivity(session.userId, id);
     return res.status(200).json({ analysis });

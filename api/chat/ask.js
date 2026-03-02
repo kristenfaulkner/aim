@@ -29,6 +29,10 @@ export default async function handler(req, res) {
   const { message, activityId, history } = req.body;
   if (!message) return res.status(400).json({ error: "Missing message" });
 
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(500).json({ error: "ANTHROPIC_API_KEY not configured. Add it to your Vercel environment variables." });
+  }
+
   try {
     // Build athlete data context (reuse existing infrastructure)
     let context = null;
@@ -60,6 +64,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ reply: response.content[0].text });
   } catch (err) {
     console.error("Ask Claude error:", err);
-    return res.status(500).json({ error: "Failed to generate response" });
+    const msg = err?.status === 401 ? "Invalid ANTHROPIC_API_KEY" : err?.message || "Failed to generate response";
+    return res.status(500).json({ error: msg });
   }
 }

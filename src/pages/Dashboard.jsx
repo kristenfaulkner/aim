@@ -247,7 +247,7 @@ function WorkoutPrescriptionCard({ workouts, title, subtitle }) {
 }
 
 // ── AI ANALYSIS PANEL ──
-function AIAnalysisPanel({ aiAnalysis, activity, profile, dailyMetrics, computed, athletePowerProfile, athleteClassifications, onRequestAnalysis, analysisLoading }) {
+function AIAnalysisPanel({ aiAnalysis, activity, profile, dailyMetrics, computed, athletePowerProfile, athleteClassifications, onRequestAnalysis, analysisLoading, analysisError }) {
   const [activeTab, setActiveTab] = useState("analysis");
   const [chatInput, setChatInput] = useState("");
   const [messages, setMessages] = useState([]);
@@ -324,9 +324,13 @@ function AIAnalysisPanel({ aiAnalysis, activity, profile, dailyMetrics, computed
         }),
       });
       const data = await res.json();
-      setMessages(prev => [...prev, { role: "assistant", text: data.reply || "Sorry, I couldn't process that." }]);
-    } catch {
-      setMessages(prev => [...prev, { role: "assistant", text: "Something went wrong. Please try again." }]);
+      if (!res.ok) {
+        setMessages(prev => [...prev, { role: "assistant", text: `Error: ${data.error || "Request failed"}` }]);
+      } else {
+        setMessages(prev => [...prev, { role: "assistant", text: data.reply || "Sorry, I couldn't process that." }]);
+      }
+    } catch (err) {
+      setMessages(prev => [...prev, { role: "assistant", text: `Connection error: ${err.message || "Please try again."}` }]);
     } finally {
       setIsTyping(false);
     }
@@ -377,13 +381,18 @@ function AIAnalysisPanel({ aiAnalysis, activity, profile, dailyMetrics, computed
                     <div style={{ fontSize: 13, color: T.textSoft, marginBottom: 6 }}>
                       {activity ? "Ready to analyze this ride" : "Sync an activity to see AI analysis"}
                     </div>
+                    {analysisError && (
+                      <div style={{ fontSize: 11, color: T.danger, marginTop: 8, marginBottom: 8, padding: "8px 12px", background: `${T.danger}10`, borderRadius: 8, lineHeight: 1.5, textAlign: "left" }}>
+                        {analysisError}
+                      </div>
+                    )}
                     {activity && (
                       <>
                         <div style={{ fontSize: 10, color: T.textDim, marginTop: 8, marginBottom: 16, lineHeight: 1.5 }}>
                           Claude will review your power data, recovery metrics, body composition, and training load to generate cross-domain insights.
                         </div>
                         <button onClick={onRequestAnalysis} style={{ background: T.accent, border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 12, fontWeight: 700, color: T.bg, cursor: "pointer", fontFamily: font }}>
-                          {"\u2726"} Generate AI Analysis
+                          {"\u2726"} {analysisError ? "Retry Analysis" : "Generate AI Analysis"}
                         </button>
                       </>
                     )}
@@ -571,6 +580,7 @@ export default function Dashboard() {
 
   // ── AI Analysis: auto-trigger + manual trigger ──
   const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisError, setAnalysisError] = useState(null);
   const [liveAnalysis, setLiveAnalysis] = useState(null);
   const analysisTriggeredRef = useRef(null); // track which activity ID we already triggered for
 
@@ -580,18 +590,25 @@ export default function Dashboard() {
   const triggerAnalysis = useCallback(async () => {
     if (!activity?.id) return;
     setAnalysisLoading(true);
+    setAnalysisError(null);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      if (!session) {
+        setAnalysisError("Not signed in");
+        return;
+      }
       const res = await fetch(`/api/activities/analyze?id=${activity.id}`, {
         method: "POST",
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
+      const data = await res.json();
       if (res.ok) {
-        const data = await res.json();
         setLiveAnalysis(data.analysis);
+      } else {
+        setAnalysisError(data.error || `Analysis failed (${res.status})`);
       }
     } catch (err) {
+      setAnalysisError(err.message || "Network error");
       console.error("Failed to trigger analysis:", err);
     } finally {
       setAnalysisLoading(false);
@@ -868,8 +885,8 @@ export default function Dashboard() {
             <span style={{ fontSize: 8, color: T.accent, fontWeight: 600, letterSpacing: "0.1em", marginLeft: -3 }}>BETA</span>
           </div>
           <div style={{ display: "flex", gap: 3 }}>
-            {["Dashboard", "Calendar", "Trends", "Race Planner"].map(item => (
-              <button key={item} style={{ background: item === "Dashboard" ? T.accentDim : "none", border: "none", padding: "5px 12px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: item === "Dashboard" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font }}>{item}</button>
+            {["Dashboard", "Connect", "Calendar", "Trends", "Race Planner"].map(item => (
+              <button key={item} onClick={() => { if (item === "Connect") window.location.href = "/connect"; }} style={{ background: item === "Dashboard" ? T.accentDim : "none", border: "none", padding: "5px 12px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: item === "Dashboard" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font }}>{item}</button>
             ))}
           </div>
         </div>
@@ -1131,6 +1148,7 @@ export default function Dashboard() {
             athleteClassifications={athleteClassifications}
             onRequestAnalysis={triggerAnalysis}
             analysisLoading={analysisLoading}
+            analysisError={analysisError}
           />
         </div>
       </div>
