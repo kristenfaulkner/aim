@@ -54,19 +54,20 @@ function AppCard({ app, isConnected, onToggle }) {
           <span style={{ fontSize: 12, color: T.textDim }}>{app.desc}</span>
         </div>
       </div>
-      <button onClick={onToggle} disabled={isUnavailable}
-        onMouseEnter={() => setHover(true)}
-        onMouseLeave={() => setHover(false)}
-        style={{
-          padding: "8px 20px", borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: isUnavailable ? "not-allowed" : "pointer",
-          background: showDisconnect ? "rgba(239,68,68,0.08)" : showUploadMore ? T.accentDim : isConnected ? "rgba(0,229,160,0.12)" : isUnavailable ? T.surface : T.accentDim,
-          border: `1px solid ${showDisconnect ? "rgba(239,68,68,0.2)" : showUploadMore ? T.accentMid : isConnected ? "rgba(0,229,160,0.3)" : isUnavailable ? T.border : T.accentMid}`,
-          color: showDisconnect ? "#ef4444" : showUploadMore ? T.accent : isConnected ? T.accent : isUnavailable ? T.textDim : T.accent,
-          fontFamily: font, transition: "all 0.2s", display: "flex", alignItems: "center", gap: 6,
-          opacity: isUnavailable ? 0.5 : 1,
-        }}>
-        {showDisconnect ? "Disconnect" : showUploadMore ? "Upload More Files" : isConnected ? <><Check size={14} /> Connected</> : (isUnavailable || !isConnectable) ? "Coming Soon" : isFileImport ? "Import" : "Connect"}
-      </button>
+      {!isUnavailable && (
+        <button onClick={onToggle}
+          onMouseEnter={() => setHover(true)}
+          onMouseLeave={() => setHover(false)}
+          style={{
+            padding: "8px 20px", borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: "pointer",
+            background: showDisconnect ? "rgba(239,68,68,0.08)" : showUploadMore ? T.accentDim : isConnected ? "rgba(0,229,160,0.12)" : T.accentDim,
+            border: `1px solid ${showDisconnect ? "rgba(239,68,68,0.2)" : showUploadMore ? T.accentMid : isConnected ? "rgba(0,229,160,0.3)" : T.accentMid}`,
+            color: showDisconnect ? "#ef4444" : showUploadMore ? T.accent : isConnected ? T.accent : T.accent,
+            fontFamily: font, transition: "all 0.2s", display: "flex", alignItems: "center", gap: 6,
+          }}>
+          {showDisconnect ? "Disconnect" : showUploadMore ? "Upload More Files" : isConnected ? <><Check size={14} /> Connected</> : isFileImport ? "Import" : "Connect"}
+        </button>
+      )}
     </div>
   );
 }
@@ -488,11 +489,11 @@ export default function ConnectApps() {
 
         {/* Coming Soon section */}
         {comingSoonApps.length > 0 && (
-          <div style={{ marginTop: availableApps.length > 0 ? 16 : 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, paddingBottom: 12, borderBottom: `1px solid ${T.border}` }}>
-              <span style={{ fontSize: 16 }}>🚀</span>
-              <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: T.textSoft }}>Coming Soon</h3>
-              <span style={{ fontSize: 11, color: T.textDim }}>({comingSoonApps.length})</span>
+          <div style={{ marginTop: availableApps.length > 0 ? 48 : 0 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 20, paddingBottom: 14, borderBottom: `1px solid ${T.border}` }}>
+              <span style={{ fontSize: 20 }}>🚀</span>
+              <h3 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: T.textSoft }}>Coming Soon</h3>
+              <span style={{ fontSize: 13, color: T.textDim }}>({comingSoonApps.length})</span>
             </div>
             {filter === "all" ? (
               Object.entries(groupedComingSoon).map(([cat, apps]) => (
