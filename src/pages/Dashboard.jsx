@@ -175,7 +175,7 @@ function NavBar({ profile, isMobile, menuOpen, setMenuOpen, onSignout, navigate 
           </div>
           {!isMobile && (
             <div style={{ display: "flex", gap: 3 }}>
-              {[{ label: "Dashboard", path: "/dashboard" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }, { label: "Settings", path: "/settings" }].map(item => (
+              {[{ label: "Dashboard", path: "/dashboard" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }, { label: "Settings", path: "/settings" }].map(item => (
                 <button key={item.label} onClick={() => navigate(item.path)} style={{
                   background: item.label === "Dashboard" ? T.accentDim : "none", border: "none", padding: "5px 12px", borderRadius: 7,
                   fontSize: 11, fontWeight: 600, color: item.label === "Dashboard" ? T.accent : T.textSoft,
@@ -216,7 +216,7 @@ function NavBar({ profile, isMobile, menuOpen, setMenuOpen, onSignout, navigate 
               </div>
               <span style={{ fontSize: 14, fontWeight: 600 }}>{profile?.full_name || "Athlete"}</span>
             </div>
-            {[{ label: "Dashboard", path: "/dashboard" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }, { label: "Settings", path: "/settings" }].map(item => (
+            {[{ label: "Dashboard", path: "/dashboard" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }, { label: "Settings", path: "/settings" }].map(item => (
               <button key={item.label} onClick={() => { setMenuOpen(false); navigate(item.path); }} style={{
                 background: item.label === "Dashboard" ? T.accentDim : "none", border: "none", padding: "12px 14px", borderRadius: 8,
                 fontSize: 14, fontWeight: 600, color: item.label === "Dashboard" ? T.accent : T.textSoft,
@@ -439,10 +439,6 @@ export default function Dashboard() {
               <button onClick={() => navigate(`/activity/${activity.id}`)} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 6, padding: "4px 10px", fontSize: 11, color: T.textSoft, cursor: "pointer", fontFamily: font, fontWeight: 500 }}>View Details</button>
             </div>
           </div>
-          <div style={{ position: "relative", ...(isMobile ? { width: "100%" } : {}) }}>
-            <ActivityBrowserTrigger isOpen={browserOpen} onClick={() => setBrowserOpen(!browserOpen)} triggerRef={browserTriggerRef} />
-            <ActivityBrowser isOpen={browserOpen} onClose={() => setBrowserOpen(false)} selectedActivityId={selectedActivityId} onSelectActivity={id => setSelectedActivityId(id)} anchorRef={browserTriggerRef} />
-          </div>
         </div>
 
         {/* Two-Column Layout */}
@@ -455,7 +451,11 @@ export default function Dashboard() {
             {/* Action Items */}
             <ActionItems activity={activity} dailyMetrics={dailyMetrics} computed={computed} isMobile={isMobile} onOpenNutrition={() => setNutritionOpen(true)} />
 
-            {/* Last Ride */}
+            {/* Activity Browser + Last Ride */}
+            <div style={{ position: "relative" }}>
+              <ActivityBrowserTrigger isOpen={browserOpen} onClick={() => setBrowserOpen(!browserOpen)} triggerRef={browserTriggerRef} />
+              <ActivityBrowser isOpen={browserOpen} onClose={() => setBrowserOpen(false)} selectedActivityId={selectedActivityId} onSelectActivity={id => setSelectedActivityId(id)} anchorRef={browserTriggerRef} />
+            </div>
             <LastRideCard activity={activity} onViewDetails={() => navigate(`/activity/${activity.id}`)} isMobile={isMobile} />
 
             {/* Training Week + Fitness Chart Row */}
