@@ -33,13 +33,12 @@ export async function backfillUserMetrics(userId) {
     return { updated: 0, skipped: 0, total: 0, ftp_used: null };
   }
 
-  // Find activities with power data
+  // Find activities with any power data (NP or avg power)
   const { data: activities, error: fetchErr } = await supabaseAdmin
     .from("activities")
     .select("id, normalized_power_watts, avg_power_watts, avg_hr_bpm, duration_seconds, tss, intensity_factor, variability_index, efficiency_factor, work_kj, started_at")
     .eq("user_id", userId)
-    .not("normalized_power_watts", "is", null)
-    .gt("normalized_power_watts", 0);
+    .or("normalized_power_watts.gt.0,avg_power_watts.gt.0");
 
   if (fetchErr) throw fetchErr;
 
@@ -52,11 +51,14 @@ export async function backfillUserMetrics(userId) {
     const avgHr = act.avg_hr_bpm;
     const duration = act.duration_seconds;
 
+    // Use NP when available; fall back to avg_power for TSS estimation
+    const powerForCalc = np || avgPower;
+
     // Compute all derivable metrics
-    const newIf = intensityFactor(np, ftp);
-    const newTss = trainingStressScore(duration, np, newIf, ftp);
-    const newVi = variabilityIndex(np, avgPower);
-    const newEf = efficiencyFactor(np, avgHr);
+    const newIf = intensityFactor(powerForCalc, ftp);
+    const newTss = trainingStressScore(duration, powerForCalc, newIf, ftp);
+    const newVi = np ? variabilityIndex(np, avgPower) : null;
+    const newEf = np ? efficiencyFactor(np, avgHr) : null;
     // Estimate work_kj from avg power when missing (exact requires stream data)
     const estimatedWorkKj = avgPower && duration
       ? Math.round(avgPower * duration / 1000)
