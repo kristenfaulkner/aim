@@ -27,6 +27,7 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 - **AI**: Anthropic Claude for multi-source activity analysis (`/api/_lib/ai.js`)
 - **SMS**: Twilio for post-workout texts and conversational AI coaching (`/api/sms/`)
 - **Charting**: Recharts
+- **Testing**: Vitest + React Testing Library + MSW (mocks) + Playwright (e2e); see `AIM-TESTING-STRATEGY.md`
 - **Styling**: Inline styles with design tokens (`/src/theme/tokens.js`), no CSS framework
 
 ### Frontend (`/src/`)
@@ -39,8 +40,9 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 - `hooks/useResponsive.js` — responsive breakpoint hook (`isMobile`/`isTablet`/`isDesktop`) via `matchMedia`
 - `lib/api.js` — `apiFetch()` utility adds Bearer token to all `/api` calls
 - `lib/supabase.js` — Supabase client init
+- `lib/zones.js` — `computePowerZones(ftp)` and `computeHRZones(maxHR)` used by Onboarding + Settings
 - `data/` — static data: integrations metadata, biomarker clinical ranges, booster protocols, power classification tables
-- `theme/tokens.js` — design tokens exported as `T` (colors, fonts); `catColors` for booster categories; `breakpoints` (mobile/tablet) and `touchMin` (44px)
+- `theme/tokens.js` — design tokens exported as `T` (colors, fonts); `catColors` for booster categories; `breakpoints` and `touchMin` for responsive design; `breakpoints` (mobile/tablet) and `touchMin` (44px)
 
 ### Backend (`/api/`)
 - `_lib/` — shared utilities:
@@ -280,7 +282,7 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 - DEXA scan tracking
 - Boosters page (searchable/filterable protocol library)
 - Connect Apps page with integration management, sync buttons, feature request form
-- Settings page (profile, SMS opt-in, notification preferences, Account & Data tab with data export + account deletion)
+- Settings page (full profile editor with 4 cards: personal info, physical stats with unit conversion, training profile with zone recomputation, preferences with cycle tracking; password reset via email; SMS opt-in, notification preferences; Account & Data tab with data export + account deletion)
 - Landing page with pricing, founder section, neural background
 - Legal pages (privacy, terms, GDPR, cookie policy, data processing) with named sub-processors (Anthropic, Twilio), Washington MHMDA section
 - Legal compliance: Terms acceptance on signup, AcceptTerms interstitial for SSO/existing users, GDPR Article 9 health data consent in onboarding, consent gate in ProtectedRoute
@@ -289,6 +291,8 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 - Source priority system (`_lib/source-priority.js`: device > TrainingPeaks > Strava)
 - Supabase storage: `health-files` bucket (blood/DEXA), `import-files` bucket (TrainingPeaks uploads)
 - Vercel deployment with GitHub auto-deploy
+- Mobile-responsive overhaul: all pages responsive at 320px–428px (mobile), 768px–1024px (tablet), 1024px+ (desktop) via `useResponsive()` hook, hamburger nav, collapsible grids, full-screen modals, 44px touch targets
+- Testing infrastructure: Vitest + React Testing Library + MSW + Playwright; initial test suites for metrics, source-priority, routing, ProtectedRoute, API utility, Auth, theme tokens
 
 ### Remaining
 - Garmin Connect sync logic
