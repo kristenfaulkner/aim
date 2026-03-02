@@ -319,9 +319,11 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 - Cross-domain AI insights (multi-source pattern detection beyond single-activity analysis)
 - Training prescription engine (workout recommendations from power profile gaps)
 - Menstrual cycle intelligence (Oura temperature-based phase detection)
-- Stripe payments (3-tier subscription + feature gating)
+- Stripe payments (3-tier subscription + feature gating) — update webhook/redirect URLs to `aimfitness.ai` when configured
 - Remaining Tier 3 integrations
 - Activity annotation columns migration (user_notes, user_rating, user_rpe, user_tags — SQL exists at `/sql/add_activity_annotations.sql`, not yet applied to production)
+- Twilio toll-free verification: once current verification is approved/rejected, update opt-in proof URL to `https://aimfitness.ai` if needed
+- Apple OAuth (configure in Apple Developer + Supabase when ready)
 - Coach sharing, community benchmarks, weekly digest emails, mobile app
 
 ## Documentation Rules
