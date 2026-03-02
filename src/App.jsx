@@ -13,6 +13,7 @@ import CookiePolicy from "./pages/legal/CookiePolicy";
 import DataProcessing from "./pages/legal/DataProcessing";
 import GDPR from "./pages/legal/GDPR";
 import Settings from "./pages/Settings";
+import Profile from "./pages/Profile";
 import Onboarding from "./pages/Onboarding";
 import ActivityDetail from "./pages/ActivityDetail";
 import Workouts from "./pages/Workouts";
@@ -36,6 +37,7 @@ export default function App() {
       <Route path="/activity/:id" element={<ProtectedRoute><ActivityDetail /></ProtectedRoute>} />
       <Route path="/sleep" element={<ProtectedRoute><Sleep /></ProtectedRoute>} />
       <Route path="/health-lab" element={<ProtectedRoute><HealthLab /></ProtectedRoute>} />
+      <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/contact" element={<Contact />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />

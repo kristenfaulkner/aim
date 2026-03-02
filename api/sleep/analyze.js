@@ -114,15 +114,15 @@ export default async function handler(req, res) {
           .select("full_name, ftp_watts, weight_kg, sex, max_hr_bpm")
           .eq("id", session.userId).single(),
         supabaseAdmin.from("activities")
-          .select("name, started_at, activity_type, duration_seconds, normalized_power_watts, avg_power_watts, efficiency_factor, hr_drift_pct, intensity_factor, tss, avg_hr_bpm, max_hr_bpm, variability_index, decoupling_pct, temperature_celsius, elevation_gain_meters, power_curve")
+          .select("name, started_at, activity_type, duration_seconds, normalized_power_watts, avg_power_watts, efficiency_factor, hr_drift_pct, intensity_factor, tss, avg_hr_bpm, max_hr_bpm, variability_index, decoupling_pct, temperature_celsius, elevation_gain_meters")
           .eq("user_id", session.userId)
           .order("started_at", { ascending: false })
-          .limit(500),
+          .limit(365),
         supabaseAdmin.from("daily_metrics")
           .select("date, sleep_score, total_sleep_seconds, deep_sleep_seconds, rem_sleep_seconds, light_sleep_seconds, sleep_latency_seconds, sleep_efficiency_pct, sleep_onset_time, wake_time, bed_temperature_celsius, hrv_ms, hrv_overnight_avg_ms, resting_hr_bpm, recovery_score, daily_tss, ctl, atl, tsb, ramp_rate, source_data")
           .eq("user_id", session.userId)
           .order("date", { ascending: false })
-          .limit(500),
+          .limit(365),
         supabaseAdmin.from("power_profiles")
           .select("duration_seconds, watts, watts_per_kg")
           .eq("user_id", session.userId)

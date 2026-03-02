@@ -4,7 +4,7 @@ import { T, font, mono } from "../theme/tokens";
 import { useDashboardData } from "../hooks/useDashboardData";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabase";
-import { LogOut, Settings, Menu, X } from "lucide-react";
+import { LogOut, Settings, Menu, X, User } from "lucide-react";
 import { useResponsive } from "../hooks/useResponsive";
 import ActivityBrowser, { ActivityBrowserTrigger } from "../components/ActivityBrowser";
 import ReadinessCard from "../components/dashboard/ReadinessCard";
@@ -163,7 +163,7 @@ function ActionItems({ activity, dailyMetrics, computed, isMobile, onOpenNutriti
 }
 
 // ── NAV BAR ──
-function NavBar({ profile, isMobile, menuOpen, setMenuOpen, onSignout, navigate }) {
+function NavBar({ profile, isMobile, menuOpen, setMenuOpen, userMenuOpen, setUserMenuOpen, onSignout, navigate }) {
   return (
     <>
       <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: isMobile ? "0 12px" : "0 24px", height: isMobile ? 48 : 52, borderBottom: `1px solid ${T.border}`, background: `${T.card}ee`, backdropFilter: "blur(16px)", position: "sticky", top: 0, zIndex: 100 }}>
@@ -175,12 +175,12 @@ function NavBar({ profile, isMobile, menuOpen, setMenuOpen, onSignout, navigate 
           </div>
           {!isMobile && (
             <div style={{ display: "flex", gap: 3 }}>
-              {[{ label: "Dashboard", path: "/dashboard" }, { label: "Activities", path: "/workouts" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }, { label: "Settings", path: "/settings" }].map(item => (
+              {[{ label: "Dashboard", path: "/dashboard" }, { label: "Activities", path: "/workouts" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }].map(item => (
                 <button key={item.label} onClick={() => navigate(item.path)} style={{
                   background: item.label === "Dashboard" ? T.accentDim : "none", border: "none", padding: "5px 12px", borderRadius: 7,
                   fontSize: 11, fontWeight: 600, color: item.label === "Dashboard" ? T.accent : T.textSoft,
                   cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 4,
-                }}>{item.label === "Settings" ? <><Settings size={12} /> {item.label}</> : item.label}</button>
+                }}>{item.label}</button>
               ))}
             </div>
           )}
@@ -189,12 +189,26 @@ function NavBar({ profile, isMobile, menuOpen, setMenuOpen, onSignout, navigate 
           <button onClick={() => setMenuOpen(true)} style={{ background: "none", border: "none", color: T.text, cursor: "pointer", padding: 8, minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}><Menu size={20} /></button>
         ) : (
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 30, height: 30, borderRadius: 9, background: `linear-gradient(135deg, ${T.purple}, ${T.pink})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: T.white }}>
-              {profile?.full_name ? profile.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() : "U"}
+            <div style={{ position: "relative" }}>
+              <div onClick={() => setUserMenuOpen(!userMenuOpen)} style={{ width: 30, height: 30, borderRadius: 9, background: `linear-gradient(135deg, ${T.purple}, ${T.pink})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: T.white, cursor: "pointer" }}>
+                {profile?.full_name ? profile.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() : "U"}
+              </div>
+              {userMenuOpen && (<>
+                <div onClick={() => setUserMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 149 }} />
+                <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, padding: 4, minWidth: 160, zIndex: 150, boxShadow: "0 4px 16px rgba(0,0,0,0.08)" }}>
+                  <button onClick={() => { setUserMenuOpen(false); navigate("/profile"); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", background: "none", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 600, color: T.text, cursor: "pointer", fontFamily: font }}>
+                    <User size={14} /> Profile
+                  </button>
+                  <button onClick={() => { setUserMenuOpen(false); navigate("/settings"); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", background: "none", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 600, color: T.text, cursor: "pointer", fontFamily: font }}>
+                    <Settings size={14} /> Settings
+                  </button>
+                  <div style={{ height: 1, background: T.border, margin: "4px 0" }} />
+                  <button onClick={() => { setUserMenuOpen(false); onSignout(); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", background: "none", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 600, color: "#ef4444", cursor: "pointer", fontFamily: font }}>
+                    <LogOut size={14} /> Sign Out
+                  </button>
+                </div>
+              </>)}
             </div>
-            <button onClick={onSignout} style={{ background: "none", border: `1px solid rgba(239,68,68,0.2)`, padding: "5px 10px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: "#ef4444", cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 5 }}>
-              <LogOut size={13} /> Sign Out
-            </button>
           </div>
         )}
       </nav>
@@ -213,7 +227,7 @@ function NavBar({ profile, isMobile, menuOpen, setMenuOpen, onSignout, navigate 
               </div>
               <span style={{ fontSize: 14, fontWeight: 600 }}>{profile?.full_name || "Athlete"}</span>
             </div>
-            {[{ label: "Dashboard", path: "/dashboard" }, { label: "Activities", path: "/workouts" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }, { label: "Settings", path: "/settings" }].map(item => (
+            {[{ label: "Dashboard", path: "/dashboard" }, { label: "Activities", path: "/workouts" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }, { label: "Profile", path: "/profile" }, { label: "Settings", path: "/settings" }].map(item => (
               <button key={item.label} onClick={() => { setMenuOpen(false); navigate(item.path); }} style={{
                 background: item.label === "Dashboard" ? T.accentDim : "none", border: "none", padding: "12px 14px", borderRadius: 8,
                 fontSize: 14, fontWeight: 600, color: item.label === "Dashboard" ? T.accent : T.textSoft,
@@ -238,6 +252,7 @@ export default function Dashboard() {
   const { signout } = useAuth();
   const [selectedActivityId, setSelectedActivityId] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [browserOpen, setBrowserOpen] = useState(false);
   const browserTriggerRef = useRef(null);
   const { isMobile, isTablet } = useResponsive();
@@ -365,7 +380,7 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div style={{ minHeight: "100vh", background: T.bg, color: T.text, fontFamily: font }}>
-        <NavBar profile={null} isMobile={isMobile} menuOpen={false} setMenuOpen={() => {}} onSignout={handleSignout} navigate={navigate} />
+        <NavBar profile={null} isMobile={isMobile} menuOpen={false} setMenuOpen={() => {}} userMenuOpen={false} setUserMenuOpen={() => {}} onSignout={handleSignout} navigate={navigate} />
         <div style={{ padding: 20 }}>
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 380px", gap: 20 }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -389,7 +404,7 @@ export default function Dashboard() {
     const hasAnyIntegration = connectedIntegrations.length > 0;
     return (
       <div style={{ minHeight: "100vh", background: T.bg, color: T.text, fontFamily: font }}>
-        <NavBar profile={profile} isMobile={isMobile} menuOpen={menuOpen} setMenuOpen={setMenuOpen} onSignout={handleSignout} navigate={navigate} />
+        <NavBar profile={profile} isMobile={isMobile} menuOpen={menuOpen} setMenuOpen={setMenuOpen} userMenuOpen={userMenuOpen} setUserMenuOpen={setUserMenuOpen} onSignout={handleSignout} navigate={navigate} />
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 52px)", padding: 40, textAlign: "center" }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>{hasAnyIntegration ? "\u2705" : "\uD83D\uDEB4"}</div>
           <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8, letterSpacing: "-0.02em" }}>
@@ -424,7 +439,7 @@ export default function Dashboard() {
 
   return (
     <div style={{ minHeight: "100vh", background: T.bg, color: T.text, fontFamily: font }}>
-      <NavBar profile={profile} isMobile={isMobile} menuOpen={menuOpen} setMenuOpen={setMenuOpen} onSignout={handleSignout} navigate={navigate} />
+      <NavBar profile={profile} isMobile={isMobile} menuOpen={menuOpen} setMenuOpen={setMenuOpen} userMenuOpen={userMenuOpen} setUserMenuOpen={setUserMenuOpen} onSignout={handleSignout} navigate={navigate} />
 
       <div style={{ maxWidth: 1400, margin: "0 auto", padding: isMobile ? 16 : "20px 24px" }}>
         {/* Header */}

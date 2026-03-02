@@ -87,7 +87,6 @@ export function matchSleepToActivities(dailyMetrics, activities) {
         temp: act.temperature_celsius,
         elevation: act.elevation_gain_meters,
         startHour: act.started_at ? new Date(act.started_at).getHours() : null,
-        powerCurve: act.power_curve,
       },
       sleep: {
         totalHours: prevNight.total_sleep_seconds / 3600,
