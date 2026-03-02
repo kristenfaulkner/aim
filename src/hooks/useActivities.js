@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 /**
  * Hook to fetch a paginated list of recent activities for the ride selector dropdown.
  */
-export function useActivities(limit = 20) {
+export function useActivities(limit = 200) {
   const { user } = useAuth();
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
