@@ -8,12 +8,12 @@ const PAGE_SIZE = 50;
  * Hook for the Activity Browser — fetches activities with cursor-based pagination
  * and time/year/month filtering. Only fetches when `enabled` is true.
  */
-export function useActivityBrowser({ enabled = false }) {
+export function useActivityBrowser({ enabled = false, initialTimePeriod = "month" }) {
   const { user } = useAuth();
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [timePeriod, setTimePeriod] = useState("month");
+  const [timePeriod, setTimePeriod] = useState(initialTimePeriod);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth()); // 0-indexed
   const [searchQuery, setSearchQuery] = useState("");

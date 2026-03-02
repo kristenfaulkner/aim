@@ -225,7 +225,7 @@ export default function Workouts() {
     searchQuery,
     setSearchQuery,
     loadMore,
-  } = useActivityBrowser({ enabled: true });
+  } = useActivityBrowser({ enabled: true, initialTimePeriod: "all" });
 
   // Fetch profile
   useEffect(() => {
