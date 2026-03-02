@@ -29,8 +29,8 @@ No test framework is configured.
 ### Frontend (`/src/`)
 - `App.jsx` — route definitions; protected routes wrap with `ProtectedRoute`
 - `context/AuthContext.jsx` — user auth state, profile management, Supabase auth listeners
-- `pages/` — 16 route-level pages (Dashboard, ActivityDetail, HealthLab, Boosters, ConnectApps, Settings, Onboarding, Auth, ResetPassword, Landing, Contact, 5 legal pages)
-- `components/` — reusable: `TrainingPeaksImport`, `BloodPanelUpload`, `ProtectedRoute`, `NeuralBackground`
+- `pages/` — 17 route-level pages (Dashboard, ActivityDetail, HealthLab, Boosters, ConnectApps, Settings, Onboarding, AcceptTerms, Auth, ResetPassword, Landing, Contact, 5 legal pages)
+- `components/` — reusable: `TrainingPeaksImport`, `BloodPanelUpload`, `ProtectedRoute` (auth + consent gate), `NeuralBackground`
 - `hooks/useDashboardData.js` — parallel Supabase queries (7 concurrent) using `Promise.allSettled`
 - `hooks/useActivities.js` — paginated activity list
 - `lib/api.js` — `apiFetch()` utility adds Bearer token to all `/api` calls
@@ -46,8 +46,9 @@ No test framework is configured.
   - `source-priority.js` — cross-source deduplication (device > TrainingPeaks > Strava)
   - `fit.js` — FIT binary file parser for Garmin/Wahoo workout files
   - `strava.js` — Strava API client with token refresh
-  - `eightsleep.js` — Eight Sleep API client (credential auth, trends API, extended metrics extraction)
+  - `eightsleep.js` — Eight Sleep API client (credential auth, trends API, extended metrics extraction, encrypted credential decryption)
   - `twilio.js` — Twilio SMS client (send, webhook verification, TwiML response)
+  - `crypto.js` — AES-256-GCM encryption/decryption for stored credentials (uses `CREDENTIAL_ENCRYPTION_KEY` env var)
   - `auth.js` — session verification, CORS
   - `supabase.js` — admin + public Supabase clients
   - `redis.js` — Redis client for OAuth state
@@ -61,7 +62,7 @@ No test framework is configured.
 - `sleep/summary.js` — Claude-powered morning readiness assessment
 - `chat/ask.js` — AI coach conversation endpoint with full athlete context
 - `sms/` — Twilio SMS: send workout summaries, test/preview, inbound webhook (STOP/START/HELP + conversational AI replies)
-- `user/` — profile, integrations list, disconnect
+- `user/` — profile, integrations list, disconnect, accept-terms (consent recording), delete (account deletion with cascade), export (full data export as JSON)
 - `settings.js` — notification preferences and user settings
 
 **API pattern**: Every endpoint calls `cors(res)`, checks `req.method`, calls `verifySession(req)` for auth, returns `{ error: "message" }` on failure.
@@ -127,8 +128,9 @@ Core tables (10): `profiles`, `integrations`, `activities`, `daily_metrics`, `po
 - Key unique constraints: `activities(user_id, source, source_id)`, `daily_metrics(user_id, date)`, `integrations(user_id, provider)`
 - Trigger `handle_new_user()` auto-creates profile on auth signup
 - Trigger `update_updated_at()` auto-maintains timestamps on profiles, integrations, daily_metrics, user_settings, ai_conversations
+- `profiles` consent columns: `terms_accepted_at`, `privacy_accepted_at`, `health_data_consent_at`, `health_data_consent_withdrawn_at`, `account_deletion_requested_at`, `account_deletion_scheduled_for`, `is_deleted`
 - Storage buckets: `health-files` (blood panels, DEXA PDFs), `import-files` (TrainingPeaks uploads)
-- Full schema: `/supabase/migrations/001_initial_schema.sql`; storage bucket: `/supabase/migrations/004_add_import_files_bucket.sql`
+- Full schema: `/supabase/migrations/001_initial_schema.sql`; storage bucket: `/supabase/migrations/004_add_import_files_bucket.sql`; consent columns: `/supabase/migrations/005_add_consent_columns.sql`
 
 ### Deployment
 
@@ -183,7 +185,7 @@ Apple Health, Supersapiens/Lingo (CGM), MyFitnessPal, Cronometer, TrainerRoad, I
 - **Twilio** ✅ — SMS workout summaries (auto-sent post-sync), conversational AI coaching (inbound replies), TCPA-compliant opt-in/out (STOP/START/HELP keywords), test/preview endpoint
 
 ### Integration Pattern
-OAuth2 flow: connect/callback file pairs in `/api/auth/`. Credential-based for EightSleep (email/password in `integrations.metadata`). File-based for TrainingPeaks (ZIP + CSV upload via `import-files` Supabase storage bucket). Tokens stored with refresh logic in `integrations` table. Data normalized to `activities` and `daily_metrics`.
+OAuth2 flow: connect/callback file pairs in `/api/auth/`. Credential-based for EightSleep (email/password AES-256-GCM encrypted in `integrations.metadata` via `crypto.js`, backward compatible with unencrypted legacy records). File-based for TrainingPeaks (ZIP + CSV upload via `import-files` Supabase storage bucket). Tokens stored with refresh logic in `integrations` table. Data normalized to `activities` and `daily_metrics`.
 
 ## AI Analysis Engine
 
@@ -320,7 +322,8 @@ Do not let documentation drift from the codebase. If you build it, document it �
 - **Dark theme only** — backgrounds `#05060a`/`#0c0d14`, accent `#00e5a0`
 - **Icons**: Lucide React
 - **Auth tokens**: Bearer token via `Authorization` header; `apiFetch()` handles this automatically on frontend
-- OAuth integrations use connect/callback file pairs in `/api/auth/`; credential-based auth (EightSleep) stores email/password in `integrations.metadata`; file import (TrainingPeaks) uses Supabase storage bucket
+- OAuth integrations use connect/callback file pairs in `/api/auth/`; credential-based auth (EightSleep) stores AES-256-GCM encrypted email/password in `integrations.metadata`; file import (TrainingPeaks) uses Supabase storage bucket
+- **Consent flow**: signup requires Terms checkbox → AcceptTerms interstitial for SSO → health data consent in Onboarding Step 1 → ProtectedRoute enforces `terms_accepted_at` before access
 
 ## Reference Docs
 
