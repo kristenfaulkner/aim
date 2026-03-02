@@ -46,6 +46,7 @@ const SPORT_MAP = {
  *   cadence:   { data: number[] },
  *   time:      { data: number[] },  // elapsed seconds from start
  *   altitude:  { data: number[] },
+ *   left_right_balance: { data: number[] },  // left % per sample (0-100), empty if no dual-sided PM
  * }
  */
 export function parseFitFile(buffer, filename = "unknown.fit") {
@@ -117,6 +118,7 @@ export function parseFitFile(buffer, filename = "unknown.fit") {
   const cadence = [];
   const time = [];
   const altitude = [];
+  const lrBalance = [];
 
   const firstTimestamp = new Date(records[0].timestamp).getTime();
   let lastHr = 0;
@@ -149,6 +151,29 @@ export function parseFitFile(buffer, filename = "unknown.fit") {
       lastAlt = alt;
     }
     altitude.push(Math.round(lastAlt * 10) / 10);
+
+    // L/R power balance — from dual-sided power meters
+    // FIT protocol: left_right_balance is a uint8, bit 7 = "right" flag,
+    // bits 0-6 = contribution %. If bit 7 is set, value is right %;
+    // otherwise it's left %. fit-file-parser may also expose a plain 0-100 value.
+    const lrRaw = rec.left_right_balance ?? rec.leftRightBalance ?? null;
+    if (lrRaw != null && lrRaw !== 0 && lrRaw !== 127 && lrRaw !== 128 && lrRaw !== 255) {
+      // fit-file-parser typically gives the decoded percentage directly
+      // Values > 100 use FIT encoding: bit 7 (128) = right side indicator
+      let leftPct;
+      if (lrRaw > 100) {
+        // FIT encoded: strip bit 7, remaining is the contribution %
+        const pct = lrRaw & 0x7F;
+        const isRight = (lrRaw & 0x80) !== 0;
+        leftPct = isRight ? (100 - pct) : pct;
+      } else {
+        // Already decoded as left %
+        leftPct = lrRaw;
+      }
+      if (leftPct >= 0 && leftPct <= 100) {
+        lrBalance.push(Math.round(leftPct * 10) / 10);
+      }
+    }
   }
 
   // Compute elevation gain from altitude stream
@@ -183,13 +208,25 @@ export function parseFitFile(buffer, filename = "unknown.fit") {
     original_filename: filename,
   };
 
+  // Compute L/R balance summary if we have data
+  let lrBalanceSummary = null;
+  if (lrBalance.length > 10) {
+    const avgLeft = Math.round(lrBalance.reduce((s, v) => s + v, 0) / lrBalance.length * 10) / 10;
+    const avgRight = Math.round((100 - avgLeft) * 10) / 10;
+    lrBalanceSummary = {
+      avg: [avgLeft, avgRight],
+      samples: lrBalance.length,
+    };
+  }
+
   const streams = {
     watts: { data: watts },
     heartrate: { data: heartrate.some(v => v > 0) ? heartrate : [] },
     cadence: { data: cadence },
     time: { data: time },
     altitude: { data: altitude },
+    left_right_balance: { data: lrBalance },
   };
 
-  return { metadata, streams };
+  return { metadata, streams, lrBalance: lrBalanceSummary };
 }

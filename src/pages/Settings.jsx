@@ -7,6 +7,7 @@ import { useResponsive } from "../hooks/useResponsive";
 import { supabase } from "../lib/supabase";
 import { ArrowLeft, User, Bell, Ruler, Palette, LogOut, MessageSquare, Check, Loader, Shield, Download, Trash2, AlertTriangle, Menu, X, Mail, Lock } from "lucide-react";
 import { computePowerZones, computeHRZones } from "../lib/zones";
+import { apiFetch } from "../lib/api";
 
 const RIDING_LEVELS = ["Recreational", "Competitive", "Professional"];
 const WEEKLY_HOURS = ["1-5", "5-10", "11-15", "16+"];
@@ -98,6 +99,9 @@ export default function Settings() {
     sms_weekly_digest: true,
     sms_blood_panel_alerts: true,
   });
+  const [emailPrefs, setEmailPrefs] = useState({
+    email_workout_summary: true,
+  });
 
   useEffect(() => {
     if (profile) {
@@ -118,7 +122,9 @@ export default function Settings() {
         if (res.ok) {
           const data = await res.json();
           if (data.settings?.notification_preferences) {
-            setSmsPrefs(prev => ({ ...prev, ...data.settings.notification_preferences }));
+            const np = data.settings.notification_preferences;
+            setSmsPrefs(prev => ({ ...prev, ...np }));
+            setEmailPrefs(prev => ({ ...prev, ...np }));
           }
           if (data.settings?.units) userUnits = data.settings.units;
         }
@@ -195,6 +201,11 @@ export default function Settings() {
         if (settingsErr) console.error("Units save failed:", settingsErr.message);
       });
 
+      // Backfill TSS/IF/VI/EF for activities when FTP is set (fire-and-forget)
+      if (ftpVal) {
+        apiFetch("/activities/backfill-metrics", { method: "POST" }).catch(() => {});
+      }
+
       setProfileSaved(true);
       setTimeout(() => setProfileSaved(false), 3000);
     } catch (err) {
@@ -242,7 +253,7 @@ export default function Settings() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ notification_preferences: smsPrefs }),
+          body: JSON.stringify({ notification_preferences: { ...smsPrefs, ...emailPrefs } }),
         });
       }
 
@@ -544,6 +555,44 @@ export default function Settings() {
               <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 8px", letterSpacing: "-0.02em" }}>Notifications</h2>
               <p style={{ fontSize: 14, color: T.textSoft, margin: "0 0 32px" }}>Control what alerts you receive.</p>
 
+              {/* Email Notifications Section */}
+              <div style={{ padding: 24, background: T.card, borderRadius: 16, border: `1px solid ${T.border}`, marginBottom: 20 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+                  <Mail size={18} color={T.accent} />
+                  <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Email Notifications</h3>
+                </div>
+                <p style={{ fontSize: 13, color: T.textSoft, margin: "0 0 16px", lineHeight: 1.5 }}>
+                  Get AI-powered workout analyses delivered to your inbox after every activity sync.
+                </p>
+                <div style={{ fontSize: 12, color: T.textDim, marginBottom: 16 }}>
+                  Emails sent to: <span style={{ color: T.text }}>{user?.email || "—"}</span>
+                </div>
+                {[
+                  { key: "email_workout_summary", label: "Post-Workout Analysis", desc: "AI analysis email after every activity sync", enabled: true },
+                  { key: "email_morning_readiness", label: "Morning Readiness", desc: "Daily training recommendation based on sleep & recovery", enabled: false },
+                  { key: "email_weekly_digest", label: "Weekly Digest", desc: "Sunday evening training week review", enabled: false },
+                  { key: "email_blood_panel_alerts", label: "Blood Panel Alerts", desc: "Key findings after uploading lab results", enabled: false },
+                ].map(({ key, label, desc, enabled }) => (
+                  <div key={key} style={{
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: "12px 0", borderTop: `1px solid ${T.border}`,
+                    opacity: enabled ? 1 : 0.4,
+                  }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 500 }}>{label}{!enabled && <span style={{ fontSize: 11, color: T.textDim, marginLeft: 8 }}>Coming soon</span>}</div>
+                      <div style={{ fontSize: 11, color: T.textDim, marginTop: 1 }}>{desc}</div>
+                    </div>
+                    <button
+                      onClick={() => enabled && setEmailPrefs(p => ({ ...p, [key]: !p[key] }))}
+                      style={toggleStyle(emailPrefs[key])}
+                      disabled={!enabled}
+                    >
+                      <div style={toggleKnob} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
               {/* SMS Coach Section */}
               <div style={{ padding: 24, background: T.card, borderRadius: 16, border: `1px solid ${T.border}` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
@@ -643,7 +692,7 @@ export default function Settings() {
                     opacity: smsSaving ? 0.6 : 1,
                   }}>
                     {smsSaving ? <Loader size={14} style={{ animation: "spin 1s linear infinite" }} /> : null}
-                    {smsSaving ? "Saving..." : "Save SMS Settings"}
+                    {smsSaving ? "Saving..." : "Save Notification Settings"}
                   </button>
                   {smsSaved && (
                     <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: T.accent, fontWeight: 600 }}>

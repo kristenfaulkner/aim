@@ -117,7 +117,7 @@ export default async function handler(req, res) {
           const { gunzipSync } = await import("zlib");
           fitBuffer = gunzipSync(fitBuffer);
         }
-        const { metadata, streams } = parseFitFile(fitBuffer, entry.entryName);
+        const { metadata, streams, lrBalance } = parseFitFile(fitBuffer, entry.entryName);
 
         // 6a. Compute metrics from streams
         const hasWatts = streams.watts?.data?.length > 0 && streams.watts.data.some(w => w > 0);
@@ -175,6 +175,7 @@ export default async function handler(req, res) {
           if (metrics.work_kj != null) upgradeData.work_kj = metrics.work_kj;
           if (metrics.zone_distribution) upgradeData.zone_distribution = metrics.zone_distribution;
           if (metrics.power_curve) upgradeData.power_curve = metrics.power_curve;
+          if (lrBalance) upgradeData.lr_balance = lrBalance;
 
           // Use TP name/description if the existing ones are missing or generic
           if (csvMatch?.title && (!duplicate.name || /^(Morning|Afternoon|Evening|Lunch) Ride$/.test(duplicate.name))) {
@@ -265,6 +266,7 @@ export default async function handler(req, res) {
           temperature_celsius: metadata.avg_temperature ?? null,
           zone_distribution: metrics.zone_distribution ?? null,
           power_curve: metrics.power_curve ?? null,
+          lr_balance: lrBalance ?? null,
           source_data: {
             trainingpeaks: {
               rpe: csvMatch?.rpe,
