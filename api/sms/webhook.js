@@ -53,6 +53,41 @@ export default async function handler(req, res) {
 
   // Normalize phone number (remove any formatting)
   const normalizedPhone = fromNumber.replace(/[^\d+]/g, "");
+  const keyword = messageBody.trim().toUpperCase();
+
+  // Handle opt-in/opt-out/help keywords (required by TCPA and Twilio A2P)
+  if (keyword === "STOP" || keyword === "UNSUBSCRIBE" || keyword === "CANCEL" || keyword === "END" || keyword === "QUIT") {
+    // Twilio auto-handles STOP at the carrier level, but we also update our DB
+    await supabaseAdmin
+      .from("profiles")
+      .update({ sms_opt_in: false })
+      .or(`phone_number.eq.${normalizedPhone},phone_number.eq.${normalizedPhone.replace("+", "")}`);
+
+    res.setHeader("Content-Type", "text/xml");
+    return res.status(200).send(twimlResponse(
+      "AIM Performance: You have been unsubscribed and will no longer receive text messages. Reply START to re-subscribe."
+    ));
+  }
+
+  if (keyword === "START" || keyword === "SUBSCRIBE") {
+    // Re-opt-in the user
+    await supabaseAdmin
+      .from("profiles")
+      .update({ sms_opt_in: true, sms_opt_in_at: new Date().toISOString() })
+      .or(`phone_number.eq.${normalizedPhone},phone_number.eq.${normalizedPhone.replace("+", "")}`);
+
+    res.setHeader("Content-Type", "text/xml");
+    return res.status(200).send(twimlResponse(
+      "AIM Performance: You are now opted in to receive AI coaching texts including workout summaries and training insights. Message frequency varies. Msg & data rates may apply. Reply HELP for help. Reply STOP to unsubscribe."
+    ));
+  }
+
+  if (keyword === "HELP" || keyword === "INFO") {
+    res.setHeader("Content-Type", "text/xml");
+    return res.status(200).send(twimlResponse(
+      "AIM Performance SMS Coach: AI-powered workout analysis and coaching for endurance athletes. Message frequency varies. Msg & data rates may apply. Reply STOP to unsubscribe. For support visit app.aimperformance.com or email support@aimperformance.com"
+    ));
+  }
 
   try {
     // Look up user by phone number
@@ -65,7 +100,7 @@ export default async function handler(req, res) {
     if (!profile) {
       res.setHeader("Content-Type", "text/xml");
       return res.status(200).send(twimlResponse(
-        "This number isn't registered with AIM. Visit app.aimperformance.com/settings to add your phone number."
+        "This number isn't registered with AIM. Visit app.aimperformance.com/settings to add your phone number and enable SMS coaching."
       ));
     }
 

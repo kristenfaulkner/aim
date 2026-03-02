@@ -28,6 +28,7 @@ export default function Settings() {
   // SMS state
   const [phone, setPhone] = useState("");
   const [smsOptIn, setSmsOptIn] = useState(false);
+  const [smsConsent, setSmsConsent] = useState(false);
   const [smsSaving, setSmsSaving] = useState(false);
   const [smsSaved, setSmsSaved] = useState(false);
   const [smsPrefs, setSmsPrefs] = useState({
@@ -41,6 +42,7 @@ export default function Settings() {
     if (profile) {
       setPhone(profile.phone_number ? formatPhoneDisplay(profile.phone_number.replace("+1", "")) : "");
       setSmsOptIn(!!profile.sms_opt_in);
+      setSmsConsent(!!profile.sms_opt_in);
     }
     // Load notification preferences
     async function loadPrefs() {
@@ -192,13 +194,50 @@ export default function Settings() {
                   />
                 </div>
 
-                {/* Master SMS Toggle */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 0", borderTop: `1px solid ${T.border}` }}>
+                {/* Consent Checkbox (TCPA required) */}
+                <div style={{
+                  padding: "14px 16px", background: "rgba(255,255,255,0.03)", borderRadius: 10,
+                  border: `1px solid ${smsConsent ? "rgba(0,229,160,0.3)" : T.border}`,
+                  marginBottom: 16, transition: "border-color 0.2s",
+                }}>
+                  <label style={{ display: "flex", gap: 12, cursor: "pointer", alignItems: "flex-start" }}>
+                    <input
+                      type="checkbox"
+                      checked={smsConsent}
+                      onChange={(e) => {
+                        setSmsConsent(e.target.checked);
+                        if (!e.target.checked) setSmsOptIn(false);
+                      }}
+                      style={{ marginTop: 2, accentColor: T.accent, width: 16, height: 16, flexShrink: 0 }}
+                    />
+                    <span style={{ fontSize: 12, color: T.textSoft, lineHeight: 1.6 }}>
+                      I agree to receive automated text messages from AIM Performance at the phone number provided, including AI-powered workout summaries, training insights, and coaching messages. Message frequency varies. Msg & data rates may apply. Reply <strong style={{ color: T.text }}>STOP</strong> to unsubscribe at any time. Reply <strong style={{ color: T.text }}>HELP</strong> for help. View our{" "}
+                      <a href="https://app.aimperformance.com/privacy" target="_blank" rel="noopener noreferrer" style={{ color: T.accent, textDecoration: "underline" }}>Privacy Policy</a> and{" "}
+                      <a href="https://app.aimperformance.com/terms" target="_blank" rel="noopener noreferrer" style={{ color: T.accent, textDecoration: "underline" }}>Terms & Conditions</a>.
+                    </span>
+                  </label>
+                </div>
+
+                {/* Master SMS Toggle (only enabled after consent) */}
+                <div style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "14px 0", borderTop: `1px solid ${T.border}`,
+                  opacity: smsConsent && phone.replace(/\D/g, "").length === 10 ? 1 : 0.4,
+                }}>
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 600 }}>Enable SMS Coaching</div>
-                    <div style={{ fontSize: 12, color: T.textDim, marginTop: 2 }}>Receive AI-powered texts after workouts</div>
+                    <div style={{ fontSize: 12, color: T.textDim, marginTop: 2 }}>
+                      {!phone.replace(/\D/g, "").length ? "Enter your phone number above" :
+                       phone.replace(/\D/g, "").length < 10 ? "Enter a valid 10-digit phone number" :
+                       !smsConsent ? "Check the consent box above to enable" :
+                       "Receive AI-powered texts after workouts"}
+                    </div>
                   </div>
-                  <button onClick={() => setSmsOptIn(!smsOptIn)} style={toggleStyle(smsOptIn)}>
+                  <button
+                    onClick={() => { if (smsConsent && phone.replace(/\D/g, "").length === 10) setSmsOptIn(!smsOptIn); }}
+                    style={toggleStyle(smsOptIn)}
+                    disabled={!smsConsent || phone.replace(/\D/g, "").length < 10}
+                  >
                     <div style={toggleKnob} />
                   </button>
                 </div>
@@ -222,13 +261,6 @@ export default function Settings() {
                         </button>
                       </div>
                     ))}
-                  </div>
-                )}
-
-                {/* TCPA Compliance */}
-                {smsOptIn && (
-                  <div style={{ marginTop: 16, padding: "12px 14px", background: "rgba(255,255,255,0.03)", borderRadius: 10, fontSize: 11, color: T.textDim, lineHeight: 1.5 }}>
-                    By enabling SMS, you agree to receive automated text messages from AIM at the phone number provided. Message frequency varies. Message and data rates may apply. Reply STOP to unsubscribe at any time. Reply HELP for help.
                   </div>
                 )}
 
