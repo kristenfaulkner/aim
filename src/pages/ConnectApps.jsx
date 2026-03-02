@@ -14,8 +14,15 @@ const OAUTH_APPS = {
   Withings: "/api/auth/connect/withings",
 };
 
+// Map display names to provider keys in the database
+const NAME_TO_PROVIDER = { Strava: "strava", Whoop: "whoop", "Oura Ring": "oura", Withings: "withings" };
+
 // ── APP CARD COMPONENT ──
 function AppCard({ app, isConnected, onToggle }) {
+  const [hover, setHover] = useState(false);
+  const isOAuth = !!OAUTH_APPS[app.name];
+  const showDisconnect = isConnected && isOAuth && hover;
+
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", background: isConnected ? "rgba(0,229,160,0.04)" : T.card, border: `1px solid ${isConnected ? "rgba(0,229,160,0.2)" : T.border}`, borderRadius: 14, transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)" }}
       onMouseOver={e => { if (!isConnected) e.currentTarget.style.borderColor = T.borderHover; }}
@@ -33,15 +40,17 @@ function AppCard({ app, isConnected, onToggle }) {
         </div>
       </div>
       <button onClick={onToggle} disabled={!!app.note}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
         style={{
           padding: "8px 20px", borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: app.note ? "not-allowed" : "pointer",
-          background: isConnected ? "rgba(0,229,160,0.12)" : app.note ? T.surface : T.accentDim,
-          border: `1px solid ${isConnected ? "rgba(0,229,160,0.3)" : app.note ? T.border : T.accentMid}`,
-          color: isConnected ? T.accent : app.note ? T.textDim : T.accent,
+          background: showDisconnect ? "rgba(239,68,68,0.08)" : isConnected ? "rgba(0,229,160,0.12)" : app.note ? T.surface : T.accentDim,
+          border: `1px solid ${showDisconnect ? "rgba(239,68,68,0.2)" : isConnected ? "rgba(0,229,160,0.3)" : app.note ? T.border : T.accentMid}`,
+          color: showDisconnect ? "#ef4444" : isConnected ? T.accent : app.note ? T.textDim : T.accent,
           fontFamily: font, transition: "all 0.2s", display: "flex", alignItems: "center", gap: 6,
           opacity: app.note ? 0.5 : 1,
         }}>
-        {isConnected ? <><Check size={14} /> Connected</> : app.note ? "Soon" : "Connect"}
+        {showDisconnect ? "Disconnect" : isConnected ? <><Check size={14} /> Connected</> : app.note ? "Soon" : "Connect"}
       </button>
     </div>
   );
@@ -93,8 +102,11 @@ export default function ConnectApps() {
   }, []);
 
   const toggleConnect = async (name) => {
-    // If this app has real OAuth and isn't connected yet, redirect to OAuth
-    if (OAUTH_APPS[name] && !connected[name]) {
+    const isOAuth = !!OAUTH_APPS[name];
+    const isCurrentlyConnected = !!connected[name];
+
+    if (isOAuth && !isCurrentlyConnected) {
+      // Connect: redirect to OAuth
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
       if (token) {
@@ -102,6 +114,29 @@ export default function ConnectApps() {
       }
       return;
     }
+
+    if (isOAuth && isCurrentlyConnected) {
+      // Disconnect: call API to revoke and remove
+      const provider = NAME_TO_PROVIDER[name];
+      if (!provider) return;
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        await fetch("/api/user/disconnect", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+          body: JSON.stringify({ provider }),
+        });
+        setConnected(prev => ({ ...prev, [name]: false }));
+        setToast(`${name} disconnected`);
+        setTimeout(() => setToast(""), 3000);
+      } catch {
+        setToast("Failed to disconnect");
+        setTimeout(() => setToast(""), 3000);
+      }
+      return;
+    }
+
+    // Non-OAuth apps: just toggle locally
     setConnected(prev => ({ ...prev, [name]: !prev[name] }));
   };
 
