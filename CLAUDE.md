@@ -292,6 +292,23 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 - Activity annotation columns migration (user_notes, user_rating, user_rpe, user_tags — SQL exists at `/sql/add_activity_annotations.sql`, not yet applied to production)
 - Coach sharing, community benchmarks, weekly digest emails, mobile app
 
+## Documentation Rules
+
+**After completing any new feature, integration, or significant change, you MUST update all relevant documentation before committing:**
+
+1. **`CLAUDE.md`** (this file) — Update the relevant sections:
+   - **Architecture / Backend** — add new endpoints, libs, or data flows
+   - **Integrations** — update status (TODO → ✅) when an integration ships
+   - **AI Analysis Engine** — add new AI-powered features or insight categories
+   - **Build Status / Completed** — move items from Remaining → Completed, add new items
+   - **Build Status / Remaining** — remove completed items, add newly discovered work
+2. **`docs/technical-architecture.md`** — Update if schema changes, new tables, new environment variables, or new API patterns are introduced
+3. **`docs/product-blueprint.md`** — Update if new user-facing features, onboarding changes, or pricing/plan changes are made
+4. **`docs/insights-catalog.md`** — Update if new insight categories or AI prompt changes are made
+5. **Memory file** (`~/.claude/projects/.../memory/MEMORY.md`) — Update with architecture decisions, key file locations, and known pending items
+
+Do not let documentation drift from the codebase. If you build it, document it — in the same commit.
+
 ## Conventions
 
 - **No TypeScript** — plain JavaScript throughout
