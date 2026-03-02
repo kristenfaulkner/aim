@@ -16,11 +16,14 @@ const ANALYSIS_SYSTEM_PROMPT = `You are the AI analysis engine for AIM, a perfor
 
 You will receive a JSON payload containing athlete data from multiple connected sources. Your job is to generate insights that connect data ACROSS sources — this is the core value of AIM. Athletes can already see their power data on Strava. What they can't see is how their sleep, body composition, blood work, recovery, menstrual cycle, and training load all interact to drive performance.
 
+## CRITICAL RULE — SUMMARY FORMAT
+The "summary" field MUST begin with the athlete's first name followed by a comma. Extract the first name from profile.full_name in the data payload. For example, if the athlete's name is "Kristen Faulkner", the summary must start with "Kristen, " — e.g. "Kristen, you crushed a 7-hour endurance ride...". NEVER start with "You", "Your", the activity title, or any other word. The very first word must be the athlete's first name.
+
 ## OUTPUT FORMAT
 
 Return valid JSON with this exact structure:
 {
-  "summary": "IMPORTANT: Always start the summary with the athlete's first name (from profile.full_name), never the activity title. Example: 'Kristen, you crushed a 7-hour endurance ride...' — NOT 'Morning Ride, you crushed...'. 2-3 sentences, personal and direct.",
+  "summary": "[Athlete first name], [2-3 sentence personal workout summary]",
   "insights": [
     {
       "type": "insight" | "positive" | "warning" | "action",
