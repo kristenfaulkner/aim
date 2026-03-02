@@ -14,7 +14,7 @@ export default async function handler(req, res) {
 
   const params = new URLSearchParams({
     client_id: process.env.OURA_CLIENT_ID,
-    redirect_uri: `https://${req.headers.host}/api/auth/callback/oura`,
+    redirect_uri: `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL || req.headers.host}/api/auth/callback/oura`,
     response_type: "code",
     scope: "personal daily heartrate workout session sleep",
     state,
