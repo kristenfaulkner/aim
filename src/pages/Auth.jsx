@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 import { T, font } from "../theme/tokens";
 import { btn, inputStyle } from "../theme/styles";
 import { User, Mail, Lock, Eye, EyeOff, ArrowRight, ArrowLeft, Brain, BarChart3, Heart, Shield, Loader2, Wand2, Check } from "lucide-react";
@@ -9,8 +9,11 @@ import SEO from "../components/SEO";
 
 export default function Auth({ mode }) {
   const navigate = useNavigate();
-  const { signup, signin, signInWithGoogle, signInWithMagicLink, resetPassword } = useAuth();
+  const { user, signup, signin, signInWithGoogle, signInWithMagicLink, resetPassword } = useAuth();
   const { isMobile, isTablet } = useResponsive();
+
+  // Redirect authenticated users to dashboard
+  if (user) return <Navigate to="/dashboard" replace />;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
