@@ -943,7 +943,7 @@ export default function Dashboard() {
             <span style={{ fontSize: 8, color: T.accent, fontWeight: 600, letterSpacing: "0.1em", marginLeft: -3 }}>BETA</span>
           </div>
           <div style={{ display: "flex", gap: 3 }}>
-            {["Dashboard", "Connect", "Calendar", "Trends", "Race Planner"].map(item => (
+            {["Dashboard", "Connect"].map(item => (
               <button key={item} onClick={() => { if (item === "Connect") window.location.href = "/connect"; }} style={{ background: item === "Dashboard" ? T.accentDim : "none", border: "none", padding: "5px 12px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: item === "Dashboard" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font }}>{item}</button>
             ))}
           </div>
