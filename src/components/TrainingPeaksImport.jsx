@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { integrations } from "../data/integrations";
 import { supabase } from "../lib/supabase";
+import { useResponsive } from "../hooks/useResponsive";
 
 const MAX_ZIP_MB = 500;
 const MAX_CSV_MB = 10;
@@ -354,16 +355,17 @@ export default function TrainingPeaksImport({ onClose, onComplete }) {
 // ── Sub-components ──
 
 function Overlay({ children, onClose }) {
+  const { isMobile } = useResponsive();
   return (
     <div style={{
       position: "fixed", inset: 0, zIndex: 200,
-      display: "flex", alignItems: "center", justifyContent: "center",
+      display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center",
       background: "rgba(5,6,10,0.8)", backdropFilter: "blur(8px)",
     }}
     onClick={e => { if (e.target === e.currentTarget && onClose) onClose(); }}>
       <div style={{
-        background: T.card, border: `1px solid ${T.border}`, borderRadius: 16,
-        padding: "28px", maxWidth: 560, width: "100%", maxHeight: "90vh", overflowY: "auto",
+        background: T.card, border: isMobile ? "none" : `1px solid ${T.border}`, borderRadius: isMobile ? "16px 16px 0 0" : 16,
+        padding: isMobile ? "20px 16px" : "28px", maxWidth: isMobile ? "100%" : 560, width: "100%", maxHeight: isMobile ? "95vh" : "90vh", overflowY: "auto",
       }}>
         {children}
       </div>

@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabase";
 import { computePowerZones, computeHRZones } from "../lib/zones";
 import { ArrowRight, Loader2, Shield } from "lucide-react";
+import { useResponsive } from "../hooks/useResponsive";
 
 const RIDING_LEVELS = ["Recreational", "Competitive", "Professional"];
 const WEEKLY_HOURS = ["1-5", "5-10", "11-15", "16+"];
@@ -22,6 +23,7 @@ function toMetric(units, field, value) {
 export default function Onboarding() {
   const navigate = useNavigate();
   const { updateProfile, user } = useAuth();
+  const { isMobile, isTablet } = useResponsive();
   const [step, setStep] = useState(1);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -120,13 +122,13 @@ export default function Onboarding() {
 
   const selectBtn = (value, current, onClick) => (
     <button key={value} onClick={onClick}
-      style={{ padding: "10px 16px", borderRadius: 10, fontSize: 13, fontWeight: current ? 700 : 500, background: current ? T.accentDim : T.card, border: `1px solid ${current ? T.accentMid : T.border}`, color: current ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font, transition: "all 0.2s" }}>
+      style={{ padding: "10px 16px", minHeight: 44, borderRadius: 10, fontSize: 13, fontWeight: current ? 700 : 500, background: current ? T.accentDim : T.card, border: `1px solid ${current ? T.accentMid : T.border}`, color: current ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font, transition: "all 0.2s" }}>
       {value}
     </button>
   );
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 40 }}>
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: isMobile ? 20 : 40 }}>
       <div style={{ width: "100%", maxWidth: 520 }}>
         {/* Logo */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 40, cursor: "pointer" }} onClick={() => navigate("/")}>
@@ -183,7 +185,7 @@ export default function Onboarding() {
               </div>
             </div>
 
-            <label style={{ display: "flex", alignItems: "flex-start", gap: 12, cursor: "pointer", padding: "14px 16px", borderRadius: 10, background: healthDataConsent ? "rgba(0,229,160,0.04)" : "transparent", border: `1px solid ${healthDataConsent ? T.accentMid : T.border}`, transition: "all 0.2s" }}>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 12, cursor: "pointer", padding: "14px 16px", borderRadius: 10, minHeight: 44, background: healthDataConsent ? "rgba(0,229,160,0.04)" : "transparent", border: `1px solid ${healthDataConsent ? T.accentMid : T.border}`, transition: "all 0.2s" }}>
               <input type="checkbox" checked={healthDataConsent} onChange={e => setHealthDataConsent(e.target.checked)}
                 style={{ marginTop: 2, accentColor: T.accent, width: 18, height: 18, flexShrink: 0 }} />
               <span style={{ fontSize: 13, color: T.text, lineHeight: 1.6, fontWeight: 600 }}>
@@ -210,13 +212,13 @@ export default function Onboarding() {
               </div>
               <div>
                 {label("Sex")}
-                <div style={{ display: "flex", gap: 8 }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {["Male", "Female", "Non-binary"].map(s => selectBtn(s, form.sex === s.toLowerCase(), () => set("sex", s.toLowerCase())))}
                 </div>
               </div>
               <div>
                 {label("Units")}
-                <div style={{ display: "flex", gap: 8 }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {selectBtn("Metric (kg, cm)", isMetric, () => set("units", "metric"))}
                   {selectBtn("Imperial (lbs, in)", !isMetric, () => set("units", "imperial"))}
                 </div>
@@ -295,7 +297,7 @@ export default function Onboarding() {
                   {form.uses_cycle_tracking && (
                     <div style={{ marginTop: 12 }}>
                       {label("Hormonal contraception?")}
-                      <div style={{ display: "flex", gap: 8 }}>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                         {["None", "Pill", "IUD", "Implant", "Other"].map(h => selectBtn(h, form.hormonal_contraception === h.toLowerCase(), () => set("hormonal_contraception", h.toLowerCase())))}
                       </div>
                     </div>

@@ -48,3 +48,13 @@ export const catLabelsBooters = {
   nutrition: "Nutrition",
   recovery: "Recovery",
 };
+
+// ── RESPONSIVE BREAKPOINTS ──
+export const breakpoints = {
+  mobile: 768,   // < 768px
+  tablet: 1024,  // 768–1024px
+  // desktop: > 1024px (default)
+};
+
+// Minimum touch target per WCAG 2.5.8
+export const touchMin = 44;

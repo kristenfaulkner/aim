@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { T, font, mono } from "../theme/tokens";
 import { btn, inputStyle } from "../theme/styles";
-import { ArrowLeft, Clock, Zap, Heart, Mountain, Gauge, Activity, TrendingUp, Flame, RefreshCw, Brain, ChevronRight, Star, X, Check, Send } from "lucide-react";
+import { ArrowLeft, Clock, Zap, Heart, Mountain, Gauge, Activity, TrendingUp, Flame, RefreshCw, Brain, ChevronRight, Star, X, Check, Send, Menu, Settings } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import { useResponsive } from "../hooks/useResponsive";
 
 function formatDuration(seconds) {
   if (!seconds) return "--";
@@ -40,7 +41,7 @@ function MetricCard({ icon, label, value, unit, color }) {
   );
 }
 
-function ZoneBar({ zones, ftp }) {
+function ZoneBar({ zones, ftp, isMobile }) {
   if (!zones) return null;
   const zoneColors = ["#3b82f6", "#22c55e", "#eab308", "#f97316", "#ef4444", "#dc2626", "#7c3aed"];
   const zoneLabels = ["Z1 Recovery", "Z2 Endurance", "Z3 Tempo", "Z4 Threshold", "Z5 VO2max", "Z6 Anaerobic", "Z7 Sprint"];
@@ -57,7 +58,7 @@ function ZoneBar({ zones, ftp }) {
           return <div key={z} style={{ width: `${pct}%`, background: zoneColors[i], transition: "width 0.5s" }} title={`${zoneLabels[i]}: ${formatDuration(seconds)}`} />;
         })}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 8 }}>
         {Object.entries(zones).map(([z, seconds], i) => {
           const pct = ((seconds / total) * 100).toFixed(0);
           return (
@@ -280,9 +281,9 @@ function AIAnalysis({ analysis, loading, onRegenerate, activityId }) {
                 )}
 
                 {insightCategories.length > 0 && (
-                  <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", gap: 5, flexWrap: "wrap", overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
                     {insightCategories.map(cat => (
-                      <button key={cat.id} onClick={() => setInsightFilter(cat.id)} style={{ background: insightFilter === cat.id ? `${T.accent}18` : T.bg, border: `1px solid ${insightFilter === cat.id ? T.accentMid : T.border}`, borderRadius: 20, padding: "4px 10px", fontSize: 10, fontWeight: 600, color: insightFilter === cat.id ? T.accent : T.textSoft, cursor: "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", gap: 5, fontFamily: font }}>
+                      <button key={cat.id} onClick={() => setInsightFilter(cat.id)} style={{ background: insightFilter === cat.id ? `${T.accent}18` : T.bg, border: `1px solid ${insightFilter === cat.id ? T.accentMid : T.border}`, borderRadius: 20, padding: "4px 10px", fontSize: 10, fontWeight: 600, color: insightFilter === cat.id ? T.accent : T.textSoft, cursor: "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", gap: 5, fontFamily: font, whiteSpace: "nowrap", flexShrink: 0 }}>
                         {cat.label}
                         <span style={{ fontSize: 8, background: insightFilter === cat.id ? `${T.accent}30` : `${T.textDim}30`, padding: "1px 4px", borderRadius: 6, color: insightFilter === cat.id ? T.accent : T.textDim }}>{cat.count}</span>
                       </button>
@@ -650,6 +651,8 @@ export default function ActivityDetail() {
   const [loading, setLoading] = useState(true);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { isMobile, isTablet } = useResponsive();
 
   const fetchActivity = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -755,33 +758,57 @@ export default function ActivityDetail() {
   return (
     <div style={{ minHeight: "100vh", background: T.bg }}>
       {/* Header */}
-      <div style={{ padding: "0 40px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${T.border}`, background: `${T.surface}cc`, backdropFilter: "blur(16px)", position: "sticky", top: 0, zIndex: 50 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+      <div style={{ padding: isMobile ? "0 12px" : "0 40px", height: isMobile ? 48 : 64, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${T.border}`, background: `${T.surface}cc`, backdropFilter: "blur(16px)", position: "sticky", top: 0, zIndex: 50 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 10 : 16 }}>
           <button onClick={() => navigate("/dashboard")} style={{ background: "transparent", border: "none", color: T.textSoft, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontFamily: font, padding: "6px 0" }}>
             <ArrowLeft size={16} /> Dashboard
           </button>
           <div style={{ width: 1, height: 20, background: T.border }} />
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 28, height: 28, borderRadius: 7, background: T.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: T.bg }}>AI</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: 26, height: 26, borderRadius: 7, background: T.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: T.bg }}>AI</div>
             <span style={{ fontSize: 16, fontWeight: 700 }}><span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>AI</span>M</span>
           </div>
         </div>
+        {isMobile ? (
+          <button onClick={() => setMenuOpen(true)} style={{ background: "none", border: "none", color: T.text, cursor: "pointer", padding: 8, minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}><Menu size={20} /></button>
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+            {["Health Lab", "Connect", "Settings"].map(item => (
+              <button key={item} onClick={() => { if (item === "Connect") navigate("/connect"); if (item === "Health Lab") navigate("/health-lab"); if (item === "Settings") navigate("/settings"); }} style={{ background: "none", border: "none", padding: "5px 12px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: T.textSoft, cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 4 }}>{item === "Settings" ? <><Settings size={12} /> {item}</> : item}</button>
+            ))}
+          </div>
+        )}
       </div>
 
+      {/* Mobile nav drawer */}
+      {isMobile && menuOpen && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 200 }}>
+          <div onClick={() => setMenuOpen(false)} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }} />
+          <div style={{ position: "absolute", top: 0, right: 0, width: 260, height: "100vh", background: T.surface, borderLeft: `1px solid ${T.border}`, padding: "20px 24px", display: "flex", flexDirection: "column", gap: 4, overflowY: "auto" }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+              <button onClick={() => setMenuOpen(false)} style={{ background: "none", border: "none", color: T.text, cursor: "pointer", padding: 8, minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}><X size={20} /></button>
+            </div>
+            {["Dashboard", "Health Lab", "Connect", "Settings"].map(item => (
+              <button key={item} onClick={() => { setMenuOpen(false); if (item === "Dashboard") navigate("/dashboard"); if (item === "Connect") navigate("/connect"); if (item === "Health Lab") navigate("/health-lab"); if (item === "Settings") navigate("/settings"); }} style={{ background: item === "Dashboard" ? T.accentDim : "none", border: "none", padding: "12px 14px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: item === "Dashboard" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font, textAlign: "left", display: "flex", alignItems: "center", gap: 8 }}>{item === "Settings" ? <><Settings size={14} /> {item}</> : item}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Content */}
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 40px" }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: isMobile ? "24px 16px" : isTablet ? "32px 24px" : "32px 40px" }}>
         {/* Title section */}
         <div style={{ marginBottom: 32 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
             <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 6, background: T.accentDim, border: `1px solid ${T.accentMid}`, color: T.accent, textTransform: "uppercase", letterSpacing: "0.05em" }}>{a.activity_type}</span>
             <span style={{ fontSize: 11, fontWeight: 500, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.05em" }}>{a.source}</span>
           </div>
-          <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 6px" }}>{a.name || "Untitled Activity"}</h1>
+          <h1 style={{ fontSize: isMobile ? 22 : 32, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 6px" }}>{a.name || "Untitled Activity"}</h1>
           <p style={{ fontSize: 14, color: T.textDim, margin: 0 }}>{formattedDate} at {formattedTime}</p>
           {a.description && <p style={{ fontSize: 14, color: T.textSoft, margin: "8px 0 0", lineHeight: 1.5 }}>{a.description}</p>}
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1.5fr 1fr" : "1fr 1fr", gap: isMobile ? 24 : isTablet ? 24 : 32 }}>
           {/* Left column: Metrics */}
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {/* Primary metrics */}
@@ -798,7 +825,7 @@ export default function ActivityDetail() {
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
                   <Zap size={14} style={{ color: T.accent }} /> Power
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(3, 1fr)", gap: 10 }}>
                   <MetricCard icon={<Zap size={14} />} label="Avg Power" value={Math.round(a.avg_power_watts)} unit="W" color={T.accent} />
                   <MetricCard icon={<Zap size={14} />} label="NP" value={a.normalized_power_watts ? Math.round(a.normalized_power_watts) : "--"} unit="W" color={T.accent} />
                   <MetricCard icon={<Zap size={14} />} label="Max Power" value={a.max_power_watts ? Math.round(a.max_power_watts) : "--"} unit="W" />
@@ -812,7 +839,7 @@ export default function ActivityDetail() {
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
                   <TrendingUp size={14} style={{ color: T.blue }} /> Training Load
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(3, 1fr)", gap: 10 }}>
                   <MetricCard icon={<Flame size={14} />} label="TSS" value={a.tss ? Math.round(a.tss) : "--"} color={T.warn} />
                   <MetricCard icon={<Gauge size={14} />} label="IF" value={a.intensity_factor || "--"} color={T.blue} />
                   <MetricCard icon={<Activity size={14} />} label="VI" value={a.variability_index || "--"} />
@@ -826,7 +853,7 @@ export default function ActivityDetail() {
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
                   <Heart size={14} style={{ color: T.danger }} /> Heart Rate
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(3, 1fr)", gap: 10 }}>
                   <MetricCard icon={<Heart size={14} />} label="Avg HR" value={Math.round(a.avg_hr_bpm)} unit="bpm" color={T.danger} />
                   <MetricCard icon={<Heart size={14} />} label="Max HR" value={a.max_hr_bpm ? Math.round(a.max_hr_bpm) : "--"} unit="bpm" color={T.danger} />
                   <MetricCard icon={<TrendingUp size={14} />} label="EF" value={a.efficiency_factor || "--"} />
@@ -835,14 +862,14 @@ export default function ActivityDetail() {
             )}
 
             {/* Additional metrics */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(3, 1fr)", gap: 10 }}>
               {a.work_kj && <MetricCard icon={<Zap size={14} />} label="Work" value={Math.round(a.work_kj)} unit="kJ" />}
               {a.calories && <MetricCard icon={<Flame size={14} />} label="Calories" value={a.calories} unit="kcal" />}
               {a.hr_drift_pct != null && <MetricCard icon={<TrendingUp size={14} />} label="HR Drift" value={`${a.hr_drift_pct}%`} color={Math.abs(a.hr_drift_pct) > 5 ? T.warn : T.accent} />}
             </div>
 
             {/* Zone distribution */}
-            <ZoneBar zones={a.zone_distribution} />
+            <ZoneBar zones={a.zone_distribution} isMobile={isMobile} />
 
             {/* Power curve */}
             <PowerCurveDisplay curve={a.power_curve} />
@@ -852,7 +879,7 @@ export default function ActivityDetail() {
           </div>
 
           {/* Right column: AI Analysis */}
-          <div style={{ position: "sticky", top: 80 }}>
+          <div style={isMobile ? {} : { position: "sticky", top: 80 }}>
             <AIAnalysis
               analysis={a.ai_analysis}
               loading={analysisLoading}

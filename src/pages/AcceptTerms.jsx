@@ -5,10 +5,12 @@ import { btn } from "../theme/styles";
 import { useAuth } from "../context/AuthContext";
 import { Shield, ArrowRight, Loader2 } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import { useResponsive } from "../hooks/useResponsive";
 
 export default function AcceptTerms() {
   const navigate = useNavigate();
   const { user, profile, fetchProfile } = useAuth();
+  const { isMobile, isTablet } = useResponsive();
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -39,7 +41,7 @@ export default function AcceptTerms() {
   };
 
   const checkboxRow = (checked, onChange, label) => (
-    <label style={{ display: "flex", alignItems: "flex-start", gap: 12, cursor: "pointer", padding: "12px 16px", borderRadius: 10, background: checked ? "rgba(0,229,160,0.04)" : "transparent", border: `1px solid ${checked ? T.accentMid : T.border}`, transition: "all 0.2s" }}>
+    <label style={{ display: "flex", alignItems: "flex-start", gap: 12, cursor: "pointer", padding: "12px 16px", borderRadius: 10, minHeight: 44, background: checked ? "rgba(0,229,160,0.04)" : "transparent", border: `1px solid ${checked ? T.accentMid : T.border}`, transition: "all 0.2s" }}>
       <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)}
         style={{ marginTop: 2, accentColor: T.accent, width: 18, height: 18, flexShrink: 0 }} />
       <span style={{ fontSize: 13, color: T.textSoft, lineHeight: 1.6 }}>{label}</span>
@@ -47,7 +49,7 @@ export default function AcceptTerms() {
   );
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 40 }}>
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: isMobile ? 20 : 40 }}>
       <div style={{ width: "100%", maxWidth: 520 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 40 }}>
           <div style={{ width: 32, height: 32, borderRadius: 9, background: T.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: T.bg }}>AI</div>

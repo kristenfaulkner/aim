@@ -4,10 +4,12 @@ import { T, font } from "../theme/tokens";
 import { btn, inputStyle } from "../theme/styles";
 import { User, Mail, Lock, Eye, EyeOff, ArrowRight, ArrowLeft, Brain, BarChart3, Heart, Shield, Loader2, Wand2, Check } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useResponsive } from "../hooks/useResponsive";
 
 export default function Auth({ mode }) {
   const navigate = useNavigate();
   const { signup, signin, signInWithGoogle, signInWithMagicLink, resetPassword } = useAuth();
+  const { isMobile, isTablet } = useResponsive();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -101,7 +103,7 @@ export default function Auth({ mode }) {
   if (view === "sent") {
     return (
       <div style={{ minHeight: "100vh", display: "flex" }}>
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 40 }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: isMobile ? 24 : 40 }}>
           <div style={{ width: "100%", maxWidth: 420, textAlign: "center" }}>
             <div style={{ width: 64, height: 64, borderRadius: "50%", background: T.accentDim, border: `1px solid ${T.accentMid}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px" }}>
               <Check size={28} style={{ color: T.accent }} />
@@ -116,7 +118,7 @@ export default function Auth({ mode }) {
             </button>
           </div>
         </div>
-        <RightPanel />
+        {!isMobile && <RightPanel />}
       </div>
     );
   }
@@ -125,7 +127,7 @@ export default function Auth({ mode }) {
   if (view === "magic-link") {
     return (
       <div style={{ minHeight: "100vh", display: "flex" }}>
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 40 }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: isMobile ? 24 : 40 }}>
           <div style={{ width: "100%", maxWidth: 420 }}>
             <LogoBar navigate={navigate} />
             <button onClick={backToForm} style={{ background: "none", border: "none", color: T.textDim, cursor: "pointer", fontSize: 13, fontFamily: font, padding: 0, display: "flex", alignItems: "center", gap: 4, marginBottom: 24 }}>
@@ -149,7 +151,7 @@ export default function Auth({ mode }) {
             </button>
           </div>
         </div>
-        <RightPanel />
+        {!isMobile && <RightPanel />}
       </div>
     );
   }
@@ -158,7 +160,7 @@ export default function Auth({ mode }) {
   if (view === "forgot-password") {
     return (
       <div style={{ minHeight: "100vh", display: "flex" }}>
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 40 }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: isMobile ? 24 : 40 }}>
           <div style={{ width: "100%", maxWidth: 420 }}>
             <LogoBar navigate={navigate} />
             <button onClick={backToForm} style={{ background: "none", border: "none", color: T.textDim, cursor: "pointer", fontSize: 13, fontFamily: font, padding: 0, display: "flex", alignItems: "center", gap: 4, marginBottom: 24 }}>
@@ -182,7 +184,7 @@ export default function Auth({ mode }) {
             </button>
           </div>
         </div>
-        <RightPanel />
+        {!isMobile && <RightPanel />}
       </div>
     );
   }
@@ -190,7 +192,7 @@ export default function Auth({ mode }) {
   // ── MAIN FORM VIEW ──
   return (
     <div style={{ minHeight: "100vh", display: "flex" }}>
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 40 }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: isMobile ? 24 : 40 }}>
         <div style={{ width: "100%", maxWidth: 420 }}>
           <LogoBar navigate={navigate} />
 
@@ -229,7 +231,7 @@ export default function Auth({ mode }) {
               <input type={showPw ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="Password"
                 style={inputStyle}
                 onKeyDown={e => { if (e.key === "Enter") handleSubmit(); }} />
-              <button onClick={() => setShowPw(!showPw)} style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: T.textDim, cursor: "pointer", padding: 0 }}>
+              <button onClick={() => setShowPw(!showPw)} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: T.textDim, cursor: "pointer", padding: 0, minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
@@ -270,7 +272,7 @@ export default function Auth({ mode }) {
           </p>
         </div>
       </div>
-      <RightPanel />
+      {!isMobile && <RightPanel />}
     </div>
   );
 }

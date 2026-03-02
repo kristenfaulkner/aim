@@ -6,7 +6,8 @@ import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabase";
 import BloodPanelUpload from "../components/BloodPanelUpload";
 import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis } from "recharts";
-import { LogOut, Trash2, ChevronDown, ChevronUp, ExternalLink, Settings } from "lucide-react";
+import { LogOut, Trash2, ChevronDown, ChevronUp, ExternalLink, Settings, Menu, X } from "lucide-react";
+import { useResponsive } from "../hooks/useResponsive";
 
 // ── Transform a blood_panels DB row into { id, date, source, values } ──
 function transformPanel(row) {
@@ -220,7 +221,7 @@ function AdditionalResults({ panels }) {
   return (
     <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "18px 20px" }}>
       <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 14px" }}>Additional Results</h3>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 8 }}>
         {otherResults.map((r, i) => {
           const flagColor = r.flag === "normal" ? T.green : r.flag === "high" ? T.red : r.flag === "low" ? T.amber : T.textDim;
           return (
@@ -249,6 +250,8 @@ export default function HealthLab() {
   const navigate = useNavigate();
   const { signout, profile } = useAuth();
   const sex = profile?.sex || "female";
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { isMobile, isTablet } = useResponsive();
 
   const [panels, setPanels] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -318,37 +321,63 @@ export default function HealthLab() {
       <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
       {/* Nav */}
-      <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px", height: 52, borderBottom: `1px solid ${T.border}`, background: `${T.surface}cc`, backdropFilter: "blur(16px)", position: "sticky", top: 0, zIndex: 100 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+      <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: isMobile ? "0 12px" : "0 32px", height: isMobile ? 48 : 52, borderBottom: `1px solid ${T.border}`, background: `${T.surface}cc`, backdropFilter: "blur(16px)", position: "sticky", top: 0, zIndex: 100 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 10 : 20 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }} onClick={() => navigate("/dashboard")}>
             <div style={{ width: 26, height: 26, borderRadius: 7, background: T.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: T.bg, letterSpacing: "-0.02em" }}>AI</div>
             <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.03em" }}><span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>AI</span>M</span>
             <span style={{ fontSize: 8, color: T.accent, fontWeight: 600, letterSpacing: "0.1em", marginLeft: -3 }}>BETA</span>
           </div>
-          <div style={{ display: "flex", gap: 3 }}>
-            {["Dashboard", "Health Lab", "Connect", "Settings"].map(item => (
-              <button key={item} onClick={() => {
-                if (item === "Dashboard") navigate("/dashboard");
-                if (item === "Connect") navigate("/connect");
-                if (item === "Settings") navigate("/settings");
-              }} style={{ background: item === "Health Lab" ? T.accentDim : "none", border: "none", padding: "5px 12px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: item === "Health Lab" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 4 }}>{item === "Settings" ? <><Settings size={12} /> {item}</> : item}</button>
-            ))}
-          </div>
+          {!isMobile && (
+            <div style={{ display: "flex", gap: 3 }}>
+              {["Dashboard", "Health Lab", "Connect", "Settings"].map(item => (
+                <button key={item} onClick={() => {
+                  if (item === "Dashboard") navigate("/dashboard");
+                  if (item === "Connect") navigate("/connect");
+                  if (item === "Settings") navigate("/settings");
+                }} style={{ background: item === "Health Lab" ? T.accentDim : "none", border: "none", padding: "5px 12px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: item === "Health Lab" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 4 }}>{item === "Settings" ? <><Settings size={12} /> {item}</> : item}</button>
+              ))}
+            </div>
+          )}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div style={{ width: 30, height: 30, borderRadius: 9, background: `linear-gradient(135deg, ${T.purple}, ${T.pink})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 }}>
-            {profile?.full_name ? profile.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() : "U"}
+        {isMobile ? (
+          <button onClick={() => setMenuOpen(true)} style={{ background: "none", border: "none", color: T.text, cursor: "pointer", padding: 8, minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}><Menu size={20} /></button>
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ width: 30, height: 30, borderRadius: 9, background: `linear-gradient(135deg, ${T.purple}, ${T.pink})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 }}>
+              {profile?.full_name ? profile.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() : "U"}
+            </div>
+            <button onClick={handleSignout} style={{ background: "none", border: `1px solid rgba(239,68,68,0.2)`, padding: "5px 10px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: "#ef4444", cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 5 }}>
+              <LogOut size={13} /> Sign Out
+            </button>
           </div>
-          <button onClick={handleSignout} style={{ background: "none", border: `1px solid rgba(239,68,68,0.2)`, padding: "5px 10px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: "#ef4444", cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 5 }}>
-            <LogOut size={13} /> Sign Out
-          </button>
-        </div>
+        )}
       </nav>
 
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "32px" }}>
+      {/* Mobile nav drawer */}
+      {isMobile && menuOpen && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 200 }}>
+          <div onClick={() => setMenuOpen(false)} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }} />
+          <div style={{ position: "absolute", top: 0, right: 0, width: 260, height: "100vh", background: T.surface, borderLeft: `1px solid ${T.border}`, padding: "20px 24px", display: "flex", flexDirection: "column", gap: 4 }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+              <button onClick={() => setMenuOpen(false)} style={{ background: "none", border: "none", color: T.text, cursor: "pointer", padding: 8, minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}><X size={20} /></button>
+            </div>
+            {["Dashboard", "Health Lab", "Connect", "Settings"].map(item => (
+              <button key={item} onClick={() => { setMenuOpen(false); if (item === "Dashboard") navigate("/dashboard"); if (item === "Connect") navigate("/connect"); if (item === "Settings") navigate("/settings"); }} style={{ background: item === "Health Lab" ? T.accentDim : "none", border: "none", padding: "12px 14px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: item === "Health Lab" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font, textAlign: "left" }}>{item}</button>
+            ))}
+            <div style={{ marginTop: "auto", paddingTop: 16, borderTop: `1px solid ${T.border}` }}>
+              <button onClick={() => { setMenuOpen(false); handleSignout(); }} style={{ background: "none", border: `1px solid rgba(239,68,68,0.2)`, padding: "12px 14px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: "#ef4444", cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
+                <LogOut size={14} /> Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: isMobile ? "16px" : isTablet ? "24px" : "32px" }}>
         {/* Header */}
-        <div style={{ marginBottom: 28 }}>
-          <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 6px" }}>
+        <div style={{ marginBottom: isMobile ? 20 : 28 }}>
+          <h1 style={{ fontSize: isMobile ? 24 : 32, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 6px" }}>
             Health <span style={{ background: `linear-gradient(135deg, ${T.purple}, ${T.pink})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Lab</span>
           </h1>
           <p style={{ fontSize: 14, color: T.textSoft, margin: 0 }}>Upload blood panels and track biomarkers over time — analyzed with athlete-optimal ranges.</p>
@@ -373,7 +402,7 @@ export default function HealthLab() {
             {/* What we track */}
             <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px" }}>
               <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 14px" }}>What AIM Tracks</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(3, 1fr)", gap: 8 }}>
                 {["Iron & Oxygen", "Vitamins", "Hormones", "Thyroid", "Lipids", "Kidney", "Liver", "Inflammation", "Minerals"].map(cat => {
                   const count = Object.values(biomarkerDB).filter(b => b.category === cat).length;
                   return (
@@ -392,7 +421,7 @@ export default function HealthLab() {
             {/* Pre-test tips */}
             <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px" }}>
               <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 10px" }}>Tips for Accurate Results</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)", gap: 8 }}>
                 {[
                   { rule: "Fast 10-12 hours", why: "Required for accurate lipid and glucose readings" },
                   { rule: "No exercise 24h before", why: "Training elevates CK, cortisol, and inflammatory markers" },
@@ -411,13 +440,13 @@ export default function HealthLab() {
           /* ── Panels Exist ── */
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
             {/* Upload + Summary Row */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16 }}>
               <BloodPanelUpload onUploadComplete={handleUploadComplete} compact />
 
               {/* Quick summary */}
               <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px" }}>
                 <div style={{ fontSize: 10, color: T.textDim, textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.06em", marginBottom: 10 }}>Latest Panel Summary</div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 14 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(3, 1fr)", gap: 10, marginBottom: 14 }}>
                   <div style={{ textAlign: "center" }}>
                     <div style={{ fontSize: 24, fontWeight: 800, fontFamily: mono, color: T.green }}>{flagCounts.optimal}</div>
                     <div style={{ fontSize: 10, color: T.textDim }}>Optimal</div>
@@ -445,7 +474,7 @@ export default function HealthLab() {
                   {biomarkersWithData.length} biomarkers tracked &middot; Click any card for details
                 </span>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "repeat(2, 1fr)" : "repeat(3, 1fr)", gap: 14 }}>
                 {biomarkersWithData.map(key => (
                   <BiomarkerTrend
                     key={key}

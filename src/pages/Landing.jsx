@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Activity, Zap, Brain, Target, Heart, TrendingUp, ArrowRight, Check, Star } from "lucide-react";
+import { Activity, Zap, Brain, Target, Heart, TrendingUp, ArrowRight, Check, Star, Menu, X } from "lucide-react";
 import { T, font, mono } from "../theme/tokens";
 import { btn } from "../theme/styles";
 import NeuralBackground from "../components/NeuralBackground";
 import { useAuth } from "../context/AuthContext";
+import { useResponsive } from "../hooks/useResponsive";
 
 const exampleInsights = [
   // Body Composition → Performance
@@ -114,23 +115,24 @@ const insightCategoryMeta = [
 function InsightsShowcase({ navigate, user }) {
   const [filter, setFilter] = useState("all");
   const [expanded, setExpanded] = useState(null);
+  const { isMobile, isTablet } = useResponsive();
 
   const filtered = filter === "all" ? exampleInsights : exampleInsights.filter(i => i.category === filter);
   const typeColor = (type) => type === "positive" ? T.accent : type === "warning" ? T.warn : type === "action" ? T.purple : T.blue;
 
   return (
-    <section style={{ padding: "100px 40px", background: T.surface, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}` }}>
+    <section style={{ padding: isMobile ? "60px 16px" : isTablet ? "80px 24px" : "100px 40px", background: T.surface, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}` }}>
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: 48 }}>
+        <div style={{ textAlign: "center", marginBottom: isMobile ? 32 : 48 }}>
           <p style={{ fontSize: 12, color: T.accent, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 16 }}>Real AI Analysis</p>
-          <h2 style={{ fontSize: 42, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 16px" }}>
+          <h2 style={{ fontSize: isMobile ? 28 : isTablet ? 34 : 42, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 16px" }}>
             Every insight comes with <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>a plan</span>
           </h2>
-          <p style={{ fontSize: 17, color: T.textSoft, maxWidth: 580, margin: "0 auto" }}>These are real examples from a single ride analysis. AIM connects your power data, body composition, sleep, recovery, and training load to find patterns no single app can see.</p>
+          <p style={{ fontSize: isMobile ? 15 : 17, color: T.textSoft, maxWidth: 580, margin: "0 auto" }}>These are real examples from a single ride analysis. AIM connects your power data, body composition, sleep, recovery, and training load to find patterns no single app can see.</p>
         </div>
 
         {/* Category filter pills */}
-        <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 32, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", justifyContent: isMobile ? "flex-start" : "center", gap: 8, marginBottom: 32, flexWrap: isMobile ? "nowrap" : "wrap", overflowX: isMobile ? "auto" : "visible", WebkitOverflowScrolling: "touch", paddingBottom: isMobile ? 4 : 0 }}>
           {insightCategoryMeta.map(cat => {
             const count = cat.id === "all" ? exampleInsights.length : exampleInsights.filter(i => i.category === cat.id).length;
             const active = filter === cat.id;
@@ -186,6 +188,8 @@ export default function Landing() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [billingCycle, setBillingCycle] = useState("annual");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { isMobile, isTablet } = useResponsive();
 
   const features = [
     { icon: <Zap size={22} />, title: "AI-Powered Analysis", desc: "Every workout gets a full breakdown with specific, actionable recommendations — not just charts. Know exactly what to change and why." },
@@ -212,43 +216,72 @@ export default function Landing() {
   return (
     <div>
       {/* Nav */}
-      <nav style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, padding: "0 40px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between", background: `${T.bg}dd`, backdropFilter: "blur(20px)", borderBottom: `1px solid ${T.border}` }}>
+      <nav style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, padding: isMobile ? "0 16px" : "0 40px", height: isMobile ? 56 : 64, display: "flex", alignItems: "center", justifyContent: "space-between", background: `${T.bg}dd`, backdropFilter: "blur(20px)", borderBottom: `1px solid ${T.border}` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 32, height: 32, borderRadius: 9, background: T.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: T.bg, letterSpacing: "-0.02em" }}>AI</div>
           <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.03em" }}><span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>AI</span>M</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
-          <a href="#why" style={{ color: T.textSoft, textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Why AIM</a>
-          <a href="#features" style={{ color: T.textSoft, textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Features</a>
-          <a href="#pricing" style={{ color: T.textSoft, textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Pricing</a>
-          <a href="#testimonials" style={{ color: T.textSoft, textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Athletes</a>
-          {user ? (
-            <button onClick={() => navigate("/dashboard")} style={{ ...btn(true), padding: "10px 24px", fontSize: 13 }}>My Dashboard</button>
-          ) : (
-            <>
-              <button onClick={() => navigate("/signin")} style={{ ...btn(false), padding: "8px 20px", fontSize: 13 }}>Sign In</button>
-              <button onClick={() => navigate("/signup")} style={{ ...btn(true), padding: "10px 24px", fontSize: 13 }}>Get Started</button>
-            </>
-          )}
-        </div>
+        {isMobile ? (
+          <button onClick={() => setMenuOpen(true)} style={{ background: "none", border: "none", color: T.text, cursor: "pointer", padding: 8, minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}><Menu size={22} /></button>
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", gap: isTablet ? 20 : 32 }}>
+            <a href="#why" style={{ color: T.textSoft, textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Why AIM</a>
+            <a href="#features" style={{ color: T.textSoft, textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Features</a>
+            <a href="#pricing" style={{ color: T.textSoft, textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Pricing</a>
+            <a href="#testimonials" style={{ color: T.textSoft, textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Athletes</a>
+            {user ? (
+              <button onClick={() => navigate("/dashboard")} style={{ ...btn(true), padding: "10px 24px", fontSize: 13 }}>My Dashboard</button>
+            ) : (
+              <>
+                <button onClick={() => navigate("/signin")} style={{ ...btn(false), padding: "8px 20px", fontSize: 13 }}>Sign In</button>
+                <button onClick={() => navigate("/signup")} style={{ ...btn(true), padding: "10px 24px", fontSize: 13 }}>Get Started</button>
+              </>
+            )}
+          </div>
+        )}
       </nav>
 
+      {/* Mobile menu drawer */}
+      {isMobile && menuOpen && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 200 }}>
+          <div onClick={() => setMenuOpen(false)} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }} />
+          <div style={{ position: "absolute", top: 0, right: 0, width: 280, height: "100vh", background: T.surface, borderLeft: `1px solid ${T.border}`, padding: "20px 24px", display: "flex", flexDirection: "column", gap: 8, overflowY: "auto" }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+              <button onClick={() => setMenuOpen(false)} style={{ background: "none", border: "none", color: T.text, cursor: "pointer", padding: 8, minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}><X size={22} /></button>
+            </div>
+            {[{ href: "#why", label: "Why AIM" }, { href: "#features", label: "Features" }, { href: "#pricing", label: "Pricing" }, { href: "#testimonials", label: "Athletes" }].map(link => (
+              <a key={link.href} href={link.href} onClick={() => setMenuOpen(false)} style={{ color: T.text, textDecoration: "none", fontSize: 16, fontWeight: 600, padding: "14px 0", borderBottom: `1px solid ${T.border}` }}>{link.label}</a>
+            ))}
+            <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+              {user ? (
+                <button onClick={() => { setMenuOpen(false); navigate("/dashboard"); }} style={{ ...btn(true), justifyContent: "center", width: "100%", padding: "14px 24px" }}>My Dashboard</button>
+              ) : (
+                <>
+                  <button onClick={() => { setMenuOpen(false); navigate("/signup"); }} style={{ ...btn(true), justifyContent: "center", width: "100%", padding: "14px 24px" }}>Get Started</button>
+                  <button onClick={() => { setMenuOpen(false); navigate("/signin"); }} style={{ ...btn(false), justifyContent: "center", width: "100%", padding: "14px 24px" }}>Sign In</button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── CLEAN HERO (above the fold — same as original) ── */}
-      <section style={{ paddingTop: 160, paddingBottom: 100, textAlign: "center", position: "relative", overflow: "hidden" }}>
+      <section style={{ paddingTop: isMobile ? 100 : isTablet ? 130 : 160, paddingBottom: isMobile ? 60 : 100, textAlign: "center", position: "relative", overflow: "hidden" }}>
         <NeuralBackground />
-        <div style={{ position: "relative", zIndex: 10, maxWidth: 800, margin: "0 auto", padding: "48px 48px", background: `radial-gradient(ellipse at center, ${T.bg} 0%, ${T.bg}ee 60%, transparent 100%)`, borderRadius: 32 }}>
-          <h1 style={{ fontSize: 64, fontWeight: 800, lineHeight: 1.05, letterSpacing: "-0.04em", margin: "0 0 24px" }}>
+        <div style={{ position: "relative", zIndex: 10, maxWidth: 800, margin: "0 auto", padding: isMobile ? "32px 20px" : "48px 48px", background: `radial-gradient(ellipse at center, ${T.bg} 0%, ${T.bg}ee 60%, transparent 100%)`, borderRadius: isMobile ? 20 : 32 }}>
+          <h1 style={{ fontSize: isMobile ? 36 : isTablet ? 48 : 64, fontWeight: 800, lineHeight: 1.05, letterSpacing: "-0.04em", margin: "0 0 24px" }}>
             Your AI<br />
             <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Performance Coach</span>
           </h1>
-          <p style={{ fontSize: 19, color: T.textSoft, lineHeight: 1.6, maxWidth: 560, margin: "0 auto 40px", fontWeight: 400 }}>
+          <p style={{ fontSize: isMobile ? 16 : 19, color: T.textSoft, lineHeight: 1.6, maxWidth: 560, margin: "0 auto 40px", fontWeight: 400 }}>
             AIM connects all your fitness data — power, sleep, recovery, body composition, blood work, and DEXA scans — and uses AI to deliver actionable insights with specific recommendations, not just numbers.
           </p>
-          <div style={{ display: "flex", justifyContent: "center", gap: 16 }}>
-            <button onClick={() => navigate(user ? "/dashboard" : "/signup")} style={{ ...btn(true), fontSize: 16, padding: "16px 36px" }}>{user ? "Go to Dashboard" : "Start Your Free Trial"} <ArrowRight size={18} /></button>
-            <button style={{ ...btn(false), fontSize: 16, padding: "16px 36px" }}>Watch Demo</button>
+          <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "center", gap: isMobile ? 12 : 16 }}>
+            <button onClick={() => navigate(user ? "/dashboard" : "/signup")} style={{ ...btn(true), fontSize: isMobile ? 15 : 16, padding: isMobile ? "14px 24px" : "16px 36px", justifyContent: "center" }}>{user ? "Go to Dashboard" : "Start Your Free Trial"} <ArrowRight size={18} /></button>
+            <button style={{ ...btn(false), fontSize: isMobile ? 15 : 16, padding: isMobile ? "14px 24px" : "16px 36px", justifyContent: "center" }}>Watch Demo</button>
           </div>
-          <div style={{ marginTop: 48, display: "flex", justifyContent: "center", gap: 32, alignItems: "center" }}>
+          <div style={{ marginTop: isMobile ? 32 : 48, display: "flex", flexWrap: "wrap", justifyContent: "center", gap: isMobile ? "8px 20px" : 32, alignItems: "center" }}>
             {["Strava", "Wahoo", "Garmin", "Oura", "Whoop", "Withings"].map(n => (
               <span key={n} style={{ fontSize: 13, color: T.textDim, fontWeight: 500, letterSpacing: "0.04em" }}>{n}</span>
             ))}
@@ -258,11 +291,11 @@ export default function Landing() {
       </section>
 
       {/* Metrics strip */}
-      <section style={{ borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, padding: "32px 0", background: T.surface }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", justifyContent: "space-around", textAlign: "center" }}>
+      <section style={{ borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, padding: isMobile ? "24px 16px" : "32px 0", background: T.surface }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: isMobile ? 20 : 0, textAlign: "center" }}>
           {[{ n: "100+", l: "Metrics Tracked" }, { n: "18+", l: "App Integrations" }, { n: "40+", l: "Blood Biomarkers" }, { n: "24/7", l: "AI Analysis" }].map(s => (
             <div key={s.l}>
-              <div style={{ fontSize: 36, fontWeight: 800, fontFamily: mono, background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{s.n}</div>
+              <div style={{ fontSize: isMobile ? 28 : 36, fontWeight: 800, fontFamily: mono, background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{s.n}</div>
               <div style={{ fontSize: 13, color: T.textSoft, marginTop: 4 }}>{s.l}</div>
             </div>
           ))}
@@ -270,13 +303,13 @@ export default function Landing() {
       </section>
 
       {/* ── A MESSAGE FROM THE FOUNDER ── */}
-      <section id="about" style={{ padding: "80px 40px", background: T.surface, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}` }}>
+      <section id="about" style={{ padding: isMobile ? "60px 16px" : isTablet ? "80px 24px" : "80px 40px", background: T.surface, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}` }}>
         <div style={{ maxWidth: 1000, margin: "0 auto" }}>
-          <p style={{ fontSize: 12, color: T.accent, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", textAlign: "center", marginBottom: 48 }}>A Message from the Founder</p>
-          <div style={{ display: "flex", gap: 48, alignItems: "center" }}>
-            {/* Photo placeholder */}
-            <div style={{ flexShrink: 0, width: 320 }}>
-              <div style={{ width: 320, height: 400, borderRadius: 20, overflow: "hidden", position: "relative" }}>
+          <p style={{ fontSize: 12, color: T.accent, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", textAlign: "center", marginBottom: isMobile ? 32 : 48 }}>A Message from the Founder</p>
+          <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: isMobile ? 32 : isTablet ? 32 : 48, alignItems: isMobile ? "center" : "center" }}>
+            {/* Photo */}
+            <div style={{ flexShrink: 0, width: isMobile ? "100%" : isTablet ? 220 : 320, maxWidth: isMobile ? 280 : undefined }}>
+              <div style={{ width: "100%", aspectRatio: "4/5", borderRadius: 20, overflow: "hidden", position: "relative" }}>
                 <img src="/kristen.jpg" alt="Kristen Faulkner" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               </div>
               <div style={{ textAlign: "center", marginTop: 16 }}>
@@ -287,14 +320,14 @@ export default function Landing() {
             </div>
             {/* Quote */}
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 48, color: T.accent, fontWeight: 800, lineHeight: 1, marginBottom: 8, opacity: 0.3 }}>"</div>
-              <p style={{ fontSize: 20, color: T.text, lineHeight: 1.7, margin: "0 0 20px", fontWeight: 500 }}>
+              <div style={{ fontSize: isMobile ? 36 : 48, color: T.accent, fontWeight: 800, lineHeight: 1, marginBottom: 8, opacity: 0.3 }}>"</div>
+              <p style={{ fontSize: isMobile ? 16 : 20, color: T.text, lineHeight: 1.7, margin: "0 0 20px", fontWeight: 500 }}>
                 I went from Venture Capital in Silicon Valley to the Olympic podium, and the whole way I was searching for insights that didn't exist. I had power files, blood work, sleep data, body comp scans, and a hormone cycle that affected everything. But no tool could connect them.
               </p>
-              <p style={{ fontSize: 20, color: T.text, lineHeight: 1.7, margin: "0 0 20px", fontWeight: 500 }}>
+              <p style={{ fontSize: isMobile ? 16 : 20, color: T.text, lineHeight: 1.7, margin: "0 0 20px", fontWeight: 500 }}>
                 I built AIM because I wanted the analysis I couldn't find anywhere else. The biomarker patterns, the recovery protocols, the performance boosters, the training frameworks that actually won races. Everything I learned racing at the highest level, I've put into this platform.
               </p>
-              <p style={{ fontSize: 20, color: T.text, lineHeight: 1.7, margin: "0 0 20px", fontWeight: 500 }}>
+              <p style={{ fontSize: isMobile ? 16 : 20, color: T.text, lineHeight: 1.7, margin: "0 0 20px", fontWeight: 500 }}>
                 Our health is our most valuable asset. I want to make world-class performance intelligence accessible to every athlete, not just those with a pro team behind them.
               </p>
               <div style={{ width: 48, height: 2, background: T.gradient, marginBottom: 16 }} />
@@ -306,14 +339,14 @@ export default function Landing() {
       </section>
 
       {/* ── WHY APEX IS DIFFERENT ── */}
-      <section id="why" style={{ padding: "100px 40px", maxWidth: 1100, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: 64 }}>
-          <h2 style={{ fontSize: 42, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 16px" }}>
+      <section id="why" style={{ padding: isMobile ? "60px 16px" : isTablet ? "80px 24px" : "100px 40px", maxWidth: 1100, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: isMobile ? 40 : 64 }}>
+          <h2 style={{ fontSize: isMobile ? 28 : isTablet ? 34 : 42, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 16px" }}>
             This isn't another <span style={{ color: T.textDim, textDecoration: "line-through", textDecorationColor: T.danger + "60" }}>fitness dashboard</span>
           </h2>
-          <p style={{ fontSize: 17, color: T.textSoft, maxWidth: 580, margin: "0 auto" }}>Other apps show you charts. AIM tells you what they mean and exactly what to do about it.</p>
+          <p style={{ fontSize: isMobile ? 15 : 17, color: T.textSoft, maxWidth: 580, margin: "0 auto" }}>Other apps show you charts. AIM tells you what they mean and exactly what to do about it.</p>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "repeat(2, 1fr)" : "repeat(3, 1fr)", gap: isMobile ? 16 : 24 }}>
           {[
             { emoji: "\u{1F9EC}", title: "Cross-domain intelligence no one else has", desc: "AIM is the only platform that reasons across your blood work, training data, sleep, body composition, nutrition, and menstrual cycle simultaneously. Your ferritin trend explains your power plateau. Your DEXA changes reveal whether weight loss is fat or muscle." },
             { emoji: "\u{1F3C5}", title: "Built by a 2x Olympic Champion", desc: "The analysis frameworks, biomarker ranges, and training prescriptions in AIM come from the same system used to win Olympic gold — refined through years of world-class competition, sports science research, and elite coaching." },
@@ -334,12 +367,12 @@ export default function Landing() {
       <InsightsShowcase navigate={navigate} user={user} />
 
       {/* Features */}
-      <section id="features" style={{ padding: "100px 40px", maxWidth: 1200, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: 64 }}>
-          <h2 style={{ fontSize: 42, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 16px" }}>Intelligence that <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>connects everything</span></h2>
-          <p style={{ fontSize: 17, color: T.textSoft, maxWidth: 560, margin: "0 auto" }}>Not just another dashboard. AIM reasons across your entire data ecosystem to find patterns no single app can see.</p>
+      <section id="features" style={{ padding: isMobile ? "60px 16px" : isTablet ? "80px 24px" : "100px 40px", maxWidth: 1200, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: isMobile ? 40 : 64 }}>
+          <h2 style={{ fontSize: isMobile ? 28 : isTablet ? 34 : 42, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 16px" }}>Intelligence that <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>connects everything</span></h2>
+          <p style={{ fontSize: isMobile ? 15 : 17, color: T.textSoft, maxWidth: 560, margin: "0 auto" }}>Not just another dashboard. AIM reasons across your entire data ecosystem to find patterns no single app can see.</p>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "repeat(2, 1fr)" : "repeat(3, 1fr)", gap: isMobile ? 14 : 20 }}>
           {features.map((f, i) => (
             <div key={i} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: "32px 28px", transition: "all 0.3s", cursor: "default", position: "relative", overflow: "hidden" }}
               onMouseOver={e => { e.currentTarget.style.borderColor = T.borderHover; e.currentTarget.style.transform = "translateY(-4px)"; }}
@@ -354,11 +387,11 @@ export default function Landing() {
       </section>
 
       {/* ── INTEGRATIONS ── */}
-      <section id="integrations" style={{ padding: "100px 40px", background: T.surface, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}` }}>
+      <section id="integrations" style={{ padding: isMobile ? "60px 16px" : isTablet ? "80px 24px" : "100px 40px", background: T.surface, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}` }}>
         <div style={{ maxWidth: 1000, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: 64 }}>
-            <h2 style={{ fontSize: 42, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 16px" }}>All your data, <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>one platform</span></h2>
-            <p style={{ fontSize: 17, color: T.textSoft, maxWidth: 560, margin: "0 auto" }}>Connect the tools you already use. AIM pulls everything together so you don't have to.</p>
+          <div style={{ textAlign: "center", marginBottom: isMobile ? 40 : 64 }}>
+            <h2 style={{ fontSize: isMobile ? 28 : isTablet ? 34 : 42, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 16px" }}>All your data, <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>one platform</span></h2>
+            <p style={{ fontSize: isMobile ? 15 : 17, color: T.textSoft, maxWidth: 560, margin: "0 auto" }}>Connect the tools you already use. AIM pulls everything together so you don't have to.</p>
           </div>
           {[
             { heading: "Coming Soon", apps: [
@@ -386,7 +419,7 @@ export default function Landing() {
                 <span style={{ fontSize: 13, fontWeight: 700, color: T.warn, letterSpacing: "0.06em", textTransform: "uppercase" }}>{group.heading}</span>
                 <div style={{ flex: 1, height: 1, background: T.border }} />
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : isTablet ? "repeat(4, 1fr)" : "repeat(6, 1fr)", gap: 12 }}>
                 {group.apps.map((app) => (
                   <div key={app.name} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px 12px", textAlign: "center", transition: "all 0.3s", cursor: "default" }}
                     onMouseOver={e => { e.currentTarget.style.borderColor = T.borderHover; e.currentTarget.style.transform = "translateY(-3px)"; }}
@@ -409,11 +442,11 @@ export default function Landing() {
       </section>
 
       {/* ── PRICING ── */}
-      <section id="pricing" style={{ padding: "100px 40px" }}>
+      <section id="pricing" style={{ padding: isMobile ? "60px 16px" : isTablet ? "80px 24px" : "100px 40px" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: 48 }}>
-            <h2 style={{ fontSize: 42, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 16px" }}>Invest in your <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>greatest asset</span></h2>
-            <p style={{ fontSize: 17, color: T.textSoft, maxWidth: 480, margin: "0 auto 24px" }}>Less than a single coaching session per month. More actionable than a year of guessing.</p>
+          <div style={{ textAlign: "center", marginBottom: isMobile ? 32 : 48 }}>
+            <h2 style={{ fontSize: isMobile ? 28 : isTablet ? 34 : 42, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 16px" }}>Invest in your <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>greatest asset</span></h2>
+            <p style={{ fontSize: isMobile ? 15 : 17, color: T.textSoft, maxWidth: 480, margin: "0 auto 24px" }}>Less than a single coaching session per month. More actionable than a year of guessing.</p>
             <div style={{ display: "inline-flex", alignItems: "center", gap: 12, padding: "4px", background: T.card, borderRadius: 12, border: `1px solid ${T.border}` }}>
               {["monthly", "annual"].map(cycle => (
                 <button key={cycle} onClick={() => setBillingCycle(cycle)} style={{ padding: "8px 20px", borderRadius: 9, fontSize: 13, fontWeight: 600, fontFamily: font, cursor: "pointer", border: "none", transition: "all 0.2s", background: billingCycle === cycle ? T.accent : "transparent", color: billingCycle === cycle ? T.bg : T.textDim }}>
@@ -422,12 +455,12 @@ export default function Landing() {
               ))}
             </div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20, alignItems: "start" }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: isMobile ? 16 : 20, alignItems: "start" }}>
             {plans.map((plan) => {
               const price = billingCycle === "annual" ? plan.annualPrice : plan.monthlyPrice;
               const isPro = plan.name === "Pro";
               return (
-                <div key={plan.name} style={{ background: T.card, borderRadius: 20, padding: "36px 28px", position: "relative", overflow: "hidden", border: `1px solid ${isPro ? T.accentMid : T.border}`, transform: isPro ? "scale(1.03)" : "none", boxShadow: isPro ? `0 0 60px ${T.accentDim}` : "none" }}>
+                <div key={plan.name} style={{ background: T.card, borderRadius: 20, padding: isMobile ? "28px 24px" : "36px 28px", position: "relative", overflow: "hidden", border: `1px solid ${isPro ? T.accentMid : T.border}`, transform: isPro && !isMobile ? "scale(1.03)" : "none", boxShadow: isPro ? `0 0 60px ${T.accentDim}` : "none" }}>
                   {plan.badge && <div style={{ position: "absolute", top: 16, right: 16, padding: "3px 10px", borderRadius: 6, background: T.accentDim, border: `1px solid ${T.accentMid}`, fontSize: 10, fontWeight: 800, color: T.accent, letterSpacing: "0.06em" }}>{plan.badge}</div>}
                   <h3 style={{ fontSize: 20, fontWeight: 800, margin: "0 0 4px", letterSpacing: "-0.02em" }}>{plan.name}</h3>
                   <p style={{ fontSize: 13, color: T.textDim, margin: "0 0 20px", lineHeight: 1.5 }}>{plan.desc}</p>
@@ -454,11 +487,11 @@ export default function Landing() {
       </section>
 
       {/* Testimonials */}
-      <section id="testimonials" style={{ padding: "100px 40px", maxWidth: 1200, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: 48 }}>
-          <h2 style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 12px" }}>Athletes who stopped guessing</h2>
+      <section id="testimonials" style={{ padding: isMobile ? "60px 16px" : isTablet ? "80px 24px" : "100px 40px", maxWidth: 1200, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: isMobile ? 32 : 48 }}>
+          <h2 style={{ fontSize: isMobile ? 24 : 36, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 12px" }}>Athletes who stopped guessing</h2>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 16 }}>
           {testimonials.map((t, i) => (
             <div key={i} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: "24px 20px" }}>
               <div style={{ display: "flex", gap: 2, marginBottom: 14 }}>{Array(t.stars).fill(0).map((_, j) => <Star key={j} size={12} fill={T.accent} color={T.accent} />)}</div>
@@ -470,18 +503,18 @@ export default function Landing() {
       </section>
 
       {/* Final CTA */}
-      <section style={{ padding: "80px 40px", textAlign: "center" }}>
-        <div style={{ maxWidth: 640, margin: "0 auto", padding: "60px 40px", background: T.gradientSubtle, borderRadius: 24, border: `1px solid ${T.accentMid}`, position: "relative", overflow: "hidden" }}>
+      <section style={{ padding: isMobile ? "60px 16px" : "80px 40px", textAlign: "center" }}>
+        <div style={{ maxWidth: 640, margin: "0 auto", padding: isMobile ? "40px 24px" : "60px 40px", background: T.gradientSubtle, borderRadius: isMobile ? 20 : 24, border: `1px solid ${T.accentMid}`, position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", top: -100, left: "50%", transform: "translateX(-50%)", width: 500, height: 500, background: "radial-gradient(circle, rgba(0,229,160,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
-          <h2 style={{ fontSize: 30, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 8px", position: "relative" }}>Your body deserves better than guesswork.</h2>
-          <p style={{ fontSize: 15, color: T.textSoft, margin: "0 0 32px", position: "relative", maxWidth: 440, marginLeft: "auto", marginRight: "auto", lineHeight: 1.6 }}>Start your free trial today. Connect your apps, upload your blood work, and see what you've been missing.</p>
-          <button onClick={() => navigate(user ? "/dashboard" : "/signup")} style={{ ...btn(true), fontSize: 16, padding: "16px 40px", position: "relative" }}>{user ? "Go to Dashboard" : "Get Started Free"} <ArrowRight size={18} /></button>
+          <h2 style={{ fontSize: isMobile ? 24 : 30, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 8px", position: "relative" }}>Your body deserves better than guesswork.</h2>
+          <p style={{ fontSize: isMobile ? 14 : 15, color: T.textSoft, margin: "0 0 32px", position: "relative", maxWidth: 440, marginLeft: "auto", marginRight: "auto", lineHeight: 1.6 }}>Start your free trial today. Connect your apps, upload your blood work, and see what you've been missing.</p>
+          <button onClick={() => navigate(user ? "/dashboard" : "/signup")} style={{ ...btn(true), fontSize: isMobile ? 15 : 16, padding: isMobile ? "14px 28px" : "16px 40px", position: "relative", width: isMobile ? "100%" : "auto", justifyContent: "center" }}>{user ? "Go to Dashboard" : "Get Started Free"} <ArrowRight size={18} /></button>
         </div>
       </section>
 
       {/* Footer */}
-      <footer style={{ borderTop: `1px solid ${T.border}`, padding: "48px 40px 32px" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+      <footer style={{ borderTop: `1px solid ${T.border}`, padding: isMobile ? "32px 16px 24px" : "48px 40px 32px" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: "flex-start", gap: isMobile ? 32 : 0 }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
               <div style={{ width: 24, height: 24, borderRadius: 6, background: T.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: T.bg, letterSpacing: "-0.02em" }}>AI</div>
@@ -489,7 +522,7 @@ export default function Landing() {
             </div>
             <p style={{ fontSize: 12, color: T.textDim, maxWidth: 280, lineHeight: 1.6 }}>AI-powered performance intelligence for endurance athletes. Built by Kristen Faulkner, 2x Olympic Gold Medalist.</p>
           </div>
-          <div style={{ display: "flex", gap: 64 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(3, auto)", gap: isMobile ? "24px 32px" : 64 }}>
             <div>
               <div style={{ fontSize: 11, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12, fontWeight: 600 }}>Product</div>
               <a href="#features" style={{ display: "block", fontSize: 13, color: T.textSoft, textDecoration: "none", marginBottom: 8 }}>Features</a>
@@ -512,7 +545,7 @@ export default function Landing() {
             </div>
           </div>
         </div>
-        <div style={{ maxWidth: 1200, margin: "32px auto 0", paddingTop: 24, borderTop: `1px solid ${T.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ maxWidth: 1200, margin: "32px auto 0", paddingTop: 24, borderTop: `1px solid ${T.border}`, display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: "center", gap: isMobile ? 8 : 0 }}>
           <span style={{ fontSize: 12, color: T.textDim }}>&copy; 2026 AIM Performance Intelligence. Founded by Kristen Faulkner.</span>
           <span style={{ fontSize: 12, color: T.textDim }}>Built with ♥ for athletes who love data</span>
         </div>

@@ -154,6 +154,7 @@ export default function BloodPanelUpload({ onUploadComplete, compact = false }) 
           textAlign: "center",
           cursor: "pointer",
           transition: "all 0.2s",
+          minHeight: 120,
         }}
       >
         <input

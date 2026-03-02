@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { T, font, mono } from "../theme/tokens";
 import { boosters, catColors, catLabels } from "../data/boosters";
+import { useResponsive } from "../hooks/useResponsive";
+import { Menu, X } from "lucide-react";
 
 // ── CONFIDENCE BADGE ──
 function ConfidenceBadge({ level }) {
@@ -48,47 +50,48 @@ function RecipeCard({ recipe }) {
 // ── BOOSTER DETAIL MODAL ──
 function BoosterDetail({ booster, onClose }) {
   const [activeTab, setActiveTab] = useState("overview");
+  const { isMobile } = useResponsive();
   const color = catColors[booster.category];
   const tabs = [
     { id: "overview", label: "Overview" },
     { id: "protocol", label: "Protocol" },
-    { id: "risks", label: "Risks & Cautions" },
+    { id: "risks", label: "Risks" },
     { id: "science", label: `Research (${booster.studies.length})` },
     ...(booster.recipes.length ? [{ id: "recipes", label: "Recipes" }] : []),
   ];
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}
+    <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center" }}
       onClick={onClose}>
       {/* Backdrop */}
       <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }} />
       {/* Modal */}
-      <div style={{ position: "relative", width: "100%", maxWidth: 720, maxHeight: "85vh", background: T.card, borderRadius: 20, border: `1px solid ${T.border}`, overflow: "hidden", display: "flex", flexDirection: "column" }}
+      <div style={{ position: "relative", width: "100%", maxWidth: isMobile ? "100%" : 720, maxHeight: isMobile ? "100vh" : "85vh", height: isMobile ? "100vh" : "auto", background: T.card, borderRadius: isMobile ? 0 : 20, border: isMobile ? "none" : `1px solid ${T.border}`, overflow: "hidden", display: "flex", flexDirection: "column" }}
         onClick={e => e.stopPropagation()}>
         {/* Top accent line */}
         <div style={{ height: 3, background: `linear-gradient(90deg, ${color}, transparent)` }} />
 
         {/* Header */}
-        <div style={{ padding: "24px 28px 0" }}>
+        <div style={{ padding: isMobile ? "16px 16px 0" : "24px 28px 0" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <div>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
-                <span style={{ fontSize: 28 }}>{booster.icon}</span>
-                <div>
-                  <h2 style={{ fontSize: 22, fontWeight: 800, margin: 0, letterSpacing: "-0.02em", fontFamily: font }}>{booster.title}</h2>
-                  <p style={{ fontSize: 14, color: T.textSoft, margin: "4px 0 0" }}>{booster.subtitle}</p>
+                <span style={{ fontSize: isMobile ? 24 : 28 }}>{booster.icon}</span>
+                <div style={{ minWidth: 0 }}>
+                  <h2 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800, margin: 0, letterSpacing: "-0.02em", fontFamily: font }}>{booster.title}</h2>
+                  <p style={{ fontSize: isMobile ? 12 : 14, color: T.textSoft, margin: "4px 0 0" }}>{booster.subtitle}</p>
                 </div>
               </div>
               <ConfidenceBadge level={booster.confidence} />
             </div>
-            <button onClick={onClose} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", color: T.textSoft, cursor: "pointer", fontSize: 16 }}>✕</button>
+            <button onClick={onClose} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center", color: T.textSoft, cursor: "pointer", fontSize: 16, flexShrink: 0 }}>✕</button>
           </div>
 
           {/* Tabs */}
-          <div style={{ display: "flex", gap: 4, marginTop: 20, borderBottom: `1px solid ${T.border}`, paddingBottom: 0 }}>
+          <div style={{ display: "flex", gap: 4, marginTop: 16, borderBottom: `1px solid ${T.border}`, paddingBottom: 0, overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
             {tabs.map(t => (
               <button key={t.id} onClick={() => setActiveTab(t.id)}
-                style={{ padding: "10px 16px", background: "none", border: "none", borderBottom: `2px solid ${activeTab === t.id ? color : "transparent"}`, fontSize: 13, fontWeight: activeTab === t.id ? 700 : 500, color: activeTab === t.id ? T.text : T.textDim, cursor: "pointer", fontFamily: font, transition: "all 0.2s" }}>
+                style={{ padding: isMobile ? "8px 12px" : "10px 16px", background: "none", border: "none", borderBottom: `2px solid ${activeTab === t.id ? color : "transparent"}`, fontSize: isMobile ? 12 : 13, fontWeight: activeTab === t.id ? 700 : 500, color: activeTab === t.id ? T.text : T.textDim, cursor: "pointer", fontFamily: font, transition: "all 0.2s", whiteSpace: "nowrap", flexShrink: 0 }}>
                 {t.label}
               </button>
             ))}
@@ -96,7 +99,7 @@ function BoosterDetail({ booster, onClose }) {
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1, overflow: "auto", padding: "20px 28px 28px" }}>
+        <div style={{ flex: 1, overflow: "auto", padding: isMobile ? "16px 16px 24px" : "20px 28px 28px" }}>
           {activeTab === "overview" && (
             <div>
               <p style={{ fontSize: 15, color: T.text, lineHeight: 1.7, margin: "0 0 20px" }}>{booster.summary}</p>
@@ -177,6 +180,8 @@ export default function Boosters() {
   const [filter, setFilter] = useState("all");
   const [selected, setSelected] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { isMobile, isTablet } = useResponsive();
 
   const filtered = boosters.filter(b => {
     const matchesCat = filter === "all" || b.category === filter;
@@ -191,38 +196,59 @@ export default function Boosters() {
       <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
       {/* Nav */}
-      <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px", height: 56, borderBottom: `1px solid ${T.border}`, background: `${T.surface}cc`, backdropFilter: "blur(16px)", position: "sticky", top: 0, zIndex: 100 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+      <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: isMobile ? "0 12px" : "0 32px", height: isMobile ? 48 : 56, borderBottom: `1px solid ${T.border}`, background: `${T.surface}cc`, backdropFilter: "blur(16px)", position: "sticky", top: 0, zIndex: 100 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 10 : 24 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{ width: 28, height: 28, borderRadius: 7, background: "linear-gradient(135deg, #00e5a0, #3b82f6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: T.bg }}>AI</div>
             <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.03em" }}>M</span>
           </div>
-          <div style={{ display: "flex", gap: 3 }}>
+          {!isMobile && (
+            <div style={{ display: "flex", gap: 3 }}>
+              {["Dashboard", "Calendar", "Trends", "Boosters", "Race Planner"].map(item => (
+                <button key={item} style={{ background: item === "Boosters" ? "rgba(0,229,160,0.1)" : "none", border: "none", padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, color: item === "Boosters" ? T.accent : T.textDim, cursor: "pointer", fontFamily: font }}>{item}</button>
+              ))}
+            </div>
+          )}
+        </div>
+        {isMobile ? (
+          <button onClick={() => setMenuOpen(true)} style={{ background: "none", border: "none", color: T.text, cursor: "pointer", padding: 8, minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}><Menu size={20} /></button>
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 9, background: "linear-gradient(135deg, #8b5cf6, #ec4899)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 }}>KF</div>
+          </div>
+        )}
+      </nav>
+
+      {/* Mobile nav drawer */}
+      {isMobile && menuOpen && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 200 }}>
+          <div onClick={() => setMenuOpen(false)} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }} />
+          <div style={{ position: "absolute", top: 0, right: 0, width: 260, height: "100vh", background: T.surface, borderLeft: `1px solid ${T.border}`, padding: "20px 24px", display: "flex", flexDirection: "column", gap: 4 }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+              <button onClick={() => setMenuOpen(false)} style={{ background: "none", border: "none", color: T.text, cursor: "pointer", padding: 8, minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}><X size={20} /></button>
+            </div>
             {["Dashboard", "Calendar", "Trends", "Boosters", "Race Planner"].map(item => (
-              <button key={item} style={{ background: item === "Boosters" ? "rgba(0,229,160,0.1)" : "none", border: "none", padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, color: item === "Boosters" ? T.accent : T.textDim, cursor: "pointer", fontFamily: font }}>{item}</button>
+              <button key={item} onClick={() => setMenuOpen(false)} style={{ background: item === "Boosters" ? "rgba(0,229,160,0.1)" : "none", border: "none", padding: "12px 14px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: item === "Boosters" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font, textAlign: "left" }}>{item}</button>
             ))}
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 9, background: "linear-gradient(135deg, #8b5cf6, #ec4899)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 }}>KF</div>
-        </div>
-      </nav>
+      )}
 
       {/* Hero */}
-      <div style={{ padding: "48px 32px 0", maxWidth: 1100, margin: "0 auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 32 }}>
+      <div style={{ padding: isMobile ? "24px 16px 0" : "48px 32px 0", maxWidth: 1100, margin: "0 auto" }}>
+        <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "stretch" : "flex-end", marginBottom: isMobile ? 20 : 32, gap: isMobile ? 16 : 0 }}>
           <div>
-            <h1 style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 8px" }}>
+            <h1 style={{ fontSize: isMobile ? 28 : 36, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 8px" }}>
               Performance <span style={{ background: "linear-gradient(135deg, #00e5a0, #3b82f6)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Boosters</span>
             </h1>
-            <p style={{ fontSize: 15, color: T.textSoft, margin: 0 }}>
+            <p style={{ fontSize: isMobile ? 14 : 15, color: T.textSoft, margin: 0 }}>
               Science-backed supplements, protocols, and training strategies. Every recommendation includes peer-reviewed research.
             </p>
           </div>
           {/* Search */}
           <div style={{ position: "relative" }}>
             <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search boosters..."
-              style={{ padding: "10px 16px 10px 36px", background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, fontSize: 13, color: T.text, fontFamily: font, outline: "none", width: 220, transition: "border-color 0.2s" }}
+              style={{ padding: "10px 16px 10px 36px", background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, fontSize: 13, color: T.text, fontFamily: font, outline: "none", width: isMobile ? "100%" : 220, transition: "border-color 0.2s", boxSizing: "border-box" }}
               onFocus={e => e.target.style.borderColor = T.borderHover}
               onBlur={e => e.target.style.borderColor = T.border} />
             <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: T.textDim }}>🔍</span>
@@ -230,14 +256,14 @@ export default function Boosters() {
         </div>
 
         {/* Category filters */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 32, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: isMobile ? 20 : 32, overflowX: isMobile ? "auto" : "visible", flexWrap: isMobile ? "nowrap" : "wrap", WebkitOverflowScrolling: "touch", paddingBottom: isMobile ? 4 : 0 }}>
           {allCats.map(cat => {
             const count = cat === "all" ? boosters.length : boosters.filter(b => b.category === cat).length;
             const isActive = filter === cat;
             const color = cat === "all" ? T.accent : catColors[cat];
             return (
               <button key={cat} onClick={() => setFilter(cat)}
-                style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", background: isActive ? `${color}15` : T.surface, border: `1px solid ${isActive ? `${color}40` : T.border}`, borderRadius: 10, fontSize: 13, fontWeight: isActive ? 700 : 500, color: isActive ? color : T.textSoft, cursor: "pointer", fontFamily: font, transition: "all 0.2s" }}>
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", background: isActive ? `${color}15` : T.surface, border: `1px solid ${isActive ? `${color}40` : T.border}`, borderRadius: 10, fontSize: 13, fontWeight: isActive ? 700 : 500, color: isActive ? color : T.textSoft, cursor: "pointer", fontFamily: font, transition: "all 0.2s", whiteSpace: "nowrap", flexShrink: 0 }}>
                 {cat === "all" ? "All" : catLabels[cat]}
                 <span style={{ fontSize: 11, color: isActive ? color : T.textDim, fontFamily: mono }}>{count}</span>
               </button>
@@ -246,7 +272,7 @@ export default function Boosters() {
         </div>
 
         {/* Grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, paddingBottom: 64 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "repeat(2, 1fr)" : "repeat(3, 1fr)", gap: 16, paddingBottom: 64 }}>
           {filtered.map((b) => {
             const color = catColors[b.category];
             return (
