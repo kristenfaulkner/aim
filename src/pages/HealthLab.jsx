@@ -213,7 +213,7 @@ function PanelHistory({ panels, onDelete }) {
 }
 
 // ── Additional Results (biomarkers not in our DB) ──
-function AdditionalResults({ panels }) {
+function AdditionalResults({ panels, isMobile }) {
   const latest = panels[panels.length - 1];
   const otherResults = latest?.allResults?.other_results || [];
   if (otherResults.length === 0) return null;
@@ -489,7 +489,7 @@ export default function HealthLab() {
             </div>
 
             {/* Additional results not in biomarkerDB */}
-            <AdditionalResults panels={panels} />
+            <AdditionalResults panels={panels} isMobile={isMobile} />
 
             {/* AI Analysis from latest panel */}
             {latestPanel?.aiAnalysis && (() => {
