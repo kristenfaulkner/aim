@@ -1,6 +1,6 @@
 import { verifySession, cors } from "../../_lib/auth.js";
 import { supabaseAdmin } from "../../_lib/supabase.js";
-import { getEightSleepToken, fetchSleepData, mapEightSleepToMetrics } from "../../_lib/eightsleep.js";
+import { getEightSleepToken, fetchSleepData, mapEightSleepToMetrics, extractExtendedMetrics } from "../../_lib/eightsleep.js";
 
 /**
  * Sync a single day of Eight Sleep data into daily_metrics.
@@ -15,6 +15,9 @@ async function syncDay(userId, date, accessToken, eightSleepUserId, timezone) {
   const mapped = mapEightSleepToMetrics(dayData);
   if (!mapped || Object.keys(mapped).length === 0) return null;
 
+  // Extract extended metrics (all scores, HRV details, temp, disruptions, etc.)
+  const extended = extractExtendedMetrics(dayData);
+
   // Check for existing row to merge source_data
   const { data: existing } = await supabaseAdmin
     .from("daily_metrics")
@@ -25,7 +28,8 @@ async function syncDay(userId, date, accessToken, eightSleepUserId, timezone) {
 
   const sourceData = {
     ...(existing?.source_data || {}),
-    eightsleep: dayData,
+    eightsleep: dayData,              // Raw API response
+    eightsleep_extended: extended,     // Structured extended metrics
   };
 
   if (existing) {

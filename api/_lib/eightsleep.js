@@ -151,43 +151,130 @@ export async function fetchSleepData(accessToken, eightSleepUserId, fromDate, to
 }
 
 /**
- * Extract duration for a specific sleep stage from the stages array.
- */
-function extractStageDuration(stages, stageName) {
-  if (!stages || !Array.isArray(stages)) return null;
-  const stage = stages.find(s => s.stage?.toLowerCase() === stageName);
-  return stage?.duration ?? null;
-}
-
-/**
- * Map a single Eight Sleep sleep day to partial daily_metrics columns.
+ * Map a single Eight Sleep trends day to partial daily_metrics columns.
+ *
+ * Eight Sleep trends endpoint returns:
+ *   score, tnt, presenceStart/End, presenceDuration, sleepDuration,
+ *   lightDuration, deepDuration, remDuration, latencyAsleepSeconds,
+ *   latencyOutSeconds, respiratoryRate, heartRate, processing,
+ *   sleepQualityScore: { total, sleepDurationSeconds.score,
+ *     hrv: { score, current, average, minimum, maximum },
+ *     respiratoryRate: { score, current, average },
+ *     heartRate: { score, average, minimum, maximum },
+ *     tempBedC: { average }, tempRoomC: { average } },
+ *   sleepRoutineScore: { total, latencyAsleepSeconds.score, latencyOutSeconds.score, wakeupConsistency.score },
+ *   sleepFitnessScore: { total },
+ *   sessions[]: { stages[]: { stage, duration }, timeseries: { heartRate, tempBedC, tempRoomC } }
  */
 export function mapEightSleepToMetrics(dayData) {
   if (!dayData) return null;
 
-  const deep = extractStageDuration(dayData.stages, "deep");
-  const rem = extractStageDuration(dayData.stages, "rem");
-  const light = extractStageDuration(dayData.stages, "light");
-  const awake = extractStageDuration(dayData.stages, "awake");
-  const totalSleep = dayData.sleepDurationSeconds ?? null;
+  const sq = dayData.sleepQualityScore || {};
+  const totalSleep = dayData.sleepDuration ?? null;
+  const presenceDuration = dayData.presenceDuration ?? null;
 
-  // Compute sleep efficiency: time asleep / (time asleep + time awake)
+  // Sleep efficiency: time asleep / total time in bed
   let sleepEfficiency = null;
-  if (totalSleep != null && awake != null && (totalSleep + awake) > 0) {
-    sleepEfficiency = Math.round((totalSleep / (totalSleep + awake)) * 100 * 10) / 10;
+  if (totalSleep != null && presenceDuration != null && presenceDuration > 0) {
+    sleepEfficiency = Math.round((totalSleep / presenceDuration) * 100 * 10) / 10;
+  }
+
+  // Extract bed/wake times from presence timestamps
+  let sleepOnset = null;
+  let wakeTime = null;
+  if (dayData.presenceStart) {
+    try { sleepOnset = new Date(dayData.presenceStart).toTimeString().slice(0, 8); } catch {}
+  }
+  if (dayData.presenceEnd) {
+    try { wakeTime = new Date(dayData.presenceEnd).toTimeString().slice(0, 8); } catch {}
   }
 
   const metrics = {};
 
+  // ── Core sleep metrics ──
   if (dayData.score != null) metrics.sleep_score = dayData.score;
   if (totalSleep != null) metrics.total_sleep_seconds = totalSleep;
-  if (deep != null) metrics.deep_sleep_seconds = deep;
-  if (rem != null) metrics.rem_sleep_seconds = rem;
-  if (light != null) metrics.light_sleep_seconds = light;
-  if (dayData.latencyAsleepSeconds != null) metrics.sleep_latency_seconds = dayData.latencyAsleepSeconds;
+  if (dayData.deepDuration != null) metrics.deep_sleep_seconds = dayData.deepDuration;
+  if (dayData.remDuration != null) metrics.rem_sleep_seconds = dayData.remDuration;
+  if (dayData.lightDuration != null) metrics.light_sleep_seconds = dayData.lightDuration;
+  if (dayData.latencyAsleepSeconds != null) metrics.sleep_latency_seconds = Math.round(dayData.latencyAsleepSeconds);
   if (sleepEfficiency != null) metrics.sleep_efficiency_pct = sleepEfficiency;
-  if (dayData.heartRate != null) metrics.resting_hr_bpm = dayData.heartRate;
-  if (dayData.respiratoryRate != null) metrics.respiratory_rate = dayData.respiratoryRate;
+  if (sleepOnset) metrics.sleep_onset_time = sleepOnset;
+  if (wakeTime) metrics.wake_time = wakeTime;
+
+  // ── Heart rate ──
+  // Prefer detailed average from sleepQualityScore, fall back to top-level
+  const hrAvg = sq.heartRate?.average ?? dayData.heartRate;
+  if (hrAvg != null) metrics.resting_hr_bpm = hrAvg;
+
+  // ── HRV (actual ms values from Eight Sleep sensors) ──
+  if (sq.hrv?.average != null) metrics.hrv_overnight_avg_ms = sq.hrv.average;
+  if (sq.hrv?.current != null) metrics.hrv_ms = sq.hrv.current;
+
+  // ── Respiratory rate ──
+  const rrAvg = sq.respiratoryRate?.average ?? dayData.respiratoryRate;
+  if (rrAvg != null) metrics.respiratory_rate = rrAvg;
+
+  // ── Temperature ──
+  if (sq.tempBedC?.average != null) metrics.bed_temperature_celsius = sq.tempBedC.average;
+  // Room temp deviation from typical (~20°C baseline)
+  if (sq.tempRoomC?.average != null) {
+    metrics.skin_temperature_deviation = Math.round((sq.tempRoomC.average - 20) * 10) / 10;
+  }
 
   return metrics;
+}
+
+/**
+ * Build an extended metrics object with all Eight Sleep data that doesn't fit
+ * in standard daily_metrics columns. Stored in source_data.eightsleep_extended.
+ */
+export function extractExtendedMetrics(dayData) {
+  if (!dayData) return null;
+
+  const sq = dayData.sleepQualityScore || {};
+  const sr = dayData.sleepRoutineScore || {};
+  const sf = dayData.sleepFitnessScore || {};
+
+  return {
+    // Scores breakdown
+    sleep_quality_score: sq.total ?? null,
+    sleep_routine_score: sr.total ?? null,
+    sleep_fitness_score: sf.total ?? null,
+    sleep_duration_score: sq.sleepDurationSeconds?.score ?? null,
+    latency_asleep_score: sr.latencyAsleepSeconds?.score ?? null,
+    latency_out_score: sr.latencyOutSeconds?.score ?? null,
+    wakeup_consistency_score: sr.wakeupConsistency?.score ?? null,
+    hrv_score: sq.hrv?.score ?? null,
+    respiratory_rate_score: sq.respiratoryRate?.score ?? null,
+
+    // HRV detailed
+    hrv_current_ms: sq.hrv?.current ?? null,
+    hrv_avg_ms: sq.hrv?.average ?? null,
+    hrv_min_ms: sq.hrv?.minimum ?? null,
+    hrv_max_ms: sq.hrv?.maximum ?? null,
+
+    // Heart rate detailed
+    hr_avg_bpm: sq.heartRate?.average ?? null,
+    hr_min_bpm: sq.heartRate?.minimum ?? null,
+    hr_max_bpm: sq.heartRate?.maximum ?? null,
+
+    // Respiratory rate detailed
+    rr_current: sq.respiratoryRate?.current ?? null,
+    rr_avg: sq.respiratoryRate?.average ?? null,
+
+    // Temperature
+    bed_temp_avg_c: sq.tempBedC?.average ?? null,
+    room_temp_avg_c: sq.tempRoomC?.average ?? null,
+
+    // Disruptions
+    toss_and_turns: dayData.tnt ?? null,
+
+    // Timing
+    presence_start: dayData.presenceStart ?? null,
+    presence_end: dayData.presenceEnd ?? null,
+    presence_duration_seconds: dayData.presenceDuration ?? null,
+    latency_asleep_seconds: dayData.latencyAsleepSeconds ?? null,
+    latency_out_seconds: dayData.latencyOutSeconds ?? null,
+  };
 }
