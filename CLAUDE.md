@@ -36,10 +36,11 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 - `components/` — reusable: `TrainingPeaksImport`, `BloodPanelUpload`, `ProtectedRoute` (auth + consent gate), `NeuralBackground`
 - `hooks/useDashboardData.js` — parallel Supabase queries (7 concurrent) using `Promise.allSettled`
 - `hooks/useActivities.js` — paginated activity list
+- `hooks/useResponsive.js` — responsive breakpoint hook (`isMobile`/`isTablet`/`isDesktop`) via `matchMedia`
 - `lib/api.js` — `apiFetch()` utility adds Bearer token to all `/api` calls
 - `lib/supabase.js` — Supabase client init
 - `data/` — static data: integrations metadata, biomarker clinical ranges, booster protocols, power classification tables
-- `theme/tokens.js` — design tokens exported as `T` (colors, fonts); `catColors` for booster categories
+- `theme/tokens.js` — design tokens exported as `T` (colors, fonts); `catColors` for booster categories; `breakpoints` (mobile/tablet) and `touchMin` (44px)
 
 ### Backend (`/api/`)
 - `_lib/` — shared utilities:
@@ -334,6 +335,17 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 - **Auth tokens**: Bearer token via `Authorization` header; `apiFetch()` handles this automatically on frontend
 - OAuth integrations use connect/callback file pairs in `/api/auth/`; credential-based auth (EightSleep) stores AES-256-GCM encrypted email/password in `integrations.metadata`; file import (TrainingPeaks) uses Supabase storage bucket
 - **Consent flow**: signup requires Terms checkbox → AcceptTerms interstitial for SSO → health data consent in Onboarding Step 1 → ProtectedRoute enforces `terms_accepted_at` before access
+
+### Responsive Breakpoints
+- **Mobile**: < 768px — single column layouts, hamburger nav, full-screen modals, horizontal-scroll filter pills
+- **Tablet**: 768px – 1024px — 2-column grids, slightly reduced padding/font sizes
+- **Desktop**: > 1024px — original layouts (3-4 column grids, side-by-side panels)
+- **Hook**: `useResponsive()` from `src/hooks/useResponsive.js` returns `{ isMobile, isTablet, isDesktop }` using `window.matchMedia` (fires only at breakpoint boundaries)
+- **Pattern**: conditional inline styles — `gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1fr 1fr" : "repeat(3, 1fr)"`. No CSS media queries.
+- **Touch targets**: 44px minimum on mobile (buttons, checkboxes, close icons)
+- **Navigation**: hamburger menu (Menu/X from lucide-react) + slide-out drawer on mobile; inline nav tabs on desktop
+- **Modals**: full-screen on mobile (`maxWidth: "100%"`, `height: "100vh"`, `borderRadius: 0`), centered on desktop
+- **Breakpoint constants**: `breakpoints` and `touchMin` exported from `src/theme/tokens.js`
 
 ## Reference Docs
 

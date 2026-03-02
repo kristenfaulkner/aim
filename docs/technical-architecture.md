@@ -886,6 +886,7 @@ Vekta analyzes up to 5 years of training data for personalized feedback. AIM sho
 - **AI analysis is async.** Don't block the UI waiting for Claude. Show the activity immediately, then load the analysis when it's ready (polling or realtime subscription).
 - **The existing prototype files (aim-landing-page.jsx, apex-dashboard.jsx, apex-boosters.jsx, apex-health-lab.jsx) are the design reference.** Match the visual design exactly — dark theme, #05060a background, #00e5a0 accent, Outfit font, JetBrains Mono for metrics.
 - **Rename all remaining "Apex" references to "AIM"** in the dashboard, boosters, and health lab prototypes.
+- **All components must be mobile-responsive.** Use the `useResponsive()` hook from `src/hooks/useResponsive.js` with conditional inline styles. Breakpoints: mobile < 768px, tablet 768–1024px, desktop > 1024px. Touch targets must be 44px minimum on mobile. Grids collapse from multi-column to single-column. Navigation uses hamburger + drawer on mobile. Modals go full-screen on mobile.
 
 ---
 
