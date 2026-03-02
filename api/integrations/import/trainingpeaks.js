@@ -16,6 +16,7 @@ import { supabaseAdmin } from "../../_lib/supabase.js";
 import { verifySession, cors } from "../../_lib/auth.js";
 import { analyzeActivity } from "../../_lib/ai.js";
 import { isHigherPriority } from "../../_lib/source-priority.js";
+import { backfillUserMetrics } from "../../_lib/backfill.js";
 
 export const config = {
   maxDuration: 300, // 5 minutes for large imports
@@ -393,6 +394,11 @@ export default async function handler(req, res) {
     if (zipPath) {
       await supabaseAdmin.storage.from("import-files").remove([zipPath]).catch(() => {});
     }
+
+    // 10. Backfill derived metrics for any activities missing TSS/IF (fire-and-forget)
+    backfillUserMetrics(session.userId).catch(err =>
+      console.error(`Backfill after TP import failed:`, err.message)
+    );
 
     return res.status(200).json(results);
   } catch (err) {

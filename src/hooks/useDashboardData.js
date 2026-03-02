@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
+import { apiFetch } from "../lib/api";
 
 /**
  * Custom hook that fetches all dashboard data in parallel from Supabase.
@@ -8,6 +9,7 @@ import { useAuth } from "../context/AuthContext";
  */
 export function useDashboardData(selectedActivityId = null) {
   const { user, profile } = useAuth();
+  const backfillRan = useRef(false);
   const [activity, setActivity] = useState(null);
   const [dailyMetrics, setDailyMetrics] = useState(null);
   const [fitnessHistory, setFitnessHistory] = useState([]);
@@ -143,6 +145,14 @@ export function useDashboardData(selectedActivityId = null) {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Auto-backfill derived metrics once per mount (fire-and-forget)
+  useEffect(() => {
+    if (user && !backfillRan.current) {
+      backfillRan.current = true;
+      apiFetch("/activities/backfill-metrics", { method: "POST" }).catch(() => {});
+    }
+  }, [user]);
 
   return {
     activity,

@@ -89,13 +89,17 @@ export default function Onboarding() {
         weekly_hours: form.weekly_hours,
         max_hr_bpm: maxHrVal,
         ftp_watts: ftpVal,
-        power_zones: computePowerZones(ftpVal),
-        hr_zones: computeHRZones(maxHrVal),
         uses_cycle_tracking: form.uses_cycle_tracking,
         hormonal_contraception: form.hormonal_contraception || null,
         health_data_consent_at: new Date().toISOString(),
         onboarding_completed: true,
       });
+
+      // Save zone columns separately — these may not exist in production yet
+      updateProfile({
+        power_zones: computePowerZones(ftpVal),
+        hr_zones: computeHRZones(maxHrVal),
+      }).catch(() => {});
 
       // Save units preference (non-blocking)
       if (user) {

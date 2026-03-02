@@ -189,9 +189,13 @@ export default function Settings() {
         uses_cycle_tracking: profileForm.uses_cycle_tracking,
         hormonal_contraception: profileForm.hormonal_contraception || null,
         timezone: profileForm.timezone || null,
+      });
+
+      // Save zone columns separately — these may not exist in production yet
+      updateProfile({
         power_zones: computePowerZones(ftpVal),
         hr_zones: computeHRZones(maxHrVal),
-      });
+      }).catch(() => {});
 
       // Save units preference (non-blocking)
       supabase.from("user_settings").upsert({

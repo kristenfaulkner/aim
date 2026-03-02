@@ -1,4 +1,8 @@
 import { supabaseAdmin } from "../_lib/supabase.js";
+import { analyzeActivity } from "../_lib/ai.js";
+import { sendWorkoutEmail } from "../email/send.js";
+import { sendWorkoutSMS } from "../sms/send.js";
+import { backfillUserMetrics } from "../_lib/backfill.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
@@ -66,9 +70,30 @@ export default async function handler(req, res) {
     },
   };
 
-  await supabaseAdmin.from("activities").upsert(activity, {
+  const { data: upserted } = await supabaseAdmin.from("activities").upsert(activity, {
     onConflict: "user_id,source,source_id",
-  });
+  }).select("id").single();
+
+  // Trigger AI analysis, then email + SMS notifications (fire-and-forget)
+  if (upserted?.id) {
+    analyzeActivity(userId, upserted.id)
+      .then(() => {
+        sendWorkoutEmail(userId, upserted.id).catch(err =>
+          console.error(`Email failed for wahoo activity ${upserted.id}:`, err.message)
+        );
+        sendWorkoutSMS(userId, upserted.id).catch(err =>
+          console.error(`SMS failed for wahoo activity ${upserted.id}:`, err.message)
+        );
+      })
+      .catch(err =>
+        console.error(`AI analysis failed for wahoo activity ${upserted.id}:`, err.message)
+      );
+  }
+
+  // Backfill derived metrics for any activities missing TSS/IF (fire-and-forget)
+  backfillUserMetrics(userId).catch(err =>
+    console.error(`Backfill after Wahoo webhook failed:`, err.message)
+  );
 
   res.status(200).json({ ok: true });
 }

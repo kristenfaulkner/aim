@@ -5,13 +5,17 @@ import { updateDailyMetrics, updatePowerProfile } from "../../_lib/training-load
 import { verifySession, cors } from "../../_lib/auth.js";
 import { analyzeActivity } from "../../_lib/ai.js";
 import { sendWorkoutSMS } from "../../sms/send.js";
+import { sendWorkoutEmail } from "../../email/send.js";
 import { isHigherPriority, findCrossSourceDuplicate } from "../../_lib/source-priority.js";
+import { backfillUserMetrics } from "../../_lib/backfill.js";
 
 /**
  * Sync a single Strava activity by ID.
  * Called from webhook or manual sync.
+ * @param {object} options - { notify: true } to send email/SMS (default true, set false for bulk sync)
  */
-export async function syncStravaActivity(userId, stravaActivityId) {
+export async function syncStravaActivity(userId, stravaActivityId, options = {}) {
+  const { notify = true } = options;
   const tokenData = await getStravaToken(userId);
   if (!tokenData) throw new Error("No valid Strava token");
 
@@ -140,12 +144,21 @@ export async function syncStravaActivity(userId, stravaActivityId) {
     await updatePowerProfile(userId, metrics.power_curve, profile?.weight_kg);
   }
 
-  // Trigger AI analysis, then SMS notification (fire-and-forget — don't block the sync)
+  // Trigger AI analysis, then email + SMS notifications (fire-and-forget — don't block the sync)
   if (upserted?.id) {
     analyzeActivity(userId, upserted.id)
-      .then(() => sendWorkoutSMS(userId, upserted.id))
+      .then(() => {
+        if (!notify) return;
+        // Email and SMS fire in parallel after analysis completes
+        sendWorkoutEmail(userId, upserted.id).catch(err =>
+          console.error(`Email failed for activity ${upserted.id}:`, err.message)
+        );
+        sendWorkoutSMS(userId, upserted.id).catch(err =>
+          console.error(`SMS failed for activity ${upserted.id}:`, err.message)
+        );
+      })
       .catch(err =>
-        console.error(`AI analysis/SMS failed for activity ${upserted.id}:`, err.message)
+        console.error(`AI analysis failed for activity ${upserted.id}:`, err.message)
       );
   }
 
@@ -207,7 +220,7 @@ export async function fullStravaSync(userId) {
   const results = [];
   for (const act of activities) {
     try {
-      const result = await syncStravaActivity(userId, String(act.id));
+      const result = await syncStravaActivity(userId, String(act.id), { notify: false });
       results.push(result);
     } catch (err) {
       console.error(`Failed to sync activity ${act.id}:`, err.message);
@@ -224,6 +237,11 @@ export async function fullStravaSync(userId) {
     })
     .eq("user_id", userId)
     .eq("provider", "strava");
+
+  // Backfill derived metrics for any activities missing TSS/IF (fire-and-forget)
+  backfillUserMetrics(userId).catch(err =>
+    console.error(`Backfill after Strava sync failed:`, err.message)
+  );
 
   return results;
 }
@@ -253,7 +271,7 @@ export async function backfillStravaSync(userId, days = 90) {
   const errors = [];
   for (const act of activities) {
     try {
-      const result = await syncStravaActivity(userId, String(act.id));
+      const result = await syncStravaActivity(userId, String(act.id), { notify: false });
       results.push(result);
     } catch (err) {
       console.error(`Backfill: failed to sync activity ${act.id}:`, err.message);
@@ -271,6 +289,11 @@ export async function backfillStravaSync(userId, days = 90) {
     })
     .eq("user_id", userId)
     .eq("provider", "strava");
+
+  // Backfill derived metrics for any activities missing TSS/IF (fire-and-forget)
+  backfillUserMetrics(userId).catch(err =>
+    console.error(`Backfill after Strava backfill sync failed:`, err.message)
+  );
 
   return { results, errors };
 }
