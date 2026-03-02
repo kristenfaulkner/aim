@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { T, font, mono } from "../theme/tokens";
 import { btn, inputStyle } from "../theme/styles";
-import { Check, ArrowRight, MessageCircle, Eye, EyeOff, ExternalLink } from "lucide-react";
+import { useResponsive } from "../hooks/useResponsive";
+import { Check, ArrowRight, MessageCircle, Eye, EyeOff, ExternalLink, Menu, X } from "lucide-react";
 import { integrations, catLabels, catIcons } from "../data/integrations";
 import { supabase } from "../lib/supabase";
 import BloodPanelUpload from "../components/BloodPanelUpload";
@@ -50,7 +51,6 @@ function AppCard({ app, isConnected, onToggle }) {
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ fontSize: 14, fontWeight: 700 }}>{app.name}</span>
-            {(isUnavailable || !isConnectable) && <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 4, background: "rgba(139,92,246,0.1)", color: T.purple, fontWeight: 600 }}>COMING SOON</span>}
           </div>
           <span style={{ fontSize: 12, color: T.textDim }}>{app.desc}</span>
         </div>
@@ -66,7 +66,7 @@ function AppCard({ app, isConnected, onToggle }) {
           fontFamily: font, transition: "all 0.2s", display: "flex", alignItems: "center", gap: 6,
           opacity: isUnavailable ? 0.5 : 1,
         }}>
-        {showDisconnect ? "Disconnect" : showUploadMore ? "Upload More Files" : isConnected ? <><Check size={14} /> Connected</> : isUnavailable ? "Soon" : isFileImport ? "Import" : isConnectable ? "Connect" : "Connect"}
+        {showDisconnect ? "Disconnect" : showUploadMore ? "Upload More Files" : isConnected ? <><Check size={14} /> Connected</> : (isUnavailable || !isConnectable) ? "Coming Soon" : isFileImport ? "Import" : "Connect"}
       </button>
     </div>
   );
@@ -74,11 +74,13 @@ function AppCard({ app, isConnected, onToggle }) {
 
 export default function ConnectApps() {
   const navigate = useNavigate();
+  const { isMobile, isTablet } = useResponsive();
   const [searchParams, setSearchParams] = useSearchParams();
   const [connected, setConnected] = useState({});
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [showRequest, setShowRequest] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [requestText, setRequestText] = useState("");
   const [requestSent, setRequestSent] = useState(false);
   const [toast, setToast] = useState("");
@@ -273,11 +275,17 @@ export default function ConnectApps() {
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       {/* Top bar */}
-      <div style={{ padding: "0 40px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${T.border}`, background: `${T.surface}cc`, backdropFilter: "blur(16px)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => navigate("/")}>
-          <div style={{ width: 28, height: 28, borderRadius: 7, background: T.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: T.bg, letterSpacing: "-0.02em" }}>AI</div>
-          <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.03em" }}><span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>AI</span>M</span>
-        </div>
+      <div style={{ padding: isMobile ? "0 12px" : "0 40px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${T.border}`, background: `${T.surface}cc`, backdropFilter: "blur(16px)" }}>
+        {isMobile ? (
+          <button onClick={() => setMenuOpen(!menuOpen)} style={{ background: "none", border: "none", color: T.textSoft, cursor: "pointer", padding: 0, display: "flex", alignItems: "center" }}>
+            {menuOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => navigate("/")}>
+            <div style={{ width: 28, height: 28, borderRadius: 7, background: T.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: T.bg, letterSpacing: "-0.02em" }}>AI</div>
+            <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.03em" }}><span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>AI</span>M</span>
+          </div>
+        )}
         {/* Progress steps */}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {["Create Account", "Connect Apps", "Set Up Profile"].map((step, i) => (
@@ -286,17 +294,41 @@ export default function ConnectApps() {
                 <div style={{ width: 24, height: 24, borderRadius: "50%", background: i <= 1 ? T.accent : T.surface, border: `1px solid ${i <= 1 ? T.accent : T.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: i <= 1 ? T.bg : T.textDim }}>
                   {i < 1 ? <Check size={12} /> : i + 1}
                 </div>
-                <span style={{ fontSize: 12, color: i <= 1 ? T.text : T.textDim, fontWeight: i === 1 ? 700 : 400 }}>{step}</span>
+                {!isMobile && <span style={{ fontSize: 12, color: i <= 1 ? T.text : T.textDim, fontWeight: i === 1 ? 700 : 400 }}>{step}</span>}
               </div>
-              {i < 2 && <div style={{ width: 32, height: 1, background: T.border }} />}
+              {i < 2 && <div style={{ width: isMobile ? 16 : 32, height: 1, background: T.border }} />}
             </div>
           ))}
         </div>
         <button onClick={handleContinue}
-          style={{ ...btn(connectedCount > 0), padding: "10px 24px", fontSize: 13 }}>
-          {connectedCount > 0 ? `Continue (${connectedCount} connected)` : "Skip for now"} <ArrowRight size={16} />
+          style={{ ...btn(connectedCount > 0), padding: isMobile ? "8px 14px" : "10px 24px", fontSize: 13 }}>
+          {connectedCount > 0 ? (isMobile ? `Continue (${connectedCount})` : `Continue (${connectedCount} connected)`) : "Skip"} <ArrowRight size={16} />
         </button>
       </div>
+
+      {/* Mobile slide-out drawer */}
+      {isMobile && menuOpen && (
+        <>
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 998 }} onClick={() => setMenuOpen(false)} />
+          <div style={{ position: "fixed", top: 0, left: 0, bottom: 0, width: 260, background: T.surface, borderRight: `1px solid ${T.border}`, zIndex: 999, padding: "24px 16px", display: "flex", flexDirection: "column", gap: 4 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => { navigate("/"); setMenuOpen(false); }}>
+                <div style={{ width: 28, height: 28, borderRadius: 7, background: T.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: T.bg, letterSpacing: "-0.02em" }}>AI</div>
+                <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.03em" }}><span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>AI</span>M</span>
+              </div>
+              <button onClick={() => setMenuOpen(false)} style={{ background: "none", border: "none", color: T.textSoft, cursor: "pointer", padding: 0, display: "flex" }}>
+                <X size={20} />
+              </button>
+            </div>
+            <button onClick={() => { navigate("/dashboard"); setMenuOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 10, fontSize: 14, fontWeight: 400, background: "transparent", color: T.textSoft, border: "none", cursor: "pointer", fontFamily: font, textAlign: "left" }}>
+              Dashboard
+            </button>
+            <button onClick={() => { navigate("/settings"); setMenuOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 10, fontSize: 14, fontWeight: 400, background: "transparent", color: T.textSoft, border: "none", cursor: "pointer", fontFamily: font, textAlign: "left" }}>
+              Settings
+            </button>
+          </div>
+        </>
+      )}
 
       {/* Toast notification */}
       {toast && (
@@ -312,7 +344,7 @@ export default function ConnectApps() {
       {showCredentialModal && (
         <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(5,6,10,0.8)", backdropFilter: "blur(8px)" }}
           onClick={e => { if (e.target === e.currentTarget) { setShowCredentialModal(null); } }}>
-          <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: "32px", maxWidth: 420, width: "100%" }}>
+          <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: isMobile ? "24px" : "32px", maxWidth: isMobile ? "calc(100% - 32px)" : 420, width: "100%" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
               {(() => {
                 const app = integrations.find(a => a.name === showCredentialModal);
@@ -391,9 +423,9 @@ export default function ConnectApps() {
       )}
 
       {/* Main content */}
-      <div style={{ flex: 1, padding: "40px", maxWidth: 1000, margin: "0 auto", width: "100%" }}>
+      <div style={{ flex: 1, padding: isMobile ? "20px" : "40px", maxWidth: 1000, margin: "0 auto", width: "100%" }}>
         <div style={{ textAlign: "center", marginBottom: 36 }}>
-          <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 8px" }}>
+          <h1 style={{ fontSize: isMobile ? 24 : 32, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 8px" }}>
             Connect your <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>data sources</span>
           </h1>
           <p style={{ fontSize: 15, color: T.textSoft, margin: "0 0 4px" }}>The more you connect, the smarter AIM gets. You can always add more later.</p>
@@ -401,18 +433,18 @@ export default function ConnectApps() {
         </div>
 
         {/* Search + filters */}
-        <div style={{ display: "flex", gap: 12, marginBottom: 28, alignItems: "center" }}>
-          <div style={{ position: "relative", flex: 1 }}>
+        <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 12, marginBottom: 28, alignItems: isMobile ? "stretch" : "center" }}>
+          <div style={{ position: "relative", flex: isMobile ? undefined : 1 }}>
             <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: T.textDim }}>🔍</span>
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search apps..."
-              style={{ ...inputStyle, padding: "12px 16px 12px 40px", fontSize: 13 }} />
+              style={{ ...inputStyle, padding: "12px 16px 12px 40px", fontSize: 13, width: "100%", boxSizing: "border-box" }} />
           </div>
-          <div style={{ display: "flex", gap: 6 }}>
+          <div style={{ display: "flex", gap: 6, overflowX: isMobile ? "auto" : undefined, flexWrap: isMobile ? "nowrap" : undefined, WebkitOverflowScrolling: isMobile ? "touch" : undefined }}>
             {Object.entries(catLabels).map(([key, label]) => {
               const isActive = filter === key;
               return (
                 <button key={key} onClick={() => setFilter(key)}
-                  style={{ padding: "8px 14px", background: isActive ? T.accentDim : T.card, border: `1px solid ${isActive ? T.accentMid : T.border}`, borderRadius: 10, fontSize: 12, fontWeight: isActive ? 700 : 500, color: isActive ? T.accent : T.textDim, cursor: "pointer", fontFamily: font, transition: "all 0.2s", whiteSpace: "nowrap" }}>
+                  style={{ padding: "8px 14px", background: isActive ? T.accentDim : T.card, border: `1px solid ${isActive ? T.accentMid : T.border}`, borderRadius: 10, fontSize: 12, fontWeight: isActive ? 700 : 500, color: isActive ? T.accent : T.textDim, cursor: "pointer", fontFamily: font, transition: "all 0.2s", whiteSpace: "nowrap", flexShrink: 0 }}>
                   {key !== "all" && <span style={{ marginRight: 4 }}>{catIcons[key]}</span>}{label}
                 </button>
               );
@@ -429,7 +461,7 @@ export default function ConnectApps() {
                 <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0 }}>{catLabels[cat]}</h3>
                 <span style={{ fontSize: 11, color: T.textDim }}>({apps.length})</span>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)", gap: 10 }}>
                 {apps.map(app => (
                   <AppCard key={app.name} app={app} isConnected={!!connected[app.name]} onToggle={() => toggleConnect(app.name)} />
                 ))}
@@ -437,7 +469,7 @@ export default function ConnectApps() {
             </div>
           ))
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)", gap: 10 }}>
             {filtered.map(app => (
               <AppCard key={app.name} app={app} isConnected={!!connected[app.name]} onToggle={() => toggleConnect(app.name)} />
             ))}
