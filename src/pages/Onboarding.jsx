@@ -185,7 +185,7 @@ export default function Onboarding() {
             <div style={{ padding: 20, background: T.card, borderRadius: 14, border: `1px solid ${T.border}`, marginBottom: 24 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 8 }}>How we use it:</div>
               <div style={{ fontSize: 12, color: T.textSoft, lineHeight: 1.6 }}>
-                Your data is analyzed by AI (powered by Anthropic's Claude) to generate personalized training insights, recovery recommendations, and cross-domain pattern detection. Your data is <strong style={{ color: T.text }}>never sold</strong> and is <strong style={{ color: T.text }}>not used to train AI models</strong>. You can withdraw consent and delete your data at any time in Settings.
+                Your data is analyzed by our AI engine to generate personalized training insights, recovery recommendations, and cross-domain pattern detection. Your data is <strong style={{ color: T.text }}>never sold</strong> and is <strong style={{ color: T.text }}>not used to train AI models</strong>. You can withdraw consent and delete your data at any time in Settings.
               </div>
             </div>
 

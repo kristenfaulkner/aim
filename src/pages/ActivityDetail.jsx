@@ -174,7 +174,7 @@ function AIAnalysis({ analysis, loading, onRegenerate, activityId }) {
 
   useEffect(() => { if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight; }, [messages, isTyping]);
 
-  const tabs = [{ id: "analysis", label: "AI Analysis" }, { id: "summary", label: "Summary" }, { id: "chat", label: "Ask Claude" }];
+  const tabs = [{ id: "analysis", label: "AI Analysis" }, { id: "summary", label: "Summary" }, { id: "chat", label: "Ask AI" }];
 
   return (
     <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, display: "flex", flexDirection: "column", minHeight: 500, overflow: "hidden" }}>
@@ -214,7 +214,7 @@ function AIAnalysis({ analysis, loading, onRegenerate, activityId }) {
                       {[0, 1, 2].map(i => (<div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: T.accent, animation: `bounce 1.4s ease-in-out ${i * 0.2}s infinite` }} />))}
                     </div>
                     <div style={{ fontSize: 13, color: T.accent, fontWeight: 600 }}>Analyzing your training data...</div>
-                    <div style={{ fontSize: 10, color: T.textDim, marginTop: 6, lineHeight: 1.5 }}>Claude is reviewing your power, recovery, and training load to generate personalized insights.</div>
+                    <div style={{ fontSize: 10, color: T.textDim, marginTop: 6, lineHeight: 1.5 }}>Our AI engine is reviewing your power, recovery, and training load to generate personalized insights.</div>
                   </>
                 ) : (
                   <>
@@ -262,12 +262,12 @@ function AIAnalysis({ analysis, loading, onRegenerate, activityId }) {
                       {[0, 1, 2].map(i => (<div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: T.accent, animation: `bounce 1.4s ease-in-out ${i * 0.2}s infinite` }} />))}
                     </div>
                     <div style={{ fontSize: 13, color: T.accent, fontWeight: 600, marginBottom: 6 }}>Analyzing your training data...</div>
-                    <div style={{ fontSize: 10, color: T.textDim, lineHeight: 1.5 }}>Claude is reviewing your power, recovery, body composition, and training load to generate personalized insights.</div>
+                    <div style={{ fontSize: 10, color: T.textDim, lineHeight: 1.5 }}>Our AI engine is reviewing your power, recovery, body composition, and training load to generate personalized insights.</div>
                   </>
                 ) : (
                   <>
                     <div style={{ fontSize: 13, color: T.textSoft, marginBottom: 6 }}>Ready to analyze this ride</div>
-                    <div style={{ fontSize: 10, color: T.textDim, marginTop: 8, marginBottom: 16, lineHeight: 1.5 }}>Claude will review your power data, recovery metrics, body composition, and training load to generate cross-domain insights.</div>
+                    <div style={{ fontSize: 10, color: T.textDim, marginTop: 8, marginBottom: 16, lineHeight: 1.5 }}>Our AI engine will review your power data, recovery metrics, body composition, and training load to generate cross-domain insights.</div>
                     <button onClick={onRegenerate} style={{ background: T.accent, border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 12, fontWeight: 700, color: T.bg, cursor: "pointer", fontFamily: font }}>{"\u2726"} Generate AI Analysis</button>
                   </>
                 )}

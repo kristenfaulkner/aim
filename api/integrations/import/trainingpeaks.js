@@ -54,16 +54,16 @@ export default async function handler(req, res) {
 
       const zipBuffer = Buffer.from(await zipBlob.arrayBuffer());
 
-      // 2. Extract ZIP and filter to .FIT / .FIT.GZ files
+      // 2. Extract ZIP and filter to .FIT / .FIT.GZ / .GZ files
       const zip = new AdmZip(zipBuffer);
       entries = zip.getEntries().filter(e => {
         if (e.isDirectory) return false;
         const name = e.entryName.toLowerCase();
-        return name.endsWith(".fit") || name.endsWith(".fit.gz");
+        return name.endsWith(".fit") || name.endsWith(".fit.gz") || name.endsWith(".gz");
       });
 
       if (entries.length === 0) {
-        return res.status(400).json({ error: "ZIP contains no .FIT files" });
+        return res.status(400).json({ error: "ZIP contains no workout files (.fit, .fit.gz, or .gz)" });
       }
     }
 
@@ -113,8 +113,8 @@ export default async function handler(req, res) {
     for (const entry of entries) {
       try {
         let fitBuffer = entry.getData();
-        // Decompress .fit.gz files
-        if (entry.entryName.toLowerCase().endsWith(".fit.gz")) {
+        // Decompress .fit.gz or .gz files
+        if (entry.entryName.toLowerCase().endsWith(".gz")) {
           const { gunzipSync } = await import("zlib");
           fitBuffer = gunzipSync(fitBuffer);
         }
@@ -527,9 +527,11 @@ function parseCsvDate(dateStr) {
 
 function cleanFilename(name) {
   return name
-    .replace(/^.*[/\\]/, "") // strip directory
-    .replace(/\.fit$/i, "")  // strip extension
-    .replace(/_/g, " ")      // underscores to spaces
+    .replace(/^.*[/\\]/, "")        // strip directory
+    .replace(/\.fit\.gz$/i, "")     // strip .fit.gz
+    .replace(/\.gz$/i, "")          // strip .gz
+    .replace(/\.fit$/i, "")         // strip .fit
+    .replace(/_/g, " ")             // underscores to spaces
     .replace(/\b\w/g, c => c.toUpperCase()); // title case
 }
 

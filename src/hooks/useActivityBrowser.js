@@ -6,7 +6,7 @@ const PAGE_SIZE = 50;
 
 /**
  * Hook for the Activity Browser — fetches activities with cursor-based pagination
- * and time period filtering. Only fetches when `enabled` is true.
+ * and time/year/month filtering. Only fetches when `enabled` is true.
  */
 export function useActivityBrowser({ enabled = false }) {
   const { user } = useAuth();
@@ -14,31 +14,53 @@ export function useActivityBrowser({ enabled = false }) {
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [timePeriod, setTimePeriod] = useState("month");
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth()); // 0-indexed
   const [searchQuery, setSearchQuery] = useState("");
+  const [oldestYear, setOldestYear] = useState(new Date().getFullYear());
   const cursorRef = useRef(null);
   const fetchingRef = useRef(false);
 
-  const getDateThreshold = useCallback((period) => {
+  // Fetch the oldest activity year on mount
+  useEffect(() => {
+    if (!user || !enabled) return;
+    supabase
+      .from("activities")
+      .select("started_at")
+      .eq("user_id", user.id)
+      .order("started_at", { ascending: true })
+      .limit(1)
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          setOldestYear(new Date(data[0].started_at).getFullYear());
+        }
+      });
+  }, [user, enabled]);
+
+  /** Returns { start, end } ISO strings for the current filter, or null for "all" */
+  const getDateRange = useCallback(() => {
     const now = new Date();
-    switch (period) {
+    switch (timePeriod) {
       case "week": {
         const d = new Date(now);
         d.setDate(d.getDate() - 7);
         d.setHours(0, 0, 0, 0);
-        return d.toISOString();
+        return { start: d.toISOString(), end: null };
       }
       case "month": {
-        const d = new Date(now);
-        d.setDate(d.getDate() - 30);
-        d.setHours(0, 0, 0, 0);
-        return d.toISOString();
+        const start = new Date(selectedYear, selectedMonth, 1);
+        const end = new Date(selectedYear, selectedMonth + 1, 0, 23, 59, 59, 999);
+        return { start: start.toISOString(), end: end.toISOString() };
       }
-      case "year":
-        return new Date(now.getFullYear(), 0, 1).toISOString();
+      case "year": {
+        const start = new Date(selectedYear, 0, 1);
+        const end = new Date(selectedYear, 11, 31, 23, 59, 59, 999);
+        return { start: start.toISOString(), end: end.toISOString() };
+      }
       default:
-        return null;
+        return { start: null, end: null };
     }
-  }, []);
+  }, [timePeriod, selectedYear, selectedMonth]);
 
   const fetchPage = useCallback(async (reset = false) => {
     if (!user || fetchingRef.current) return;
@@ -53,9 +75,12 @@ export function useActivityBrowser({ enabled = false }) {
         .order("started_at", { ascending: false })
         .limit(PAGE_SIZE);
 
-      const threshold = getDateThreshold(timePeriod);
-      if (threshold) {
-        query = query.gte("started_at", threshold);
+      const range = getDateRange();
+      if (range.start) {
+        query = query.gte("started_at", range.start);
+      }
+      if (range.end) {
+        query = query.lte("started_at", range.end);
       }
 
       if (!reset && cursorRef.current) {
@@ -77,9 +102,9 @@ export function useActivityBrowser({ enabled = false }) {
       setLoading(false);
       fetchingRef.current = false;
     }
-  }, [user, timePeriod, getDateThreshold]);
+  }, [user, getDateRange]);
 
-  // Reset and fetch when time period changes or browser opens
+  // Reset and fetch when filters change or browser opens
   useEffect(() => {
     if (enabled && user) {
       cursorRef.current = null;
@@ -87,7 +112,7 @@ export function useActivityBrowser({ enabled = false }) {
       setHasMore(true);
       fetchPage(true);
     }
-  }, [timePeriod, enabled]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [timePeriod, selectedYear, selectedMonth, enabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     activities,
@@ -95,6 +120,11 @@ export function useActivityBrowser({ enabled = false }) {
     hasMore,
     timePeriod,
     setTimePeriod,
+    selectedYear,
+    setSelectedYear,
+    selectedMonth,
+    setSelectedMonth,
+    oldestYear,
     searchQuery,
     setSearchQuery,
     loadMore: () => fetchPage(false),

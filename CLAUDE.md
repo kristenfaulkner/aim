@@ -35,6 +35,7 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 - `context/AuthContext.jsx` — user auth state, profile management, Supabase auth listeners
 - `pages/` — 18 route-level pages (Dashboard, Sleep, ActivityDetail, HealthLab, Boosters, ConnectApps, Settings, Onboarding, AcceptTerms, Auth, ResetPassword, Landing, Contact, 5 legal pages)
 - `components/` — reusable: `TrainingPeaksImport`, `BloodPanelUpload` (multi-file drag-and-drop), `DexaScanUpload` (single-file drag-and-drop with body composition extraction), `ActivityBrowser` (popover with time filters/search/pagination), `ProtectedRoute` (auth + consent gate), `NeuralBackground`, `SEO` (React 19 native metadata: title, description, OG, Twitter cards, canonical URL)
+- `components/dashboard/` — modular dashboard components: `ReadinessCard` (SVG ring + 4 metric pills), `AIPanel` (3-tab AI analysis/summary/chat), `LastRideCard` (8-metric grid), `TrainingWeekChart` (7-day TSS bars), `FitnessChart` (CTL/ATL/TSB SVG), `WorkingGoals` (expandable goal cards with 3 tabs), `NutritionLogger` (5-stage conversational modal with Claude parsing)
 - `hooks/useDashboardData.js` — parallel Supabase queries (7 concurrent) using `Promise.allSettled`
 - `hooks/useActivities.js` — paginated activity list (legacy, replaced by useActivityBrowser on Dashboard)
 - `hooks/useSleepData.js` — sleep data from `daily_metrics` with configurable time period, computes averages
@@ -75,6 +76,11 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 - `email/send.js` — Resend email: post-workout AI analysis emails (Claude-formatted HTML, first-analysis-only dedup, branded dark-theme template)
 - `user/` — profile, integrations list, disconnect, accept-terms (consent recording), delete (account deletion with cascade), export (full data export as JSON)
 - `settings.js` — notification preferences and user settings
+- `weather/current.js` — Open-Meteo API weather fetch, caches in `daily_metrics.weather_data`
+- `goals/` — working goals CRUD: list, upsert, update-status (status/checklist toggle)
+- `nutrition/` — nutrition logging: parse (Claude-powered free-text → structured items), log (save to `nutrition_logs`), previous (last log for quick reuse)
+- `calendar/` — training calendar: list (date range query), upsert (create/update planned workouts)
+- `dashboard/intelligence.js` — adaptive AI dashboard: 3 modes (POST_RIDE/PRE_RIDE_PLANNED/DAILY_COACH), returns structured action items + insights
 
 **API pattern**: Every endpoint calls `cors(res)`, checks `req.method`, calls `verifySession(req)` for auth, returns `{ error: "message" }` on failure.
 
@@ -139,7 +145,7 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 
 ### Database (Supabase)
 
-Core tables (10): `profiles`, `integrations`, `activities`, `daily_metrics`, `power_profiles`, `blood_panels`, `dexa_scans`, `user_settings`, `ai_conversations`, `ai_messages`
+Core tables (13): `profiles`, `integrations`, `activities`, `daily_metrics`, `power_profiles`, `blood_panels`, `dexa_scans`, `user_settings`, `ai_conversations`, `ai_messages`, `training_calendar`, `working_goals`, `nutrition_logs`
 
 - All tables reference `profiles.id` (UUID from Supabase Auth) with CASCADE delete
 - RLS policies scope all client-side queries to the authenticated user
@@ -148,8 +154,13 @@ Core tables (10): `profiles`, `integrations`, `activities`, `daily_metrics`, `po
 - Trigger `handle_new_user()` auto-creates profile on auth signup
 - Trigger `update_updated_at()` auto-maintains timestamps on profiles, integrations, daily_metrics, user_settings, ai_conversations
 - `profiles` consent columns: `terms_accepted_at`, `privacy_accepted_at`, `health_data_consent_at`, `health_data_consent_withdrawn_at`, `account_deletion_requested_at`, `account_deletion_scheduled_for`, `is_deleted`
+- `training_calendar` — planned workouts with `structure` (JSONB intervals) and `nutrition_plan` (JSONB), linked to `activities` via `activity_id` FK
+- `working_goals` — athlete goals with trend JSONB, action_plan JSONB, this_week checklist JSONB, auto-updated `updated_at`
+- `nutrition_logs` — per-activity fueling with items/totals/per_hour JSONB, linked to `activities` via `activity_id` FK
+- `profiles` location columns: `location_lat`, `location_lng` (for weather)
+- `daily_metrics.weather_data` JSONB column (cached Open-Meteo data)
 - Storage buckets: `health-files` (blood panels, DEXA PDFs), `import-files` (TrainingPeaks uploads)
-- Full schema: `/supabase/migrations/001_initial_schema.sql`; storage bucket: `/supabase/migrations/004_add_import_files_bucket.sql`; consent columns: `/supabase/migrations/005_add_consent_columns.sql`
+- Full schema: `/supabase/migrations/001_initial_schema.sql`; storage bucket: `/supabase/migrations/004_add_import_files_bucket.sql`; consent columns: `/supabase/migrations/005_add_consent_columns.sql`; dashboard v2 tables: `/supabase/migrations/006_dashboard_v2_tables.sql`
 
 ### Deployment
 
@@ -173,9 +184,9 @@ AIM is the performance intelligence layer that sits on top of all athlete health
 ### Brand
 - **Name:** AIM — the "AI" is visually highlighted in gradient in the logo
 - **Tagline:** AI-powered performance intelligence
-- **Aesthetic:** Dark theme, luxury-minimal
-- **Colors:** `#05060a` (bg), `#0c0d14` (surface), `#111219` (card), `#00e5a0` (accent green), `#3b82f6` (blue), green-to-blue gradient for premium elements
-- **Fonts:** Outfit (body/UI), JetBrains Mono (metrics/numbers)
+- **Aesthetic:** Light theme, luxury-minimal
+- **Colors:** `#f8f8fa` (bg), `#f0f0f3` (surface), `#ffffff` (card), `#10b981` (accent teal-green), `#3b82f6` (blue), green-to-blue gradient for premium elements
+- **Fonts:** DM Sans (body/UI), JetBrains Mono (metrics/numbers)
 - **Icons:** Lucide React
 
 ### Pricing
@@ -216,7 +227,7 @@ OAuth2 flow: connect/callback file pairs in `/api/auth/`. Credential-based for E
 ### Core Principle
 Cross-domain insights are the product. Every AI insight must connect 2+ data sources and tell the athlete something they cannot learn from any single app. "Your HRV was low" is Whoop-level. "Your HRV was 38ms, which explains why cardiac drift was 8.1% today vs 3.2% on Feb 18 when HRV was 72ms" is AIM-level.
 
-### AI-Powered Features (7 total)
+### AI-Powered Features (9 total)
 1. **Post-ride analysis** — 13-category structured insights triggered after every activity sync
 2. **Email workout analysis** — Claude-formatted HTML emails via Resend with full AI analysis, sent on first analysis only (no duplicates on re-analysis or bulk import)
 3. **SMS workout summaries** — 1500-char Claude-generated texts sent via Twilio post-sync
@@ -224,6 +235,8 @@ Cross-domain insights are the product. Every AI insight must connect 2+ data sou
 5. **Morning sleep summary** — readiness assessment from Eight Sleep + training context
 6. **Blood panel analysis** — PDF/image OCR extraction + cross-reference with training data
 7. **Chat coach** — real-time Q&A via `/api/chat/ask` with conversation history
+8. **Nutrition parsing** — Claude-powered free-text → structured nutrition items with per-hour calculations via `/api/nutrition/parse`
+9. **Adaptive dashboard intelligence** — 3-mode AI (POST_RIDE/PRE_RIDE_PLANNED/DAILY_COACH) via `/api/dashboard/intelligence`
 
 ### 13 Insight Categories
 1. **Body Composition → Performance** — W/kg from Withings + power output, weight loss rate monitoring, hydration impact on cardiac drift, race weight projection
@@ -284,7 +297,7 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 
 ### Completed
 - Project setup (Vite + React + React Router + Supabase)
-- Design system (theme tokens, dark theme, NeuralBackground animation)
+- Design system (theme tokens, light theme with DM Sans font, NeuralBackground animation)
 - Auth (email/password, Google SSO, magic link, password reset, protected routes)
 - Onboarding (3-step: health data consent → profile → FTP/HR zone setup with power zones Z1-Z7 and HR zones Z1-Z5)
 - **Strava** integration (full: OAuth, sync, backfill, metrics, streams, webhook, cross-source dedup)
@@ -297,7 +310,7 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 - AI chat coach endpoint (`/api/chat/ask` with conversation history + full athlete context)
 - Morning sleep summary (Claude-powered readiness assessment from Eight Sleep data)
 - **Sleep Intelligence page** — dedicated `/sleep` route with time-period filters (7d/30d/90d/1y/All), summary cards with sparklines (score/duration/efficiency/HRV), stacked sleep architecture chart (deep/REM/light), trend charts (score/HRV/RHR), AI morning report, expandable nightly detail with Eight Sleep extended metrics, empty state CTA
-- Dashboard (activities feed with View Details navigation, quick stats, recovery metrics, training load PMC chart, sleep summary, fuel breakdown, power classification, workout prescriptions, AI insights panel with "Unlock More Insights")
+- **Dashboard V2** — redesigned two-column layout (left: content, right: sticky AI panel + goals): ReadinessCard (SVG ring + HRV/RHR/Sleep/Deep Sleep pills), ActionItems (3-tab Today/This Week/Big Picture with clickable actions), LastRideCard (8-metric grid), TrainingWeekChart (7-day TSS bars), FitnessChart (CTL/ATL/TSB SVG), Power Zones, Training Load Summary with fuel breakdown; right column: AIPanel (AI Analysis/Summary/Ask Claude tabs), WorkingGoals (expandable cards with Action Plan/Why It Matters/This Week tabs); NutritionLogger modal (5-stage conversational flow with Claude parsing, suggestion chips, follow-ups, per-hour badge, confirmation)
 - Activity detail page with tabbed AI panel (Summary / AI Analysis / Ask Claude tabs, category filters, confidence badges, data gaps, regenerate analysis)
 - Health Lab: blood panel upload with Claude AI OCR extraction (25 biomarkers), AI analysis cross-referencing training data, biomarker trend charts with athlete-optimal ranges, panel management; DEXA scan upload with Claude AI extraction (body fat %, lean/fat mass, BMD, visceral fat, regional L/R breakdown), AI analysis cross-referencing power/training data, scan history with summary cards
 - Boosters page (searchable/filterable protocol library)
@@ -320,6 +333,12 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 - **Multi-file blood panel upload** — `BloodPanelUpload` supports drag-and-drop of multiple files with sequential processing, per-file progress bar, and aggregated success/failure summary
 - **TrainingPeaks ZIP optional** — CSV-only import enriches existing activities by matching on date without requiring ZIP file
 - **Email workout analysis** — Resend-powered post-workout emails: Claude formats AI analysis into branded dark-theme HTML email (metrics grid + insights + CTA), sent on first AI analysis only (skips re-analysis and bulk imports), notification preference toggle in Settings, fallback static template if Claude unavailable
+- **Theme migration** — dark → light theme across entire app: `#f8f8fa` bg, `#10b981` accent, DM Sans font, all 37+ component files updated (hardcoded colors, rgba patterns, font references)
+- **Weather integration** — Open-Meteo API (free, no key) via `/api/weather/current`, caches in `daily_metrics.weather_data`, profile-based lat/lng location
+- **Working Goals** — goal tracking system with CRUD API (`/api/goals/*`), expandable GoalCard with 3 tabs (Action Plan/Why It Matters/This Week), sparklines, progress bars, status badges, AI-suggested goals
+- **Nutrition Logger** — 5-stage conversational modal (input → followup → summary → confirmed), Claude-powered free-text parsing (`/api/nutrition/parse`), per-hour carbs badge, confirmation save to `nutrition_logs` table, triggered from ActionItems
+- **Training Calendar API** — planned workout CRUD (`/api/calendar/*`) for `training_calendar` table
+- **Adaptive Dashboard Intelligence** — 3-mode AI endpoint (`/api/dashboard/intelligence`): POST_RIDE, PRE_RIDE_PLANNED, DAILY_COACH modes with structured action items
 
 ### Remaining
 - Garmin Connect sync logic
@@ -376,8 +395,8 @@ All AI-generated content, hardcoded text, and UI copy must follow these rules:
 
 - **No TypeScript** — plain JavaScript throughout
 - **Inline styles** using design token object `T` from `src/theme/tokens.js`; no Tailwind or CSS-in-JS
-- **Fonts**: Outfit (UI), JetBrains Mono (numbers/code)
-- **Dark theme only** — backgrounds `#05060a`/`#0c0d14`, accent `#00e5a0`
+- **Fonts**: DM Sans (UI), JetBrains Mono (numbers/code)
+- **Light theme** — backgrounds `#f8f8fa`/`#f0f0f3`, card `#ffffff`, accent `#10b981`
 - **Icons**: Lucide React
 - **Auth tokens**: Bearer token via `Authorization` header; `apiFetch()` handles this automatically on frontend
 - OAuth integrations use connect/callback file pairs in `/api/auth/`; credential-based auth (EightSleep) stores AES-256-GCM encrypted email/password in `integrations.metadata`; file import (TrainingPeaks) uses Supabase storage bucket
@@ -400,3 +419,9 @@ Detailed specifications archived in `docs/`:
 - `docs/product-blueprint.md` — full product spec, booster library (20+ protocols with dosing/timing/evidence), menstrual cycle science (10 peer-reviewed papers), onboarding fields, community benchmarking engine, pricing tiers and feature gating, user stories
 - `docs/technical-architecture.md` — complete database schema SQL, 25-task build plan, Strava API appendix, EightSleep workarounds, environment variable reference
 - `docs/insights-catalog.md` — all 13 insight categories with detailed examples and specific numbers, insight quality checklist, system prompt integration guide, template for adding new categories
+
+Dashboard design specifications:
+- `AIM-ADAPTIVE-DASHBOARD-SPEC.md` — 3 dashboard modes (POST_RIDE/PRE_RIDE_PLANNED/DAILY_COACH), AI prompt templates, weather integration, fueling intelligence
+- `AIM-SITE-MAP.md` — navigation structure, URL routes, mobile layout patterns
+- `AIM-TESTING-STRATEGY.md` — testing priorities, metric tests, e2e flows
+- `/prototypes/` — design source of truth: 4 prototype JSX files for dashboard components

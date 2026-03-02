@@ -857,7 +857,7 @@ export async function buildAnalysisContext(userId, activityId) {
  */
 export async function generateAnalysis(context) {
   const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-5-20250929",
+    model: "claude-sonnet-4-6",
     max_tokens: 4000,
     system: ANALYSIS_SYSTEM_PROMPT,
     messages: [{ role: "user", content: JSON.stringify(context) }],

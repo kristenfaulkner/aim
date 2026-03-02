@@ -138,7 +138,7 @@ export default async function handler(req, res) {
       : { type: "image", source: { type: "base64", media_type: mediaType, data: fileBase64 } };
 
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-5-20250929",
+      model: "claude-sonnet-4-6",
       max_tokens: 4000,
       system: EXTRACTION_PROMPT,
       messages: [{
@@ -255,7 +255,7 @@ async function generatePanelAnalysis(userId, panelId) {
   };
 
   const analysisResponse = await anthropic.messages.create({
-    model: "claude-sonnet-4-5-20250929",
+    model: "claude-sonnet-4-6",
     max_tokens: 3000,
     system: `You are the AI analysis engine for AIM, a performance intelligence platform for endurance athletes built by Kristen Faulkner (2x Olympic Gold Medalist).
 

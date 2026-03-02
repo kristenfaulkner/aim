@@ -68,7 +68,8 @@ export default function DexaScanUpload({ onUploadComplete, compact = false }) {
       setResult(scan);
       if (onUploadComplete) onUploadComplete(scan);
     } catch (err) {
-      setError(err.message);
+      console.error("DEXA upload failed:", err);
+      setError(err.message || "Upload failed. Please try again.");
     } finally {
       setUploading(false);
     }

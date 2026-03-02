@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { T, font, mono } from "../theme/tokens";
 import { useAuth } from "../context/AuthContext";
@@ -8,6 +8,7 @@ import { useResponsive } from "../hooks/useResponsive";
 import { AreaChart, Area, LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
 import { LogOut, Settings, Menu, X, Moon, ChevronDown, ChevronUp } from "lucide-react";
 import SEO from "../components/SEO";
+import SleepAIPanel from "../components/sleep/SleepAIPanel";
 
 // ── Helpers ──
 
@@ -202,6 +203,68 @@ export default function Sleep() {
       }
     })();
   }, [latestNight?.sleep_score, latestNight?.total_sleep_seconds]);
+
+  // Sleep-Performance AI Analysis
+  const [sleepAnalysis, setSleepAnalysis] = useState(null);
+  const [sleepAnalysisLoading, setSleepAnalysisLoading] = useState(false);
+  const [sleepAnalysisError, setSleepAnalysisError] = useState(null);
+  const [sleepAnalysisCachedAt, setSleepAnalysisCachedAt] = useState(null);
+  const sleepAnalysisFetchedRef = useRef(false);
+
+  const triggerSleepAnalysis = useCallback(async (force = false) => {
+    // Check localStorage cache (24h TTL)
+    if (!force) {
+      try {
+        const cached = localStorage.getItem("aim_sleep_analysis");
+        if (cached) {
+          const { analysis, timestamp } = JSON.parse(cached);
+          if (Date.now() - timestamp < 24 * 60 * 60 * 1000) {
+            setSleepAnalysis(analysis);
+            setSleepAnalysisCachedAt(timestamp);
+            return;
+          }
+        }
+      } catch { /* ignore cache errors */ }
+    }
+
+    setSleepAnalysisLoading(true);
+    setSleepAnalysisError(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setSleepAnalysisError("Not signed in"); return; }
+      const res = await fetch("/api/sleep/analyze", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+      let data;
+      try { data = await res.json(); } catch { throw new Error(`Server error (${res.status})`); }
+      if (res.ok && data.analysis) {
+        setSleepAnalysis(data.analysis);
+        const now = Date.now();
+        setSleepAnalysisCachedAt(now);
+        try {
+          localStorage.setItem("aim_sleep_analysis", JSON.stringify({ analysis: data.analysis, timestamp: now }));
+        } catch { /* storage full */ }
+      } else {
+        setSleepAnalysisError(data.error || `Analysis failed (${res.status})`);
+      }
+    } catch (err) {
+      setSleepAnalysisError(err.message || "Network error");
+    } finally {
+      setSleepAnalysisLoading(false);
+    }
+  }, []);
+
+  // Auto-trigger sleep analysis when enough data exists
+  useEffect(() => {
+    if (sleepAnalysisFetchedRef.current || sleepAnalysisLoading) return;
+    if (sleepHistory.length < 7) return;
+    sleepAnalysisFetchedRef.current = true;
+    triggerSleepAnalysis();
+  }, [sleepHistory.length, sleepAnalysisLoading, triggerSleepAnalysis]);
 
   const handleSignout = async () => { await signout(); navigate("/"); };
 
