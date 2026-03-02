@@ -15,15 +15,22 @@ const OAUTH_APPS = {
   Withings: "/api/auth/connect/withings",
 };
 
+// Apps that use email/password credentials instead of OAuth
+const CREDENTIAL_APPS = {
+  EightSleep: "/api/auth/connect/eightsleep",
+};
+
 // Map display names to provider keys in the database
-const NAME_TO_PROVIDER = { Strava: "strava", Wahoo: "wahoo", Whoop: "whoop", "Oura Ring": "oura", Withings: "withings" };
+const NAME_TO_PROVIDER = { Strava: "strava", Wahoo: "wahoo", Whoop: "whoop", "Oura Ring": "oura", Withings: "withings", EightSleep: "eightsleep" };
 
 // ── APP CARD COMPONENT ──
 function AppCard({ app, isConnected, onToggle }) {
   const [hover, setHover] = useState(false);
   const isOAuth = !!OAUTH_APPS[app.name];
+  const isCredential = !!CREDENTIAL_APPS[app.name];
+  const isConnectable = isOAuth || isCredential;
   const isUnavailable = !!app.note;
-  const showDisconnect = isConnected && isOAuth && hover;
+  const showDisconnect = isConnected && isConnectable && hover;
 
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", background: isConnected ? "rgba(0,229,160,0.04)" : T.card, border: `1px solid ${isConnected ? "rgba(0,229,160,0.2)" : T.border}`, borderRadius: 14, transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)" }}
@@ -34,7 +41,7 @@ function AppCard({ app, isConnected, onToggle }) {
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ fontSize: 14, fontWeight: 700 }}>{app.name}</span>
-            {(isUnavailable || !isOAuth) && <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 4, background: "rgba(139,92,246,0.1)", color: T.purple, fontWeight: 600 }}>COMING SOON</span>}
+            {(isUnavailable || !isConnectable) && <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 4, background: "rgba(139,92,246,0.1)", color: T.purple, fontWeight: 600 }}>COMING SOON</span>}
           </div>
           <span style={{ fontSize: 12, color: T.textDim }}>{app.desc}</span>
         </div>
@@ -50,7 +57,7 @@ function AppCard({ app, isConnected, onToggle }) {
           fontFamily: font, transition: "all 0.2s", display: "flex", alignItems: "center", gap: 6,
           opacity: isUnavailable ? 0.5 : 1,
         }}>
-        {showDisconnect ? "Disconnect" : isConnected ? <><Check size={14} /> Connected</> : isUnavailable ? "Soon" : isOAuth ? "Connect" : "Connect"}
+        {showDisconnect ? "Disconnect" : isConnected ? <><Check size={14} /> Connected</> : isUnavailable ? "Soon" : isConnectable ? "Connect" : "Connect"}
       </button>
     </div>
   );
@@ -68,6 +75,11 @@ export default function ConnectApps() {
   const [toast, setToast] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
+  const [showCredentialModal, setShowCredentialModal] = useState(null);
+  const [credEmail, setCredEmail] = useState("");
+  const [credPassword, setCredPassword] = useState("");
+  const [credLoading, setCredLoading] = useState(false);
+  const [credError, setCredError] = useState("");
 
   // Handle OAuth return query params
   useEffect(() => {
@@ -94,7 +106,7 @@ export default function ConnectApps() {
       .then(({ data }) => {
         const map = {};
         // Map provider names back to display names
-        const providerToName = { strava: "Strava", wahoo: "Wahoo", whoop: "Whoop", oura: "Oura Ring", withings: "Withings" };
+        const providerToName = { strava: "Strava", wahoo: "Wahoo", whoop: "Whoop", oura: "Oura Ring", withings: "Withings", eightsleep: "EightSleep" };
         (data || []).forEach(row => {
           const display = providerToName[row.provider] || row.provider;
           map[display] = true;
@@ -103,9 +115,72 @@ export default function ConnectApps() {
       });
   }, []);
 
+  const handleCredentialSubmit = async () => {
+    if (!credEmail || !credPassword) return;
+    setCredLoading(true);
+    setCredError("");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(CREDENTIAL_APPS[showCredentialModal], {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ email: credEmail, password: credPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCredError(data.error || "Connection failed");
+        return;
+      }
+      setConnected(prev => ({ ...prev, [showCredentialModal]: true }));
+      setShowCredentialModal(null);
+      setCredEmail("");
+      setCredPassword("");
+      setToast(`${showCredentialModal} connected successfully!`);
+      setTimeout(() => setToast(""), 4000);
+    } catch (err) {
+      setCredError(err.message || "Network error");
+    } finally {
+      setCredLoading(false);
+    }
+  };
+
   const toggleConnect = async (name) => {
     const isOAuth = !!OAUTH_APPS[name];
+    const isCredential = !!CREDENTIAL_APPS[name];
     const isCurrentlyConnected = !!connected[name];
+
+    // Credential-based apps: open modal
+    if (isCredential && !isCurrentlyConnected) {
+      setShowCredentialModal(name);
+      setCredEmail("");
+      setCredPassword("");
+      setCredError("");
+      return;
+    }
+
+    // Credential-based apps: disconnect
+    if (isCredential && isCurrentlyConnected) {
+      const provider = NAME_TO_PROVIDER[name];
+      if (!provider) return;
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        await fetch("/api/user/disconnect", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+          body: JSON.stringify({ provider }),
+        });
+        setConnected(prev => ({ ...prev, [name]: false }));
+        setToast(`${name} disconnected`);
+        setTimeout(() => setToast(""), 3000);
+      } catch {
+        setToast("Failed to disconnect");
+        setTimeout(() => setToast(""), 3000);
+      }
+      return;
+    }
 
     if (isOAuth && !isCurrentlyConnected) {
       // Connect: redirect to OAuth
@@ -211,6 +286,62 @@ export default function ConnectApps() {
           border: `1px solid ${toast.includes("failed") ? "rgba(239,68,68,0.3)" : "rgba(0,229,160,0.3)"}`,
           color: toast.includes("failed") ? "#ef4444" : T.accent }}>
           {toast}
+        </div>
+      )}
+
+      {/* Credential modal (for Eight Sleep etc.) */}
+      {showCredentialModal && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(5,6,10,0.8)", backdropFilter: "blur(8px)" }}
+          onClick={e => { if (e.target === e.currentTarget) { setShowCredentialModal(null); } }}>
+          <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: "32px", maxWidth: 420, width: "100%" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+              {(() => {
+                const app = integrations.find(a => a.name === showCredentialModal);
+                return app ? <img src={app.logo} alt="" style={{ width: 36, height: 36, borderRadius: 8, objectFit: "contain" }} /> : null;
+              })()}
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 700 }}>Connect {showCredentialModal}</div>
+                <div style={{ fontSize: 12, color: T.textDim }}>Enter your account credentials</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <input
+                type="email"
+                value={credEmail}
+                onChange={e => setCredEmail(e.target.value)}
+                placeholder="Email address"
+                style={{ ...inputStyle, padding: "12px 16px", fontSize: 13 }}
+                autoFocus
+              />
+              <input
+                type="password"
+                value={credPassword}
+                onChange={e => setCredPassword(e.target.value)}
+                placeholder="Password"
+                onKeyDown={e => { if (e.key === "Enter") handleCredentialSubmit(); }}
+                style={{ ...inputStyle, padding: "12px 16px", fontSize: 13 }}
+              />
+              {credError && (
+                <div style={{ padding: "10px 14px", borderRadius: 10, fontSize: 12, fontWeight: 600,
+                  background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#ef4444" }}>
+                  {credError}
+                </div>
+              )}
+              <div style={{ fontSize: 11, color: T.textDim, lineHeight: 1.5 }}>
+                Your credentials are encrypted at rest and used only to sync your sleep data. We never share your login with third parties.
+              </div>
+              <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+                <button onClick={() => setShowCredentialModal(null)}
+                  style={{ ...btn(false), flex: 1, padding: "10px 20px", fontSize: 13 }}>
+                  Cancel
+                </button>
+                <button onClick={handleCredentialSubmit} disabled={credLoading || !credEmail || !credPassword}
+                  style={{ ...btn(true), flex: 1, padding: "10px 20px", fontSize: 13, opacity: credLoading ? 0.7 : 1 }}>
+                  {credLoading ? "Connecting..." : "Connect"}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -358,7 +489,96 @@ export default function ConnectApps() {
                 border: `1px solid ${syncResult.ok ? "rgba(0,229,160,0.2)" : "rgba(239,68,68,0.2)"}`,
                 color: syncResult.ok ? T.accent : "#ef4444" }}>
                 {syncResult.ok
-                  ? `Synced ${syncResult.synced} activit${syncResult.synced === 1 ? "y" : "ies"}${syncResult.failed ? ` (${syncResult.failed} failed)` : ""}`
+                  ? `Synced ${syncResult.synced} ${syncResult.label === "night" ? `night${syncResult.synced === 1 ? "" : "s"}` : `activit${syncResult.synced === 1 ? "y" : "ies"}`}${syncResult.failed ? ` (${syncResult.failed} failed)` : ""}`
+                  : `Error: ${syncResult.error}`}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Eight Sleep sync tools — shown when Eight Sleep is connected */}
+        {connected["EightSleep"] && (
+          <div style={{ marginTop: 28, padding: "24px", background: T.card, borderRadius: 16, border: `1px solid ${T.border}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <span style={{ fontSize: 18 }}>😴</span>
+              <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>Eight Sleep Sync</h3>
+            </div>
+            <p style={{ fontSize: 13, color: T.textSoft, margin: "0 0 16px", lineHeight: 1.6 }}>
+              Sync your recent sleep data from Eight Sleep — sleep stages, heart rate, HRV, and respiratory rate.
+            </p>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+              <button
+                disabled={syncing}
+                onClick={async () => {
+                  setSyncing(true);
+                  setSyncResult(null);
+                  try {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    if (!session) { setSyncing(false); return; }
+                    const res = await fetch("/api/integrations/sync/eightsleep?days=7", {
+                      method: "POST",
+                      headers: { Authorization: `Bearer ${session.access_token}` },
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                      setSyncResult({ ok: true, synced: data.synced, failed: data.failed, label: "night" });
+                    } else {
+                      setSyncResult({ ok: false, error: data.error || "Sync failed" });
+                    }
+                  } catch (err) {
+                    setSyncResult({ ok: false, error: err.message || "Network error" });
+                  } finally {
+                    setSyncing(false);
+                  }
+                }}
+                style={{
+                  padding: "10px 20px", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: syncing ? "wait" : "pointer",
+                  background: syncing ? T.surface : T.accentDim, border: `1px solid ${T.accentMid}`,
+                  color: T.accent, fontFamily: font, transition: "all 0.2s", display: "flex", alignItems: "center", gap: 8,
+                  opacity: syncing ? 0.7 : 1,
+                }}>
+                {syncing ? "Syncing..." : "Sync Last 7 Days"}
+              </button>
+              <button
+                disabled={syncing}
+                onClick={async () => {
+                  setSyncing(true);
+                  setSyncResult(null);
+                  try {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    if (!session) { setSyncing(false); return; }
+                    const res = await fetch("/api/integrations/sync/eightsleep?days=30", {
+                      method: "POST",
+                      headers: { Authorization: `Bearer ${session.access_token}` },
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                      setSyncResult({ ok: true, synced: data.synced, failed: data.failed, label: "night" });
+                    } else {
+                      setSyncResult({ ok: false, error: data.error || "Sync failed" });
+                    }
+                  } catch (err) {
+                    setSyncResult({ ok: false, error: err.message || "Network error" });
+                  } finally {
+                    setSyncing(false);
+                  }
+                }}
+                style={{
+                  padding: "10px 20px", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: syncing ? "wait" : "pointer",
+                  background: "transparent", border: `1px solid ${T.border}`,
+                  color: T.textSoft, fontFamily: font, transition: "all 0.2s",
+                  opacity: syncing ? 0.7 : 1,
+                }}>
+                {syncing ? "Syncing..." : "Sync Last 30 Days"}
+              </button>
+            </div>
+            {syncResult && syncResult.label === "night" && (
+              <div style={{ marginTop: 12, padding: "10px 14px", borderRadius: 10, fontSize: 13, fontWeight: 600,
+                background: syncResult.ok ? "rgba(0,229,160,0.08)" : "rgba(239,68,68,0.08)",
+                border: `1px solid ${syncResult.ok ? "rgba(0,229,160,0.2)" : "rgba(239,68,68,0.2)"}`,
+                color: syncResult.ok ? T.accent : "#ef4444" }}>
+                {syncResult.ok
+                  ? `Synced ${syncResult.synced} night${syncResult.synced === 1 ? "" : "s"}${syncResult.failed ? ` (${syncResult.failed} failed)` : ""}`
                   : `Error: ${syncResult.error}`}
               </div>
             )}
