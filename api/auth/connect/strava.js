@@ -12,9 +12,10 @@ export default async function handler(req, res) {
   const state = crypto.randomUUID();
   await redis.set(`oauth:state:${state}`, session.userId, { ex: 600 });
 
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `https://${req.headers.host}`;
   const params = new URLSearchParams({
     client_id: process.env.STRAVA_CLIENT_ID,
-    redirect_uri: `https://${req.headers.host}/api/auth/callback/strava`,
+    redirect_uri: `${baseUrl}/api/auth/callback/strava`,
     response_type: "code",
     scope: "read,activity:read_all,profile:read_all",
     state,
