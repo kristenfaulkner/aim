@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { T, font } from "../../theme/tokens";
+import SEO from "../../components/SEO";
 
 const h2 = { fontSize: 22, fontWeight: 700, marginTop: 48, marginBottom: 16, color: T.text, letterSpacing: "-0.02em" };
 const h3 = { fontSize: 17, fontWeight: 600, marginTop: 32, marginBottom: 12, color: T.text };
@@ -12,6 +13,7 @@ const uppercase = { textTransform: "uppercase", fontWeight: 700, color: T.text }
 export default function Terms() {
   return (
     <div style={{ minHeight: "100vh", background: T.bg, color: T.text, fontFamily: font }}>
+      <SEO title="Terms of Service" path="/terms" description="AIM Terms of Service. Review the terms governing your use of the AIM performance intelligence platform." />
       <nav style={{ padding: "0 40px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${T.border}` }}>
         <Link to="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", color: T.text }}>
           <div style={{ width: 32, height: 32, borderRadius: 9, background: T.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: T.bg }}>AI</div>

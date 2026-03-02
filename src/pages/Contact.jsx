@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { T, font } from "../theme/tokens";
 import { btn } from "../theme/styles";
 import { ArrowRight, Mail, Send } from "lucide-react";
+import SEO from "../components/SEO";
 
 export default function Contact() {
   const [form, setForm] = useState({ name: "", email: "", subject: "", message: "" });
@@ -23,6 +24,7 @@ export default function Contact() {
 
   return (
     <div style={{ minHeight: "100vh", background: T.bg, color: T.text, fontFamily: font }}>
+      <SEO title="Contact" path="/contact" description="Get in touch with the AIM team. Questions about AI-powered performance intelligence for athletes? We'd love to hear from you." />
       <nav style={{ padding: "0 40px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${T.border}` }}>
         <Link to="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", color: T.text }}>
           <div style={{ width: 32, height: 32, borderRadius: 9, background: T.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: T.bg }}>AI</div>

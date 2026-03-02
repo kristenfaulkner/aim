@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { T, font, mono } from "../../theme/tokens";
+import SEO from "../../components/SEO";
 
 /* ── style helpers ── */
 const h2 = {
@@ -188,6 +189,7 @@ const typeBadge = (type) => {
 export default function CookiePolicy() {
   return (
     <div style={{ minHeight: "100vh", background: T.bg, color: T.text, fontFamily: font }}>
+      <SEO title="Cookie Policy" path="/cookies" description="AIM Cookie Policy. Learn about the cookies we use and how to manage your preferences." />
       {/* ── nav ── */}
       <nav
         style={{

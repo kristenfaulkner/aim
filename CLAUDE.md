@@ -34,7 +34,7 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 - `App.jsx` — route definitions; protected routes wrap with `ProtectedRoute`
 - `context/AuthContext.jsx` — user auth state, profile management, Supabase auth listeners
 - `pages/` — 17 route-level pages (Dashboard, ActivityDetail, HealthLab, Boosters, ConnectApps, Settings, Onboarding, AcceptTerms, Auth, ResetPassword, Landing, Contact, 5 legal pages)
-- `components/` — reusable: `TrainingPeaksImport`, `BloodPanelUpload`, `ProtectedRoute` (auth + consent gate), `NeuralBackground`
+- `components/` — reusable: `TrainingPeaksImport`, `BloodPanelUpload`, `ProtectedRoute` (auth + consent gate), `NeuralBackground`, `SEO` (React 19 native metadata: title, description, OG, Twitter cards, canonical URL)
 - `hooks/useDashboardData.js` — parallel Supabase queries (7 concurrent) using `Promise.allSettled`
 - `hooks/useActivities.js` — paginated activity list
 - `hooks/useResponsive.js` — responsive breakpoint hook (`isMobile`/`isTablet`/`isDesktop`) via `matchMedia`
@@ -293,6 +293,7 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 - Vercel deployment with GitHub auto-deploy
 - Mobile-responsive overhaul: all pages responsive at 320px–428px (mobile), 768px–1024px (tablet), 1024px+ (desktop) via `useResponsive()` hook, hamburger nav, collapsible grids, full-screen modals, 44px touch targets
 - Testing infrastructure: Vitest + React Testing Library + MSW + Playwright; initial test suites for metrics, source-priority, routing, ProtectedRoute, API utility, Auth, theme tokens
+- SEO foundations: reusable `SEO` component (React 19 native metadata hoisting), static fallback meta/OG/Twitter tags in `index.html`, JSON-LD structured data (Organization + SoftwareApplication) on Landing page, `robots.txt`, `sitemap.xml`, `manifest.json`, favicon links, semantic `<main>` wrapper, per-page titles/descriptions for all public pages
 
 ### Remaining
 - Garmin Connect sync logic

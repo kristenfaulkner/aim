@@ -1,0 +1,26 @@
+{
+  "name": "AIM — AI-Powered Performance Intelligence",
+  "short_name": "AIM",
+  "description": "AI-powered performance intelligence for endurance athletes.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#05060a",
+  "theme_color": "#05060a",
+  "icons": [
+    {
+      "src": "/logos/aim-favicon-128.png",
+      "sizes": "128x128",
+      "type": "image/png"
+    },
+    {
+      "src": "/logos/aim-favicon-256.png",
+      "sizes": "256x256",
+      "type": "image/png"
+    },
+    {
+      "src": "/logos/aim-favicon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

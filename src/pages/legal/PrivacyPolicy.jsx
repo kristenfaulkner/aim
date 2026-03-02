@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { T, font, mono } from "../../theme/tokens";
+import SEO from "../../components/SEO";
 
 /* ── Style helpers ── */
 const h2Style = {
@@ -42,6 +43,7 @@ export default function PrivacyPolicy() {
         fontFamily: font,
       }}
     >
+      <SEO title="Privacy Policy" path="/privacy" description="AIM Privacy Policy. Learn how we collect, use, and protect your fitness and health data." />
       {/* ── Nav bar ── */}
       <nav
         style={{

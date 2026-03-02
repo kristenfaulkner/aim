@@ -5,6 +5,7 @@ import { btn, inputStyle } from "../theme/styles";
 import { User, Mail, Lock, Eye, EyeOff, ArrowRight, ArrowLeft, Brain, BarChart3, Heart, Shield, Loader2, Wand2, Check } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useResponsive } from "../hooks/useResponsive";
+import SEO from "../components/SEO";
 
 export default function Auth({ mode }) {
   const navigate = useNavigate();
@@ -192,6 +193,12 @@ export default function Auth({ mode }) {
   // ── MAIN FORM VIEW ──
   return (
     <div style={{ minHeight: "100vh", display: "flex" }}>
+      <SEO
+        title={isSignup ? "Sign Up" : "Sign In"}
+        path={isSignup ? "/signup" : "/signin"}
+        description={isSignup ? "Create your free AIM account. Start your 14-day trial of AI-powered performance intelligence for endurance athletes." : "Sign in to your AIM account to access AI-powered performance insights."}
+        noIndex
+      />
       <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: isMobile ? 24 : 40 }}>
         <div style={{ width: "100%", maxWidth: 420 }}>
           <LogoBar navigate={navigate} />

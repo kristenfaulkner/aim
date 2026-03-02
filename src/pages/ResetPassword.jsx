@@ -4,6 +4,7 @@ import { T, font } from "../theme/tokens";
 import { btn, inputStyle } from "../theme/styles";
 import { Lock, Eye, EyeOff, ArrowRight, Check, Loader2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import SEO from "../components/SEO";
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -51,6 +52,7 @@ export default function ResetPassword() {
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <SEO title="Reset Password" path="/reset-password" noIndex />
       <div style={{ width: "100%", maxWidth: 420, padding: 40 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 48, cursor: "pointer" }} onClick={() => navigate("/")}>
           <div style={{ width: 32, height: 32, borderRadius: 9, background: T.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: T.bg, letterSpacing: "-0.02em" }}>AI</div>

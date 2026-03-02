@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /activity/
+Disallow: /settings
+Disallow: /connect
+Disallow: /onboarding
+Disallow: /accept-terms
+Disallow: /boosters
+Disallow: /health-lab
+Disallow: /api/
+
+Sitemap: https://aimfitness.ai/sitemap.xml

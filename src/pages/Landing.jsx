@@ -4,8 +4,39 @@ import { Activity, Zap, Brain, Target, Heart, TrendingUp, ArrowRight, Check, Sta
 import { T, font, mono } from "../theme/tokens";
 import { btn } from "../theme/styles";
 import NeuralBackground from "../components/NeuralBackground";
+import SEO from "../components/SEO";
 import { useAuth } from "../context/AuthContext";
 import { useResponsive } from "../hooks/useResponsive";
+
+const organizationSchema = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "AIM",
+  url: "https://aimfitness.ai",
+  logo: "https://aimfitness.ai/logos/aim-logo-badge-dark-4x.png",
+  description: "AI-powered performance intelligence platform for endurance athletes.",
+  founder: {
+    "@type": "Person",
+    name: "Kristen Faulkner",
+    jobTitle: "Founder & CEO",
+    description: "2x Olympic Gold Medalist in Cycling (Paris 2024, Road Race & Team Pursuit)",
+  },
+};
+
+const softwareSchema = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "AIM",
+  applicationCategory: "HealthApplication",
+  operatingSystem: "Web",
+  description: "AI-powered performance intelligence for endurance athletes. Connect power, sleep, recovery, body composition, and blood work data for cross-domain insights.",
+  url: "https://aimfitness.ai",
+  offers: [
+    { "@type": "Offer", name: "Starter", price: "15.00", priceCurrency: "USD", description: "For athletes ready to get serious about their data" },
+    { "@type": "Offer", name: "Pro", price: "39.00", priceCurrency: "USD", description: "For competitive athletes who want every edge" },
+    { "@type": "Offer", name: "Elite", price: "79.00", priceCurrency: "USD", description: "The full platform — blood work, body comp, and cycle intelligence" },
+  ],
+};
 
 const exampleInsights = [
   // Body Composition → Performance
@@ -215,6 +246,10 @@ export default function Landing() {
 
   return (
     <div>
+      <SEO path="/" />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareSchema) }} />
+
       {/* Nav */}
       <nav style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, padding: isMobile ? "0 16px" : "0 40px", height: isMobile ? 56 : 64, display: "flex", alignItems: "center", justifyContent: "space-between", background: `${T.bg}dd`, backdropFilter: "blur(20px)", borderBottom: `1px solid ${T.border}` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -266,6 +301,7 @@ export default function Landing() {
         </div>
       )}
 
+      <main>
       {/* ── CLEAN HERO (above the fold — same as original) ── */}
       <section style={{ paddingTop: isMobile ? 100 : isTablet ? 130 : 160, paddingBottom: isMobile ? 60 : 100, textAlign: "center", position: "relative", overflow: "hidden" }}>
         <NeuralBackground />
@@ -513,6 +549,8 @@ export default function Landing() {
       </section>
 
       {/* Footer */}
+      </main>
+
       <footer style={{ borderTop: `1px solid ${T.border}`, padding: isMobile ? "32px 16px 24px" : "48px 40px 32px" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: "flex-start", gap: isMobile ? 32 : 0 }}>
           <div>
