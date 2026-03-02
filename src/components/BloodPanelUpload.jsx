@@ -9,56 +9,82 @@ const MAX_SIZE_MB = 10;
 export default function BloodPanelUpload({ onUploadComplete, compact = false }) {
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [result, setResult] = useState(null);
+  const [progress, setProgress] = useState(null); // { current, total, fileName }
+  const [results, setResults] = useState([]); // array of { fileName, extractedCount, otherCount, error }
   const [error, setError] = useState(null);
   const fileRef = useRef(null);
 
-  const processFile = async (file) => {
+  const processFile = async (file, session) => {
     if (!ALLOWED_TYPES.includes(file.type)) {
-      setError("Please upload a PDF, JPG, PNG, or WebP file.");
-      return;
+      return { fileName: file.name, error: "Unsupported file type" };
     }
     if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-      setError(`File must be under ${MAX_SIZE_MB}MB.`);
-      return;
+      return { fileName: file.name, error: `File exceeds ${MAX_SIZE_MB}MB limit` };
     }
+
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(",")[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    const res = await fetch("/api/health/upload", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        fileBase64: base64,
+        mediaType: file.type,
+        fileName: file.name,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      return { fileName: file.name, error: data.error || "Upload failed" };
+    }
+
+    return { fileName: file.name, extractedCount: data.extractedCount, otherCount: data.otherCount };
+  };
+
+  const processFiles = async (files) => {
+    const fileList = Array.from(files).filter(f => f && f.size > 0);
+    if (fileList.length === 0) return;
 
     setUploading(true);
     setError(null);
-    setResult(null);
+    setResults([]);
 
     try {
-      // Convert to base64
-      const base64 = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result.split(",")[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not authenticated — please sign in again");
 
-      const res = await fetch("/api/health/upload", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          fileBase64: base64,
-          mediaType: file.type,
-          fileName: file.name,
-        }),
-      });
+      const allResults = [];
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Upload failed");
+      for (let i = 0; i < fileList.length; i++) {
+        setProgress({ current: i + 1, total: fileList.length, fileName: fileList[i].name });
 
-      setResult(data);
-      if (onUploadComplete) onUploadComplete(data);
+        try {
+          const result = await processFile(fileList[i], session);
+          allResults.push(result);
+        } catch (err) {
+          allResults.push({ fileName: fileList[i].name, error: err.message });
+        }
+      }
+
+      setResults(allResults);
+      setProgress(null);
+
+      const successful = allResults.filter(r => !r.error);
+      if (successful.length > 0 && onUploadComplete) {
+        onUploadComplete(successful.length === 1 ? successful[0] : { count: successful.length });
+      }
     } catch (err) {
       setError(err.message);
+      setProgress(null);
     } finally {
       setUploading(false);
     }
@@ -67,8 +93,7 @@ export default function BloodPanelUpload({ onUploadComplete, compact = false }) 
   const handleDrop = (e) => {
     e.preventDefault();
     setDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file) processFile(file);
+    if (e.dataTransfer.files.length > 0) processFiles(e.dataTransfer.files);
   };
 
   const handleDragOver = (e) => {
@@ -82,30 +107,38 @@ export default function BloodPanelUpload({ onUploadComplete, compact = false }) 
   };
 
   const handleFileSelect = (e) => {
-    const file = e.target.files[0];
-    if (file) processFile(file);
+    if (e.target.files.length > 0) processFiles(e.target.files);
   };
 
   const reset = () => {
-    setResult(null);
+    setResults([]);
     setError(null);
+    setProgress(null);
     if (fileRef.current) fileRef.current.value = "";
   };
 
   // Success state
-  if (result) {
+  if (results.length > 0 && !uploading) {
+    const successful = results.filter(r => !r.error);
+    const failed = results.filter(r => r.error);
+    const totalExtracted = successful.reduce((sum, r) => sum + (r.extractedCount || 0), 0);
+
     return (
       <div style={{ padding: compact ? "16px" : "24px", background: "rgba(0,229,160,0.04)", border: `1px solid rgba(0,229,160,0.2)`, borderRadius: 14, textAlign: "center" }}>
         <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(0,229,160,0.15)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
           <Check size={20} color={T.accent} />
         </div>
         <div style={{ fontSize: 15, fontWeight: 700, color: T.accent, marginBottom: 4 }}>
-          Blood Panel Uploaded
+          {successful.length} Blood Panel{successful.length !== 1 ? "s" : ""} Uploaded
         </div>
         <div style={{ fontSize: 13, color: T.textSoft, marginBottom: 4 }}>
-          Extracted <span style={{ fontFamily: mono, fontWeight: 700, color: T.text }}>{result.extractedCount}</span> biomarker{result.extractedCount !== 1 ? "s" : ""}
-          {result.otherCount > 0 && <> + <span style={{ fontFamily: mono, fontWeight: 700, color: T.text }}>{result.otherCount}</span> additional result{result.otherCount !== 1 ? "s" : ""}</>}
+          Extracted <span style={{ fontFamily: mono, fontWeight: 700, color: T.text }}>{totalExtracted}</span> biomarker{totalExtracted !== 1 ? "s" : ""} total
         </div>
+        {failed.length > 0 && (
+          <div style={{ fontSize: 12, color: "#ef4444", marginBottom: 4 }}>
+            {failed.length} file{failed.length !== 1 ? "s" : ""} failed: {failed.map(f => f.fileName).join(", ")}
+          </div>
+        )}
         <div style={{ fontSize: 11, color: T.textDim, marginBottom: 14 }}>
           AI analysis is generating in the background...
         </div>
@@ -114,7 +147,7 @@ export default function BloodPanelUpload({ onUploadComplete, compact = false }) 
           background: T.accentDim, border: `1px solid ${T.accentMid}`,
           color: T.accent, cursor: "pointer", fontFamily: font,
         }}>
-          Upload Another
+          Upload More
         </button>
       </div>
     );
@@ -128,11 +161,18 @@ export default function BloodPanelUpload({ onUploadComplete, compact = false }) 
           <Loader size={28} color={T.accent} style={{ animation: "spin 1.5s linear infinite" }} />
         </div>
         <div style={{ fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 4 }}>
-          Extracting biomarkers...
+          {progress && progress.total > 1
+            ? `Extracting biomarkers (${progress.current}/${progress.total})...`
+            : "Extracting biomarkers..."}
         </div>
-        <div style={{ fontSize: 12, color: T.textSoft }}>
-          AI is reading your lab report. This may take 10-20 seconds.
+        <div style={{ fontSize: 12, color: T.textSoft, marginBottom: progress?.total > 1 ? 8 : 0 }}>
+          {progress?.fileName || "AI is reading your lab report. This may take 10-20 seconds."}
         </div>
+        {progress && progress.total > 1 && (
+          <div style={{ width: "100%", maxWidth: 240, height: 4, background: T.surface, borderRadius: 2, margin: "0 auto", overflow: "hidden" }}>
+            <div style={{ width: `${(progress.current / progress.total) * 100}%`, height: "100%", background: T.accent, borderRadius: 2, transition: "width 0.3s" }} />
+          </div>
+        )}
         <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
       </div>
     );
@@ -161,6 +201,7 @@ export default function BloodPanelUpload({ onUploadComplete, compact = false }) 
           ref={fileRef}
           type="file"
           accept=".pdf,.jpg,.jpeg,.png,.webp"
+          multiple
           onChange={handleFileSelect}
           style={{ display: "none" }}
         />
@@ -168,13 +209,13 @@ export default function BloodPanelUpload({ onUploadComplete, compact = false }) 
           {dragging ? <FileText size={22} color={T.accent} /> : <Upload size={22} color={T.accent} />}
         </div>
         <div style={{ fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 4 }}>
-          {dragging ? "Drop your lab report here" : "Upload Blood Panel"}
+          {dragging ? "Drop your lab reports here" : "Upload Blood Panels"}
         </div>
         <div style={{ fontSize: 12, color: T.textSoft, marginBottom: 8 }}>
-          Drag & drop or click to browse
+          Drag & drop or click to browse — multiple files supported
         </div>
         <div style={{ fontSize: 11, color: T.textDim }}>
-          PDF, JPG, or PNG up to {MAX_SIZE_MB}MB
+          PDF, JPG, or PNG up to {MAX_SIZE_MB}MB each
         </div>
       </div>
 
