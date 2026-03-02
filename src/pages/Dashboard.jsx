@@ -305,7 +305,7 @@ function WorkoutPrescriptionCard({ workouts, title, subtitle }) {
 
 // ── AI ANALYSIS PANEL ──
 function AIAnalysisPanel({ aiAnalysis, activity, profile, dailyMetrics, computed, athletePowerProfile, athleteClassifications, onRequestAnalysis, analysisLoading, analysisError }) {
-  const [activeTab, setActiveTab] = useState("analysis");
+  const [activeTab, setActiveTab] = useState("summary");
   const [chatInput, setChatInput] = useState("");
   const [messages, setMessages] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -395,7 +395,7 @@ function AIAnalysisPanel({ aiAnalysis, activity, profile, dailyMetrics, computed
 
   useEffect(() => { if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight; }, [messages, isTyping]);
 
-  const tabs = [{ id: "analysis", label: "AI Analysis" }, { id: "chat", label: "Ask Claude" }];
+  const tabs = [{ id: "summary", label: "Summary" }, { id: "analysis", label: "AI Analysis" }, { id: "chat", label: "Ask Claude" }];
 
   return (
     <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
@@ -417,7 +417,58 @@ function AIAnalysisPanel({ aiAnalysis, activity, profile, dailyMetrics, computed
 
       {/* Content */}
       <div style={{ flex: 1, overflow: "auto", padding: activeTab === "chat" ? 0 : "14px 18px" }}>
-        {activeTab === "analysis" ? (
+        {activeTab === "summary" ? (
+          <div style={{ padding: "8px 0" }}>
+            {!analysisInsights ? (
+              <div style={{ textAlign: "center", padding: "40px 16px" }}>
+                <div style={{ fontSize: 28, marginBottom: 10 }}>{"\u2726"}</div>
+                <div style={{ fontSize: 13, color: T.textSoft }}>
+                  {activity ? "Generate an AI analysis to see your summary" : "Sync an activity to get started"}
+                </div>
+                {activity && !analysisLoading && (
+                  <button onClick={onRequestAnalysis} style={{ background: T.accent, border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 12, fontWeight: 700, color: T.bg, cursor: "pointer", fontFamily: font, marginTop: 16 }}>
+                    {"\u2726"} Generate Analysis
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div>
+                <div style={{ fontSize: 10, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>
+                  Workout Summary {activity?.started_at ? `\u00B7 ${new Date(activity.started_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}
+                </div>
+                {analysisSummary && (
+                  <div style={{ fontSize: 13, color: T.text, lineHeight: 1.8, padding: "16px 18px", background: T.bg, borderRadius: 12, borderLeft: `3px solid ${T.accent}`, marginBottom: 16 }}>
+                    {analysisSummary}
+                  </div>
+                )}
+                {/* Key takeaways from insights */}
+                {analysisInsights.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 10, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Key Takeaways</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {analysisInsights.slice(0, 4).map((insight, i) => (
+                        <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "10px 12px", background: T.bg, borderRadius: 10 }}>
+                          <span style={{ fontSize: 14, flexShrink: 0 }}>{insight.icon}</span>
+                          <div>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 2 }}>{insight.title}</div>
+                            <div style={{ fontSize: 11, color: T.textSoft, lineHeight: 1.5 }}>
+                              {insight.body?.length > 120 ? insight.body.slice(0, 120) + "..." : insight.body}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {analysisInsights.length > 4 && (
+                      <button onClick={() => setActiveTab("analysis")} style={{ background: "none", border: "none", fontSize: 11, color: T.accent, cursor: "pointer", fontFamily: font, fontWeight: 600, marginTop: 10, padding: 0 }}>
+                        View all {analysisInsights.length} insights →
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ) : activeTab === "analysis" ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {!analysisInsights ? (
               // No analysis yet
