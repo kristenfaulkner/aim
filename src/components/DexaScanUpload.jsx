@@ -56,8 +56,12 @@ export default function DexaScanUpload({ onUploadComplete, compact = false }) {
   };
 
   const handleUpload = async (files) => {
-    const file = Array.from(files).find(f => f && f.size > 0);
+    const file = Array.from(files).find(f => f);
     if (!file) return;
+    if (file.size === 0) {
+      setError("This file is empty (0 bytes). It may have been a failed download — try re-downloading from the original source.");
+      return;
+    }
 
     setUploading(true);
     setError(null);
