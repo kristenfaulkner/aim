@@ -6,7 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabase";
 import BloodPanelUpload from "../components/BloodPanelUpload";
 import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis } from "recharts";
-import { LogOut, Trash2, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
+import { LogOut, Trash2, ChevronDown, ChevronUp, ExternalLink, Settings } from "lucide-react";
 
 // ── Transform a blood_panels DB row into { id, date, source, values } ──
 function transformPanel(row) {
@@ -326,11 +326,12 @@ export default function HealthLab() {
             <span style={{ fontSize: 8, color: T.accent, fontWeight: 600, letterSpacing: "0.1em", marginLeft: -3 }}>BETA</span>
           </div>
           <div style={{ display: "flex", gap: 3 }}>
-            {["Dashboard", "Health Lab", "Connect"].map(item => (
+            {["Dashboard", "Health Lab", "Connect", "Settings"].map(item => (
               <button key={item} onClick={() => {
                 if (item === "Dashboard") navigate("/dashboard");
                 if (item === "Connect") navigate("/connect");
-              }} style={{ background: item === "Health Lab" ? T.accentDim : "none", border: "none", padding: "5px 12px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: item === "Health Lab" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font }}>{item}</button>
+                if (item === "Settings") navigate("/settings");
+              }} style={{ background: item === "Health Lab" ? T.accentDim : "none", border: "none", padding: "5px 12px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: item === "Health Lab" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 4 }}>{item === "Settings" ? <><Settings size={12} /> {item}</> : item}</button>
             ))}
           </div>
         </div>

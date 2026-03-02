@@ -8,7 +8,7 @@ import { useDashboardData } from "../hooks/useDashboardData";
 import { useActivities } from "../hooks/useActivities";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabase";
-import { LogOut } from "lucide-react";
+import { LogOut, Settings } from "lucide-react";
 
 // ── HELPERS ──
 
@@ -994,8 +994,8 @@ export default function Dashboard() {
             <span style={{ fontSize: 8, color: T.accent, fontWeight: 600, letterSpacing: "0.1em", marginLeft: -3 }}>BETA</span>
           </div>
           <div style={{ display: "flex", gap: 3 }}>
-            {["Dashboard", "Health Lab", "Connect"].map(item => (
-              <button key={item} onClick={() => { if (item === "Connect") window.location.href = "/connect"; if (item === "Health Lab") window.location.href = "/health-lab"; }} style={{ background: item === "Dashboard" ? T.accentDim : "none", border: "none", padding: "5px 12px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: item === "Dashboard" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font }}>{item}</button>
+            {["Dashboard", "Health Lab", "Connect", "Settings"].map(item => (
+              <button key={item} onClick={() => { if (item === "Connect") window.location.href = "/connect"; if (item === "Health Lab") window.location.href = "/health-lab"; if (item === "Settings") window.location.href = "/settings"; }} style={{ background: item === "Dashboard" ? T.accentDim : "none", border: "none", padding: "5px 12px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: item === "Dashboard" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 4 }}>{item === "Settings" ? <><Settings size={12} /> {item}</> : item}</button>
             ))}
           </div>
         </div>
