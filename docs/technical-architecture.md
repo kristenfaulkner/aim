@@ -1084,4 +1084,98 @@ VITE_APP_URL=https://yourdomain.com
   checkout            — Create Stripe checkout session
   portal              — Create Stripe customer portal session
   webhook             — Handle Stripe events
+
+/api/sms/
+  send                — Internal: trigger outbound SMS (workout, readiness, weekly, blood panel)
+  webhook             — Twilio inbound: receive athlete replies, generate AI response via TwiML
+
+/api/settings          — GET/PUT user settings (notification_preferences, etc.)
 ```
+
+---
+
+## SMS AI COACH
+
+### Overview
+
+AIM's SMS Coach is a proactive AI coaching system that lives in the athlete's text messages. After every workout sync, AIM texts the athlete an AI-powered summary with analysis, recovery tips, and macro recommendations. Athletes can reply directly to ask follow-up questions — Claude responds with full context from their training data, blood work, sleep, and more.
+
+### Architecture
+
+```
+Strava webhook / manual sync
+    → syncStravaActivity()
+    → analyzeActivity() [fire-and-forget]
+    → sendWorkoutSMS() [chained after analysis]
+        → Claude generates SMS-optimized summary
+        → Twilio sends text to athlete
+        → Message stored in ai_conversations/ai_messages
+
+Athlete replies via SMS
+    → Twilio POSTs to /api/sms/webhook
+    → Verify webhook signature
+    → Look up user by phone_number
+    → Load context (activities, metrics, blood panels, conversation history)
+    → Claude generates contextual response
+    → Store message pair in ai_messages
+    → Return TwiML response → Twilio delivers reply
+```
+
+### Provider: Twilio
+
+| Component | Detail |
+|-----------|--------|
+| Phone number | $1.15/month |
+| Outbound SMS | $0.0079/segment |
+| Inbound SMS | $0.0075/segment |
+| Estimated cost (100 DAU) | ~$40-60/month |
+
+Environment variables: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`, `TWILIO_WEBHOOK_URL`
+
+### SMS Trigger Types
+
+| Trigger | When | Content |
+|---------|------|---------|
+| Post-workout summary | After every Strava sync + AI analysis | Workout stats, key insights, recovery tips, macro recommendation |
+| Morning readiness | 7 AM daily (if sleep data exists) | Sleep summary, today's training recommendation |
+| Weekly digest | Sunday evening | Week's TSS/CTL trend, highlights, next week focus |
+| Blood panel alert | After blood panel upload + AI analysis | Key findings, action items |
+
+### Database Changes
+
+```sql
+-- Added to profiles table (migration 003)
+ALTER TABLE profiles ADD COLUMN phone_number TEXT;
+ALTER TABLE profiles ADD COLUMN sms_opt_in BOOLEAN DEFAULT FALSE;
+ALTER TABLE profiles ADD COLUMN sms_opt_in_at TIMESTAMPTZ;
+```
+
+Notification preferences stored in `user_settings.notification_preferences` JSONB:
+```json
+{
+  "sms_workout_summary": true,
+  "sms_morning_readiness": true,
+  "sms_weekly_digest": true,
+  "sms_blood_panel_alerts": true
+}
+```
+
+Conversation history reuses existing `ai_conversations` + `ai_messages` tables.
+
+### Files
+
+| File | Purpose |
+|------|---------|
+| `api/_lib/twilio.js` | Twilio client wrapper: `sendSMS()`, `verifyWebhookSignature()`, `twimlResponse()` |
+| `api/sms/send.js` | Outbound SMS: generates workout text via Claude, sends via Twilio, stores in conversation |
+| `api/sms/webhook.js` | Inbound SMS: verifies signature, loads athlete context, generates Claude response, returns TwiML |
+| `api/settings.js` | GET/PUT user settings including SMS notification preferences |
+| `src/pages/Settings.jsx` | Phone number input, SMS opt-in toggle, per-notification-type toggles, TCPA compliance |
+
+### TCPA Compliance
+
+- Users must explicitly opt-in via Settings page toggle
+- Opt-in timestamp stored in `profiles.sms_opt_in_at`
+- Compliance text displayed: "By enabling SMS, you agree to receive automated text messages..."
+- STOP/HELP handled automatically by Twilio
+- All outbound messages sent only to opted-in users with verified phone numbers
