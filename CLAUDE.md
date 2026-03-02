@@ -55,6 +55,7 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
   - `strava.js` — Strava API client with token refresh
   - `eightsleep.js` — Eight Sleep API client (credential auth, trends API, extended metrics extraction, encrypted credential decryption)
   - `twilio.js` — Twilio SMS client (send, webhook verification, TwiML response)
+  - `email.js` — Resend email client (send)
   - `crypto.js` — AES-256-GCM encryption/decryption for stored credentials (uses `CREDENTIAL_ENCRYPTION_KEY` env var)
   - `auth.js` — session verification, CORS
   - `supabase.js` — admin + public Supabase clients
@@ -70,6 +71,7 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 - `sleep/summary.js` — Claude-powered morning readiness assessment
 - `chat/ask.js` — AI coach conversation endpoint with full athlete context
 - `sms/` — Twilio SMS: send workout summaries, test/preview, inbound webhook (STOP/START/HELP + conversational AI replies)
+- `email/send.js` — Resend email: post-workout AI analysis emails (Claude-formatted HTML, first-analysis-only dedup, branded dark-theme template)
 - `user/` — profile, integrations list, disconnect, accept-terms (consent recording), delete (account deletion with cascade), export (full data export as JSON)
 - `settings.js` — notification preferences and user settings
 
@@ -84,7 +86,8 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 4. Cross-source deduplication via `source-priority.js` (device > TrainingPeaks > Strava)
 5. Upserts to `activities` table, updates `daily_metrics` (CTL/ATL/TSB), updates `power_profiles`
 6. Fire-and-forget AI analysis → stored in `activities.ai_analysis` JSONB
-7. Fire-and-forget SMS notification → sends workout summary text via Twilio (if opted in)
+7. Fire-and-forget email notification → sends AI analysis email via Resend (first analysis only, if opted in)
+8. Fire-and-forget SMS notification → sends workout summary text via Twilio (if opted in)
 
 **TrainingPeaks file import** (`/api/integrations/import/trainingpeaks.js`):
 1. User uploads ZIP (workout files) + optional workouts CSV + optional metrics CSV via `TrainingPeaksImport` component. ZIP is optional — CSV-only import enriches existing activities by matching on date.
@@ -201,6 +204,7 @@ All plans include 14-day free trial, no credit card required.
 Apple Health, Supersapiens/Lingo (CGM), MyFitnessPal, Cronometer, TrainerRoad, Intervals.icu, Zwift, Hammerhead, Hexis, Noom
 
 ### Communication
+- **Resend** ✅ — Email workout analysis (Claude-formatted HTML, sent after first AI analysis, branded dark-theme template, first-analysis-only dedup)
 - **Twilio** ✅ — SMS workout summaries (auto-sent post-sync), conversational AI coaching (inbound replies), TCPA-compliant opt-in/out (STOP/START/HELP keywords), test/preview endpoint
 
 ### Integration Pattern
@@ -211,13 +215,14 @@ OAuth2 flow: connect/callback file pairs in `/api/auth/`. Credential-based for E
 ### Core Principle
 Cross-domain insights are the product. Every AI insight must connect 2+ data sources and tell the athlete something they cannot learn from any single app. "Your HRV was low" is Whoop-level. "Your HRV was 38ms, which explains why cardiac drift was 8.1% today vs 3.2% on Feb 18 when HRV was 72ms" is AIM-level.
 
-### AI-Powered Features (6 total)
+### AI-Powered Features (7 total)
 1. **Post-ride analysis** — 13-category structured insights triggered after every activity sync
-2. **SMS workout summaries** — 1500-char Claude-generated texts sent via Twilio post-sync
-3. **SMS conversational coaching** — inbound reply handling with full athlete context
-4. **Morning sleep summary** — readiness assessment from Eight Sleep + training context
-5. **Blood panel analysis** — PDF/image OCR extraction + cross-reference with training data
-6. **Chat coach** — real-time Q&A via `/api/chat/ask` with conversation history
+2. **Email workout analysis** — Claude-formatted HTML emails via Resend with full AI analysis, sent on first analysis only (no duplicates on re-analysis or bulk import)
+3. **SMS workout summaries** — 1500-char Claude-generated texts sent via Twilio post-sync
+4. **SMS conversational coaching** — inbound reply handling with full athlete context
+5. **Morning sleep summary** — readiness assessment from Eight Sleep + training context
+6. **Blood panel analysis** — PDF/image OCR extraction + cross-reference with training data
+7. **Chat coach** — real-time Q&A via `/api/chat/ask` with conversation history
 
 ### 13 Insight Categories
 1. **Body Composition → Performance** — W/kg from Withings + power output, weight loss rate monitoring, hydration impact on cardiac drift, race weight projection
@@ -241,6 +246,7 @@ Cross-domain insights are the product. Every AI insight must connect 2+ data sou
 - Include one actionable takeaway per insight
 - Assign confidence level (high/medium/low)
 - Never assume causation without evidence — use "may be related to"
+- **Never give direct medical advice** — see "No Medical Advice Policy" section below for details
 
 ### AI Output Format
 ```json
@@ -312,6 +318,7 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 - **Eight Sleep hourly Cron** — Vercel Cron job (`/api/cron/sync-eightsleep.js`) syncs every hour, skips users synced in last 6 hours, covers all time zones
 - **Multi-file blood panel upload** — `BloodPanelUpload` supports drag-and-drop of multiple files with sequential processing, per-file progress bar, and aggregated success/failure summary
 - **TrainingPeaks ZIP optional** — CSV-only import enriches existing activities by matching on date without requiring ZIP file
+- **Email workout analysis** — Resend-powered post-workout emails: Claude formats AI analysis into branded dark-theme HTML email (metrics grid + insights + CTA), sent on first AI analysis only (skips re-analysis and bulk imports), notification preference toggle in Settings, fallback static template if Claude unavailable
 
 ### Remaining
 - Garmin Connect sync logic
@@ -349,6 +356,20 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 8. **Include doc updates in the same commit** — Documentation changes must ship with the code they describe, not in a follow-up
 
 **This is non-negotiable. If you are about to run `git push`, stop and verify you have completed steps 1-8 above. If any documentation is stale or missing, update it before pushing.**
+
+## No Medical Advice Policy
+
+**AIM is NOT a medical product. We are NOT doctors. This is non-negotiable.**
+
+All AI-generated content, hardcoded text, and UI copy must follow these rules:
+
+- **NEVER** use directive language: "Take X", "Start X protocol", "Increase your dose", "Supplement with X daily", "Do this", "You should"
+- **ALWAYS** use suggestive language: "Consider discussing with your doctor...", "Research suggests...", "Studies show X may help with Y...", "Some athletes find that...", "It may be worth exploring...", "Ask your physician about..."
+- **ALWAYS** recommend consulting a physician or sports medicine doctor for any health intervention (supplements, medications, dosing, diet changes for medical conditions)
+- Training advice (watts, zones, workout structure) is acceptable — health/medical advice is not
+- The `biomarkers.js` `actionLow`/`actionHigh` fields use non-prescriptive language throughout
+- All AI system prompts (`ai.js`, `upload.js`, `summary.js`, `ask.js`, `webhook.js`, `email/send.js`) include explicit no-medical-advice instructions
+- Legal disclaimers exist in HealthLab, Boosters, and Terms pages — but the real protection is never generating prescriptive medical content in the first place
 
 ## Conventions
 

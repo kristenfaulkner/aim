@@ -23,13 +23,14 @@ Return valid JSON:
 
 - Use the athlete's REAL data. Reference specific numbers.
 - Compare last night to their 7-day and 30-day averages when available.
-- If sleep was poor, suggest reduced training intensity with specific zones.
+- If sleep was poor, suggest considering reduced training intensity with specific zones.
 - If sleep was excellent, note it's a good day for harder efforts.
 - Note trends: improving, declining, or stable sleep patterns.
 - If Eight Sleep data includes bed temperature or toss/turns, reference those.
 - Keep the summary to 2-3 sentences max. Dense with data, not verbose.
 - Keep the recommendation to 1-2 sentences. Specific, not generic.
-- The metrics_line should be a clean, scannable string of key metrics separated by " · ".`;
+- The metrics_line should be a clean, scannable string of key metrics separated by " · ".
+- NEVER give direct medical advice. Use "consider", "you might want to", "research suggests" instead of directives like "do this" or "take this".`;
 
 /**
  * POST /api/sleep/summary

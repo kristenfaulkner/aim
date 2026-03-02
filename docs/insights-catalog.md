@@ -289,7 +289,7 @@ Every insight follows this format:
 **What to look for:** Real-time glucose drops during rides correlated with perceived effort spikes and power drops.
 
 **Example insights:**
-- "Your glucose (Supersapiens) dropped below 80 mg/dL at the 2h mark. This correlates with your perceived effort spike. Start fueling earlier — first gel at 30 minutes."
+- "Your glucose (Supersapiens) dropped below 80 mg/dL at the 2h mark. This correlates with your perceived effort spike. Consider fueling earlier — some coaches suggest first gel at 30 minutes."
 - "Your glucose stability during rides improved from ±25 mg/dL to ±12 mg/dL after switching to mixed carb sources. Keep this fueling strategy."
 
 ### 7C. Caloric Balance → Recovery
@@ -472,7 +472,7 @@ Every insight follows this format:
 **What to look for:** Ferritin levels correlated with VO2max/endurance performance. Use athlete-optimal ranges (>50 ng/mL), not clinical ranges (>12 ng/mL).
 
 **Example insights:**
-- "Your ferritin dropped from 68 to 42 ng/mL over 3 months. This coincides with your VO2max plateau. While still 'normal' clinically, athlete-optimal ferritin is >50. Consider iron supplementation under medical guidance."
+- "Your ferritin dropped from 68 to 42 ng/mL over 3 months. This coincides with your VO2max plateau. While still 'normal' clinically, athlete-optimal ferritin is >50. Consider discussing iron status with your doctor."
 - "Your ferritin is 38 — below the athlete-optimal threshold of 50. Combined with your hemoglobin at the low end of normal (13.8 g/dL), this may be limiting your oxygen-carrying capacity."
 
 ### 12B. Vitamin D & Performance
@@ -480,7 +480,7 @@ Every insight follows this format:
 **What to look for:** Vitamin D levels (athlete-optimal 50-80 ng/mL) correlated with injury history, immune function, and power output.
 
 **Example insights:**
-- "Your Vitamin D is 28 ng/mL — below athlete-optimal (50-80). Low D is associated with increased stress fracture risk and reduced testosterone. Supplementing with 4000-5000 IU daily is standard for athletes with your level."
+- "Your Vitamin D is 28 ng/mL — below athlete-optimal (50-80). Research links low D with increased stress fracture risk and reduced testosterone. Ask your doctor about supplementation — many sports medicine practitioners suggest 2,000-5,000 IU daily for athletes."
 - "Your D level improved from 28 to 56 ng/mL over 3 months of supplementation. This coincides with your improved injury-free streak and 3% power gain."
 
 ### 12C. Thyroid Function

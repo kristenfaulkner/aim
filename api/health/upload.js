@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { verifySession, cors } from "../_lib/auth.js";
 import { supabaseAdmin } from "../_lib/supabase.js";
 import Anthropic from "@anthropic-ai/sdk";
@@ -109,6 +110,27 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Unsupported file type. Please upload a PDF, JPG, PNG, or WebP." });
   }
 
+  // Check for duplicate file (hash the content)
+  const fileHash = crypto.createHash("sha256").update(fileBase64).digest("hex");
+
+  const { data: existingPanels } = await supabaseAdmin
+    .from("blood_panels")
+    .select("id, test_date, all_results")
+    .eq("user_id", session.userId);
+
+  const duplicate = (existingPanels || []).find(
+    p => p.all_results?.file_hash === fileHash
+  );
+
+  if (duplicate) {
+    return res.status(409).json({
+      error: "This file has already been uploaded",
+      duplicate: true,
+      existing_panel_id: duplicate.id,
+      existing_test_date: duplicate.test_date,
+    });
+  }
+
   try {
     // 1. Send file to Claude for biomarker extraction
     const contentBlock = mediaType === "application/pdf"
@@ -170,7 +192,7 @@ export default async function handler(req, res) {
       test_date: testDate || parsed.test_date || new Date().toISOString().split("T")[0],
       lab_name: parsed.lab_name || null,
       pdf_url: pdfUrl,
-      all_results: { biomarkers, other_results: otherResults },
+      all_results: { biomarkers, other_results: otherResults, file_hash: fileHash },
     };
 
     // Map extracted biomarkers to specific columns
@@ -239,7 +261,11 @@ async function generatePanelAnalysis(userId, panelId) {
 
 Analyze this blood panel using ATHLETE-OPTIMAL ranges (not standard clinical ranges). Cross-reference with training data and previous panels when available.
 
-IMPORTANT: You are not a doctor. Frame all suggestions as "Research shows..." or "Science suggests..." rather than medical recommendations.
+CRITICAL: You are NOT a doctor. NEVER give direct medical advice, prescribe supplements, or tell the athlete to start/stop/change any health intervention. Instead:
+- Use "Research suggests...", "Studies show...", "Some sports medicine practitioners recommend..."
+- Use "Consider discussing with your doctor...", "Ask your physician about...", "It may be worth exploring..."
+- NEVER say "Take X", "Supplement with X", "Start X protocol", "Increase your dose of X"
+- Always recommend consulting a physician or sports medicine doctor for any health-related action
 
 Return valid JSON:
 {
@@ -253,8 +279,8 @@ Return valid JSON:
     }
   ],
   "actionItems": [
-    "Specific science-based action item 1",
-    "Specific science-based action item 2"
+    "Science-based suggestion framed as 'Consider discussing X with your doctor' or 'Research suggests X may help'",
+    "Another suggestion using non-prescriptive language"
   ]
 }`,
     messages: [{ role: "user", content: JSON.stringify(context) }],
