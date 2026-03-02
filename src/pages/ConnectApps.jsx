@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { T, font } from "../theme/tokens";
 import { btn, inputStyle } from "../theme/styles";
-import { Check, ArrowRight, MessageCircle } from "lucide-react";
+import { Check, ArrowRight, MessageCircle, Eye, EyeOff } from "lucide-react";
 import { integrations, catLabels, catIcons } from "../data/integrations";
 import { supabase } from "../lib/supabase";
 
@@ -80,6 +80,7 @@ export default function ConnectApps() {
   const [credPassword, setCredPassword] = useState("");
   const [credLoading, setCredLoading] = useState(false);
   const [credError, setCredError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   // Handle OAuth return query params
   useEffect(() => {
@@ -158,6 +159,7 @@ export default function ConnectApps() {
       setCredEmail("");
       setCredPassword("");
       setCredError("");
+      setShowPassword(false);
       return;
     }
 
@@ -313,14 +315,23 @@ export default function ConnectApps() {
                 style={{ ...inputStyle, padding: "12px 16px", fontSize: 13 }}
                 autoFocus
               />
-              <input
-                type="password"
-                value={credPassword}
-                onChange={e => setCredPassword(e.target.value)}
-                placeholder="Password"
-                onKeyDown={e => { if (e.key === "Enter") handleCredentialSubmit(); }}
-                style={{ ...inputStyle, padding: "12px 16px", fontSize: 13 }}
-              />
+              <div style={{ position: "relative" }}>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={credPassword}
+                  onChange={e => setCredPassword(e.target.value)}
+                  placeholder="Password"
+                  onKeyDown={e => { if (e.key === "Enter") handleCredentialSubmit(); }}
+                  style={{ ...inputStyle, padding: "12px 40px 12px 16px", fontSize: 13, width: "100%", boxSizing: "border-box" }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(p => !p)}
+                  style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center", color: T.textDim }}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
               {credError && (
                 <div style={{ padding: "10px 14px", borderRadius: 10, fontSize: 12, fontWeight: 600,
                   background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#ef4444" }}>
