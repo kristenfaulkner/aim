@@ -282,7 +282,17 @@ export default function ConnectApps() {
                 style={{ ...inputStyle, padding: "14px 16px", height: 80, resize: "vertical", fontFamily: font }} />
               <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 12 }}>
                 <button onClick={() => setShowRequest(false)} style={{ ...btn(false), fontSize: 13, padding: "10px 20px" }}>Cancel</button>
-                <button onClick={() => setRequestSent(true)} style={{ ...btn(true), fontSize: 13, padding: "10px 20px" }}>
+                <button onClick={async () => {
+                  if (!requestText.trim()) return;
+                  const { data: { session } } = await supabase.auth.getSession();
+                  if (session) {
+                    await supabase.from("integration_requests").insert({
+                      user_id: session.user.id,
+                      request_text: requestText.trim(),
+                    });
+                  }
+                  setRequestSent(true);
+                }} style={{ ...btn(true), fontSize: 13, padding: "10px 20px" }}>
                   Submit Request <ArrowRight size={14} />
                 </button>
               </div>
