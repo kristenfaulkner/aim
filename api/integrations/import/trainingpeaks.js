@@ -19,6 +19,11 @@ import { isHigherPriority } from "../../_lib/source-priority.js";
 
 export const config = {
   maxDuration: 300, // 5 minutes for large imports
+  api: {
+    bodyParser: {
+      sizeLimit: "50mb", // CSVs sent as base64 can be large
+    },
+  },
 };
 
 export default async function handler(req, res) {
