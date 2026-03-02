@@ -103,7 +103,7 @@ function PowerCurveDisplay({ curve }) {
 }
 
 function AIAnalysis({ analysis, loading, onRegenerate, activityId }) {
-  const [activeTab, setActiveTab] = useState("summary");
+  const [activeTab, setActiveTab] = useState("analysis");
   const [chatInput, setChatInput] = useState("");
   const [messages, setMessages] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -174,7 +174,7 @@ function AIAnalysis({ analysis, loading, onRegenerate, activityId }) {
 
   useEffect(() => { if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight; }, [messages, isTyping]);
 
-  const tabs = [{ id: "summary", label: "Summary" }, { id: "analysis", label: "AI Analysis" }, { id: "chat", label: "Ask Claude" }];
+  const tabs = [{ id: "analysis", label: "AI Analysis" }, { id: "summary", label: "Summary" }, { id: "chat", label: "Ask Claude" }];
 
   return (
     <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, display: "flex", flexDirection: "column", minHeight: 500, overflow: "hidden" }}>
@@ -185,7 +185,7 @@ function AIAnalysis({ analysis, loading, onRegenerate, activityId }) {
             <div style={{ width: 30, height: 30, borderRadius: 10, background: `linear-gradient(135deg, ${T.accent}, ${T.blue})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: T.bg }}>{"\u2726"}</div>
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>AIM Intelligence</div>
-              <div style={{ fontSize: 9, color: T.accent, textTransform: "uppercase", letterSpacing: "0.1em" }}>Powered by Claude</div>
+              <div style={{ fontSize: 9, color: T.accent, textTransform: "uppercase", letterSpacing: "0.1em" }}>Cross-domain insights</div>
             </div>
           </div>
           {analysisInsights && (
@@ -764,7 +764,7 @@ export default function ActivityDetail() {
             <ArrowLeft size={16} /> Dashboard
           </button>
           <div style={{ width: 1, height: 20, background: T.border }} />
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }} onClick={() => navigate("/dashboard")}>
             <div style={{ width: 26, height: 26, borderRadius: 7, background: T.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: T.bg }}>AI</div>
             <span style={{ fontSize: 16, fontWeight: 700 }}><span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>AI</span>M</span>
           </div>
