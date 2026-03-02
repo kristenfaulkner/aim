@@ -117,6 +117,11 @@ CREATE TABLE activities (
   source_data JSONB, -- full response from source API for reference
   ai_analysis TEXT, -- Claude's analysis of this activity
   ai_analysis_generated_at TIMESTAMPTZ,
+  user_notes TEXT, -- athlete's freeform session notes
+  user_rating INTEGER CHECK (user_rating BETWEEN 1 AND 5), -- session rating (1-5 stars)
+  user_rpe INTEGER CHECK (user_rpe BETWEEN 1 AND 10), -- rate of perceived exertion
+  user_tags TEXT[] DEFAULT '{}', -- freeform tags (e.g., "interval", "race", "indoor")
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(user_id, source, source_id)
 );

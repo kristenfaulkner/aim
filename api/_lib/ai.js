@@ -295,7 +295,17 @@ Examples:
 - Assign "confidence" based on data quality: "high" if strong data supports it, "medium" if reasonable inference, "low" if speculative.
 - If menstrual cycle data is present and the athlete has opted in (uses_cycle_tracking = true), include cycle-aware insights. Otherwise, never mention it.
 - Reference boosters, blood work, and DEXA when that data is available and relevant.
-- Build on personal models — the longer the data history, the more personalized insights should be (e.g., "based on your last 60 rides" or "over your last 5 cycles").`;
+- Build on personal models — the longer the data history, the more personalized insights should be (e.g., "based on your last 60 rides" or "over your last 5 cycles").
+
+## ATHLETE NOTES & SUBJECTIVE DATA
+
+When the athlete has provided session notes, ratings, RPE, or tags, use this subjective data to enrich your analysis:
+
+- **When RPE doesn't match power output**, investigate HRV, sleep, and recovery data to explain the discrepancy. For example, RPE 9 but power was low could indicate accumulated fatigue, poor sleep, or illness.
+- **Look for recurring themes in athlete notes across sessions** (e.g., repeated mentions of fatigue, pain, motivation issues). Flag patterns like "you've mentioned knee pain in 3 of your last 5 rides."
+- **Cross-reference user_rating trends with training load** (CTL/ATL/TSB) to gauge training tolerance. Consistently low ratings during high ATL periods suggest the athlete is struggling with the load.
+- **Use tags to contextualize performance** — indoor vs outdoor, solo vs group ride, race vs training. Group rides often show higher NP due to surges; indoor rides may show lower HR at same power due to cooling.
+- **Validate subjective data against objective metrics** — when they align, confidence is high. When they diverge, that's often the most interesting insight.`;
 
 /**
  * Build the full athlete context payload for AI analysis.
@@ -334,7 +344,7 @@ export async function buildAnalysisContext(userId, activityId) {
     // Recent 14 days of activities (excluding current)
     supabaseAdmin
       .from("activities")
-      .select("name, activity_type, started_at, duration_seconds, distance_meters, avg_power_watts, normalized_power_watts, tss, intensity_factor, avg_hr_bpm, max_hr_bpm, efficiency_factor, hr_drift_pct, zone_distribution, power_curve, avg_cadence_rpm, calories, temperature_celsius, lr_balance")
+      .select("name, activity_type, started_at, duration_seconds, distance_meters, avg_power_watts, normalized_power_watts, tss, intensity_factor, avg_hr_bpm, max_hr_bpm, efficiency_factor, hr_drift_pct, zone_distribution, power_curve, avg_cadence_rpm, calories, temperature_celsius, lr_balance, user_notes, user_rating, user_rpe, user_tags")
       .eq("user_id", userId)
       .neq("id", activityId)
       .gte("started_at", new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString())
@@ -407,14 +417,27 @@ export async function buildAnalysisContext(userId, activityId) {
   const dailyMetrics = getData(dailyMetricsResult) || [];
   const integrations = getData(integrationsResult) || [];
   const settings = getData(settingsResult);
+  const recentActivities = getData(recentResult) || [];
 
   // Strip source_data from the activity to keep the payload manageable
   const { source_data, ...activityClean } = activity;
 
+  // Extract recent sessions that have user annotations (notes or RPE)
+  const recentNotes = recentActivities
+    .filter((a) => a.user_notes || a.user_rpe)
+    .map((a) => ({
+      name: a.name,
+      started_at: a.started_at,
+      user_notes: a.user_notes,
+      user_rating: a.user_rating,
+      user_rpe: a.user_rpe,
+      user_tags: a.user_tags,
+    }));
+
   return {
     activity: activityClean,
     profile,
-    recentActivities: getData(recentResult) || [],
+    recentActivities,
     dailyMetrics,
     powerProfile: getData(powerProfileResult) || null,
     recoveryLast48h: getData(recoveryResult) || [],
@@ -426,6 +449,7 @@ export async function buildAnalysisContext(userId, activityId) {
     cycleDay: dailyMetrics[0]?.cycle_day || null,
     usesCycleTracking: profile.uses_cycle_tracking || false,
     raceCalendar: settings?.race_calendar || null,
+    recentNotes,
   };
 }
 

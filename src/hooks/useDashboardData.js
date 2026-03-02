@@ -13,6 +13,7 @@ export function useDashboardData(selectedActivityId = null) {
   const [fitnessHistory, setFitnessHistory] = useState([]);
   const [powerProfile, setPowerProfile] = useState(null);
   const [recentActivities, setRecentActivities] = useState([]);
+  const [connectedIntegrations, setConnectedIntegrations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -48,6 +49,7 @@ export function useDashboardData(selectedActivityId = null) {
         fitnessResult,
         powerProfileResult,
         recentResult,
+        integrationsResult,
       ] = await Promise.allSettled([
         // Query 1: Activity (latest or selected)
         activityQuery,
@@ -85,6 +87,13 @@ export function useDashboardData(selectedActivityId = null) {
           .eq("user_id", user.id)
           .gte("started_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
           .order("started_at", { ascending: true }),
+
+        // Query 6: Connected integrations
+        supabase
+          .from("integrations")
+          .select("provider")
+          .eq("user_id", user.id)
+          .eq("is_active", true),
       ]);
 
       // Process results — use data if fulfilled, null/[] if rejected
@@ -117,6 +126,12 @@ export function useDashboardData(selectedActivityId = null) {
       } else {
         setRecentActivities([]);
       }
+
+      if (integrationsResult.status === "fulfilled" && integrationsResult.value.data) {
+        setConnectedIntegrations(integrationsResult.value.data.map(i => i.provider));
+      } else {
+        setConnectedIntegrations([]);
+      }
     } catch (err) {
       console.error("Dashboard data fetch error:", err);
       setError(err.message || "Failed to load dashboard data");
@@ -136,6 +151,7 @@ export function useDashboardData(selectedActivityId = null) {
     fitnessHistory,
     powerProfile,
     recentActivities,
+    connectedIntegrations,
     loading,
     error,
     refetch: fetchData,

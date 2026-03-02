@@ -18,7 +18,7 @@ export default async function handler(req, res) {
 
   const { data, error } = await supabaseAdmin
     .from("activities")
-    .select("id, name, description, activity_type, source, started_at, duration_seconds, distance_meters, elevation_gain_meters, avg_power_watts, normalized_power_watts, max_power_watts, avg_hr_bpm, max_hr_bpm, avg_cadence_rpm, avg_speed_mps, max_speed_mps, calories, tss, intensity_factor, variability_index, efficiency_factor, hr_drift_pct, decoupling_pct, work_kj, temperature_celsius, zone_distribution, power_curve, ai_analysis, ai_analysis_generated_at")
+    .select("id, name, description, activity_type, source, started_at, duration_seconds, distance_meters, elevation_gain_meters, avg_power_watts, normalized_power_watts, max_power_watts, avg_hr_bpm, max_hr_bpm, avg_cadence_rpm, avg_speed_mps, max_speed_mps, calories, tss, intensity_factor, variability_index, efficiency_factor, hr_drift_pct, decoupling_pct, work_kj, temperature_celsius, zone_distribution, power_curve, ai_analysis, ai_analysis_generated_at, user_notes, user_rating, user_rpe, user_tags")
     .eq("id", id)
     .eq("user_id", session.userId)
     .single();

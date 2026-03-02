@@ -5,6 +5,7 @@ import {
 } from "../data/dashboard";
 import { useDashboardData } from "../hooks/useDashboardData";
 import { useActivities } from "../hooks/useActivities";
+import { supabase } from "../lib/supabase";
 
 // ── HELPERS ──
 
@@ -532,7 +533,7 @@ function FitnessChart({ fitnessData }) {
 // ── MAIN DASHBOARD ──
 export default function Dashboard() {
   const [selectedActivityId, setSelectedActivityId] = useState(null);
-  const { activity, profile, dailyMetrics, fitnessHistory, powerProfile, recentActivities, loading, error } = useDashboardData(selectedActivityId);
+  const { activity, profile, dailyMetrics, fitnessHistory, powerProfile, recentActivities, connectedIntegrations, loading, error } = useDashboardData(selectedActivityId);
   const { activities: activityList } = useActivities();
 
   // ── Derive computed values from real data ──
@@ -709,6 +710,9 @@ export default function Dashboard() {
 
   // ── RENDER: Empty State ──
   if (!activity) {
+    const hasStrava = connectedIntegrations.includes("strava");
+    const hasAnyIntegration = connectedIntegrations.length > 0;
+
     return (
       <div style={{ minHeight: "100vh", background: T.bg, color: T.text, fontFamily: font }}>
         <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -719,14 +723,46 @@ export default function Dashboard() {
           </div>
         </nav>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 52px)", padding: 40, textAlign: "center" }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>{"\uD83D\uDEB4"}</div>
-          <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8, letterSpacing: "-0.02em" }}>No rides yet</h2>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>{hasAnyIntegration ? "\u2705" : "\uD83D\uDEB4"}</div>
+          <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8, letterSpacing: "-0.02em" }}>
+            {hasAnyIntegration ? "Waiting for your first ride" : "No rides yet"}
+          </h2>
           <p style={{ fontSize: 14, color: T.textSoft, maxWidth: 400, lineHeight: 1.6, marginBottom: 24 }}>
-            Connect Strava and sync your first ride to see your dashboard with real power data, AI analysis, and training insights.
+            {hasStrava
+              ? "Strava is connected! Go ride and your data will sync automatically. You can also trigger a manual sync below."
+              : hasAnyIntegration
+                ? "Your apps are connected! Connect Strava to sync your ride data, or go ride and check back."
+                : "Connect Strava and sync your first ride to see your dashboard with real power data, AI analysis, and training insights."}
           </p>
-          <a href="/connect" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 20px", background: T.accent, color: T.bg, borderRadius: 10, fontSize: 13, fontWeight: 700, textDecoration: "none" }}>
-            Connect Strava {"\u2192"}
-          </a>
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            {!hasStrava && (
+              <a href="/connect" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 20px", background: T.accent, color: T.bg, borderRadius: 10, fontSize: 13, fontWeight: 700, textDecoration: "none" }}>
+                Connect Strava {"\u2192"}
+              </a>
+            )}
+            {hasStrava && (
+              <button
+                onClick={async () => {
+                  try {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    if (!session) return;
+                    const res = await fetch("/api/integrations/sync/strava", {
+                      method: "POST",
+                      headers: { Authorization: `Bearer ${session.access_token}` },
+                    });
+                    if (res.ok) {
+                      window.location.reload();
+                    }
+                  } catch {}
+                }}
+                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 20px", background: T.accent, color: T.bg, borderRadius: 10, fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: font }}>
+                Sync Now {"\u2192"}
+              </button>
+            )}
+            <a href="/connect" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 20px", background: "transparent", color: T.textSoft, border: `1px solid ${T.border}`, borderRadius: 10, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+              {hasAnyIntegration ? "Manage Apps" : "Browse Apps"}
+            </a>
+          </div>
           {error && <div style={{ marginTop: 16, fontSize: 11, color: T.danger }}>{error}</div>}
         </div>
       </div>

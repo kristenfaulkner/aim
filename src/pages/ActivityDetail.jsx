@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { T, font, mono } from "../theme/tokens";
-import { btn } from "../theme/styles";
-import { ArrowLeft, Clock, Zap, Heart, Mountain, Gauge, Activity, TrendingUp, Flame, RefreshCw, Brain, ChevronRight } from "lucide-react";
+import { btn, inputStyle } from "../theme/styles";
+import { ArrowLeft, Clock, Zap, Heart, Mountain, Gauge, Activity, TrendingUp, Flame, RefreshCw, Brain, ChevronRight, Star, X, Check } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
 function formatDuration(seconds) {
@@ -203,6 +203,290 @@ function AIAnalysis({ analysis, loading, onRegenerate }) {
           );
         }) : (
           <div style={{ fontSize: 14, color: T.textSoft, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{analysis}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const RPE_LABELS = {
+  1: "Very Easy",
+  2: "Easy",
+  3: "Moderate",
+  4: "Somewhat Hard",
+  5: "Hard",
+  6: "Harder",
+  7: "Very Hard",
+  8: "Very Very Hard",
+  9: "Extremely Hard",
+  10: "Maximal",
+};
+
+const TAG_SUGGESTIONS = ["interval", "race", "recovery", "group ride", "solo", "indoor", "outdoor", "tempo", "endurance", "hill repeats"];
+
+function rpeColor(val) {
+  if (val <= 3) return T.green;
+  if (val <= 5) return T.warn;
+  if (val <= 7) return T.orange;
+  return T.danger;
+}
+
+function SessionNotes({ activity, activityId }) {
+  const [notes, setNotes] = useState(activity.user_notes || "");
+  const [rating, setRating] = useState(activity.user_rating || 0);
+  const [rpe, setRpe] = useState(activity.user_rpe || 0);
+  const [tags, setTags] = useState(activity.user_tags || []);
+  const [tagInput, setTagInput] = useState("");
+  const [saveStatus, setSaveStatus] = useState(null); // null | "saving" | "saved"
+  const debounceRef = useRef(null);
+  const [hoverStar, setHoverStar] = useState(0);
+
+  const save = useCallback(async (updates) => {
+    setSaveStatus("saving");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      await fetch(`/api/activities/annotate?id=${activityId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(updates),
+      });
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus(null), 2000);
+    } catch {
+      setSaveStatus(null);
+    }
+  }, [activityId]);
+
+  const debouncedSave = useCallback((updates) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => save(updates), 1500);
+  }, [save]);
+
+  // Cleanup debounce on unmount
+  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
+
+  const handleNotesChange = (e) => {
+    const val = e.target.value;
+    setNotes(val);
+    debouncedSave({ user_notes: val, user_rating: rating || null, user_rpe: rpe || null, user_tags: tags });
+  };
+
+  const handleRating = (val) => {
+    const newRating = val === rating ? 0 : val;
+    setRating(newRating);
+    save({ user_notes: notes, user_rating: newRating || null, user_rpe: rpe || null, user_tags: tags });
+  };
+
+  const handleRpe = (e) => {
+    const val = parseInt(e.target.value, 10);
+    setRpe(val);
+    save({ user_notes: notes, user_rating: rating || null, user_rpe: val || null, user_tags: tags });
+  };
+
+  const addTag = (tag) => {
+    const trimmed = tag.trim().toLowerCase();
+    if (trimmed && !tags.includes(trimmed)) {
+      const newTags = [...tags, trimmed];
+      setTags(newTags);
+      setTagInput("");
+      save({ user_notes: notes, user_rating: rating || null, user_rpe: rpe || null, user_tags: newTags });
+    } else {
+      setTagInput("");
+    }
+  };
+
+  const removeTag = (tag) => {
+    const newTags = tags.filter((t) => t !== tag);
+    setTags(newTags);
+    save({ user_notes: notes, user_rating: rating || null, user_rpe: rpe || null, user_tags: newTags });
+  };
+
+  const handleTagKeyDown = (e) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addTag(tagInput);
+    }
+  };
+
+  const availableSuggestions = useMemo(() => TAG_SUGGESTIONS.filter((s) => !tags.includes(s)), [tags]);
+
+  return (
+    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px", display: "flex", flexDirection: "column", gap: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ fontSize: 13, fontWeight: 700 }}>Session Notes</div>
+        {saveStatus && (
+          <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: saveStatus === "saving" ? T.textDim : T.green }}>
+            {saveStatus === "saving" ? (
+              <><RefreshCw size={10} style={{ animation: "spin 1s linear infinite" }} /> Saving...</>
+            ) : (
+              <><Check size={10} /> Saved</>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Notes textarea */}
+      <textarea
+        value={notes}
+        onChange={handleNotesChange}
+        placeholder="How did this session feel? Any observations..."
+        maxLength={5000}
+        rows={4}
+        style={{
+          ...inputStyle,
+          padding: "14px 16px",
+          resize: "vertical",
+          minHeight: 80,
+          lineHeight: 1.5,
+        }}
+      />
+
+      {/* Star rating */}
+      <div>
+        <div style={{ fontSize: 11, color: T.textDim, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>Session Rating</div>
+        <div style={{ display: "flex", gap: 4 }}>
+          {[1, 2, 3, 4, 5].map((val) => (
+            <button
+              key={val}
+              onClick={() => handleRating(val)}
+              onMouseEnter={() => setHoverStar(val)}
+              onMouseLeave={() => setHoverStar(0)}
+              style={{
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                padding: 4,
+                transition: "transform 0.15s",
+                transform: (hoverStar === val) ? "scale(1.2)" : "scale(1)",
+              }}
+            >
+              <Star
+                size={24}
+                fill={(hoverStar || rating) >= val ? "#f59e0b" : "transparent"}
+                color={(hoverStar || rating) >= val ? "#f59e0b" : T.textDim}
+                strokeWidth={1.5}
+              />
+            </button>
+          ))}
+          {rating > 0 && (
+            <span style={{ fontSize: 12, color: T.textSoft, marginLeft: 8, alignSelf: "center" }}>{rating}/5</span>
+          )}
+        </div>
+      </div>
+
+      {/* RPE slider */}
+      <div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <span style={{ fontSize: 11, color: T.textDim, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>RPE (Rate of Perceived Exertion)</span>
+          {rpe > 0 && (
+            <span style={{ fontSize: 12, fontFamily: mono, fontWeight: 700, color: rpeColor(rpe) }}>{rpe}/10 — {RPE_LABELS[rpe]}</span>
+          )}
+        </div>
+        <div style={{ position: "relative" }}>
+          <input
+            type="range"
+            min={0}
+            max={10}
+            step={1}
+            value={rpe}
+            onChange={handleRpe}
+            style={{
+              width: "100%",
+              height: 6,
+              WebkitAppearance: "none",
+              appearance: "none",
+              background: rpe > 0
+                ? `linear-gradient(90deg, ${T.green} 0%, ${T.warn} 50%, ${T.danger} 100%)`
+                : T.surface,
+              borderRadius: 3,
+              outline: "none",
+              cursor: "pointer",
+              accentColor: T.accent,
+            }}
+          />
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((val) => (
+              <span key={val} style={{ fontSize: 9, color: rpe === val ? rpeColor(val) : T.textDim, fontFamily: mono, fontWeight: rpe === val ? 700 : 400 }}>{val}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Tags */}
+      <div>
+        <div style={{ fontSize: 11, color: T.textDim, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>Tags</div>
+        {/* Current tags */}
+        {tags.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+            {tags.map((tag) => (
+              <span
+                key={tag}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  padding: "4px 10px",
+                  background: T.accentDim,
+                  border: `1px solid ${T.accentMid}`,
+                  borderRadius: 20,
+                  fontSize: 12,
+                  color: T.accent,
+                  fontWeight: 500,
+                }}
+              >
+                {tag}
+                <button
+                  onClick={() => removeTag(tag)}
+                  style={{ background: "transparent", border: "none", cursor: "pointer", padding: 0, display: "flex", color: T.accent, opacity: 0.6 }}
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        {/* Tag input */}
+        <input
+          type="text"
+          value={tagInput}
+          onChange={(e) => setTagInput(e.target.value)}
+          onKeyDown={handleTagKeyDown}
+          placeholder="Add a tag..."
+          style={{
+            ...inputStyle,
+            padding: "10px 14px",
+            fontSize: 13,
+          }}
+        />
+        {/* Suggestions */}
+        {availableSuggestions.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 8 }}>
+            {availableSuggestions.map((s) => (
+              <button
+                key={s}
+                onClick={() => addTag(s)}
+                style={{
+                  background: T.surface,
+                  border: `1px solid ${T.border}`,
+                  borderRadius: 14,
+                  padding: "3px 10px",
+                  fontSize: 11,
+                  color: T.textDim,
+                  cursor: "pointer",
+                  fontFamily: font,
+                  transition: "border-color 0.2s, color 0.2s",
+                }}
+                onMouseEnter={(e) => { e.target.style.borderColor = T.accentMid; e.target.style.color = T.textSoft; }}
+                onMouseLeave={(e) => { e.target.style.borderColor = T.border; e.target.style.color = T.textDim; }}
+              >
+                + {s}
+              </button>
+            ))}
+          </div>
         )}
       </div>
     </div>
@@ -410,6 +694,9 @@ export default function ActivityDetail() {
 
             {/* Power curve */}
             <PowerCurveDisplay curve={a.power_curve} />
+
+            {/* Session notes & annotations */}
+            <SessionNotes activity={a} activityId={id} />
           </div>
 
           {/* Right column: AI Analysis */}
