@@ -99,10 +99,10 @@ export default async function handler(req, res) {
     const ftp = profile?.ftp_watts || null;
     const weightKg = profile?.weight_kg || null;
 
-    // 5. Load existing activities for dedup
+    // 5. Load existing activities for dedup (include metric fields for re-import enrichment)
     const { data: existingActivities } = await supabaseAdmin
       .from("activities")
-      .select("id, source, source_id, started_at, duration_seconds, name, description, source_data")
+      .select("id, source, source_id, started_at, duration_seconds, name, description, source_data, lr_balance, tss, intensity_factor, variability_index, efficiency_factor, work_kj, zone_distribution, power_curve, hr_drift_pct, decoupling_pct, avg_power_watts, normalized_power_watts, max_power_watts, avg_hr_bpm, max_hr_bpm, avg_cadence_rpm")
       .eq("user_id", session.userId);
 
     const existing = existingActivities || [];
@@ -130,7 +130,38 @@ export default async function handler(req, res) {
         const duplicate = findDuplicate(existing, metadata.started_at, metadata.duration_seconds, metadata.source_id);
 
         if (duplicate && duplicate.source === "trainingpeaks") {
-          results.skipped++;
+          // Re-import from TP: fill in any fields that are now computable
+          // but were missing on first import (e.g. lr_balance, TSS if FTP wasn't set)
+          const enrichUpdates = {};
+          if (lrBalance && !duplicate.lr_balance) enrichUpdates.lr_balance = lrBalance;
+          if (metrics.tss != null && duplicate.tss == null) enrichUpdates.tss = metrics.tss;
+          if (metrics.intensity_factor != null && duplicate.intensity_factor == null) enrichUpdates.intensity_factor = metrics.intensity_factor;
+          if (metrics.variability_index != null && duplicate.variability_index == null) enrichUpdates.variability_index = metrics.variability_index;
+          if (metrics.efficiency_factor != null && duplicate.efficiency_factor == null) enrichUpdates.efficiency_factor = metrics.efficiency_factor;
+          if (metrics.hr_drift_pct != null && duplicate.hr_drift_pct == null) enrichUpdates.hr_drift_pct = metrics.hr_drift_pct;
+          if (metrics.decoupling_pct != null && duplicate.decoupling_pct == null) enrichUpdates.decoupling_pct = metrics.decoupling_pct;
+          if (metrics.work_kj != null && duplicate.work_kj == null) enrichUpdates.work_kj = metrics.work_kj;
+          if (metrics.zone_distribution && !duplicate.zone_distribution) enrichUpdates.zone_distribution = metrics.zone_distribution;
+          if (metrics.power_curve && !duplicate.power_curve) enrichUpdates.power_curve = metrics.power_curve;
+          if (metrics.avg_power_watts != null && duplicate.avg_power_watts == null) enrichUpdates.avg_power_watts = metrics.avg_power_watts;
+          if (metrics.normalized_power_watts != null && duplicate.normalized_power_watts == null) enrichUpdates.normalized_power_watts = metrics.normalized_power_watts;
+          if (metrics.max_power_watts != null && duplicate.max_power_watts == null) enrichUpdates.max_power_watts = metrics.max_power_watts;
+          if (metrics.avg_hr_bpm != null && duplicate.avg_hr_bpm == null) enrichUpdates.avg_hr_bpm = metrics.avg_hr_bpm;
+          if (metrics.max_hr_bpm != null && duplicate.max_hr_bpm == null) enrichUpdates.max_hr_bpm = metrics.max_hr_bpm;
+          if (metrics.avg_cadence_rpm != null && duplicate.avg_cadence_rpm == null) enrichUpdates.avg_cadence_rpm = metrics.avg_cadence_rpm;
+
+          if (Object.keys(enrichUpdates).length > 0) {
+            await supabaseAdmin.from("activities").update(enrichUpdates).eq("id", duplicate.id);
+            if (enrichUpdates.tss) {
+              await updateDailyMetrics(session.userId, { started_at: metadata.started_at, tss: enrichUpdates.tss });
+            }
+            if (enrichUpdates.power_curve) {
+              await updatePowerProfile(session.userId, enrichUpdates.power_curve, weightKg);
+            }
+            results.merged++;
+          } else {
+            results.skipped++;
+          }
           continue;
         }
 
