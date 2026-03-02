@@ -25,6 +25,8 @@ export function AuthProvider({ children }) {
       setUser(u);
       if (u) fetchProfile(u.id);
       setLoading(false);
+    }).catch(() => {
+      setLoading(false);
     });
 
     // Listen for auth changes
