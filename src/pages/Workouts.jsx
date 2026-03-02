@@ -260,11 +260,11 @@ export default function Workouts() {
         });
         if (!res.ok || cancelled) return;
         const data = await res.json();
-        if (!cancelled) setActivity(data.activity || null);
+        if (!cancelled) setActivity(data || null);
 
         // Fetch daily metrics for that date
-        if (data.activity?.started_at) {
-          const dateStr = new Date(data.activity.started_at).toISOString().split("T")[0];
+        if (data?.started_at) {
+          const dateStr = new Date(data.started_at).toISOString().split("T")[0];
           const { data: dm } = await supabase
             .from("daily_metrics")
             .select("*")
