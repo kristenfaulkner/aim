@@ -19,61 +19,38 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
-    let initialLoad = true;
+    // Use getSession() as the primary session restoration method.
+    // This is the most reliable approach — it reads from localStorage
+    // synchronously and returns the cached session.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const u = session?.user ?? null;
+      setUser(u);
+      if (u) {
+        fetchProfile(u.id).finally(() => setLoading(false));
+      } else {
+        setLoading(false);
+      }
+    }).catch(() => {
+      setLoading(false);
+    });
 
-    // Listen for auth changes — this must be registered before getSession()
-    // because Supabase v2 fires INITIAL_SESSION through this listener.
+    // Listen for subsequent auth changes (sign in, sign out, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
+        // Skip INITIAL_SESSION — we handle that with getSession() above
+        if (event === "INITIAL_SESSION") return;
+
         const u = session?.user ?? null;
-
-        // On SIGNED_OUT, clear everything
-        if (event === "SIGNED_OUT") {
-          setUser(null);
-          setProfile(null);
-          if (initialLoad) {
-            initialLoad = false;
-            setLoading(false);
-          }
-          return;
-        }
-
-        // For all other events with a user, update state
+        setUser(u);
         if (u) {
-          setUser(u);
-          // Use setTimeout(0) to avoid Supabase deadlock where getSession()
-          // is called inside onAuthStateChange before it has finished updating
-          setTimeout(() => {
-            fetchProfile(u.id).finally(() => {
-              if (initialLoad) {
-                initialLoad = false;
-                setLoading(false);
-              }
-            });
-          }, 0);
-        } else if (event === "INITIAL_SESSION") {
-          // No session on initial load — user is not logged in
-          setUser(null);
+          fetchProfile(u.id);
+        } else {
           setProfile(null);
-          if (initialLoad) {
-            initialLoad = false;
-            setLoading(false);
-          }
         }
-        // Ignore TOKEN_REFRESHED with null session — it's transient
       }
     );
 
-    // Safety timeout — if nothing fires within 5 seconds, stop loading
-    const timeout = setTimeout(() => {
-      if (initialLoad) {
-        initialLoad = false;
-        setLoading(false);
-      }
-    }, 5000);
-
     return () => {
-      clearTimeout(timeout);
       subscription.unsubscribe();
     };
   }, []);
