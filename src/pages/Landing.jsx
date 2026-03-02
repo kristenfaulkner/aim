@@ -131,19 +131,16 @@ export default function Landing() {
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }}>
           {[
-            { emoji: "\u{1F9EC}", title: "Cross-domain intelligence no one else has", desc: "AIM is the only platform that reasons across your blood work, training data, sleep, body composition, nutrition, and menstrual cycle simultaneously. Your ferritin trend explains your power plateau. Your DEXA changes reveal whether weight loss is fat or muscle.", highlight: "Other apps: here's your data. AIM: here's what it means together and what to do about it." },
-            { emoji: "\u{1F3C5}", title: "Built by a 2x Olympic Champion", desc: "The analysis frameworks, biomarker ranges, and training prescriptions in AIM come from the same system used to win Olympic gold — refined through years of world-class competition, sports science research, and elite coaching.", highlight: "Every recommendation is grounded in what actually works at the highest level." },
-            { emoji: "\u{1FA78}", title: "Your blood work and DEXA scans, decoded", desc: "Upload your lab results and body scans. AIM uses athlete-optimal ranges (not clinical ranges designed to catch disease) to flag what matters for performance. It tracks trends over time, cross-references with your training load, and tells you exactly when to retest.", highlight: "43% of female athletes are iron-deficient. Clinical labs say they're \"normal.\"" },
+            { emoji: "\u{1F9EC}", title: "Cross-domain intelligence no one else has", desc: "AIM is the only platform that reasons across your blood work, training data, sleep, body composition, nutrition, and menstrual cycle simultaneously. Your ferritin trend explains your power plateau. Your DEXA changes reveal whether weight loss is fat or muscle." },
+            { emoji: "\u{1F3C5}", title: "Built by a 2x Olympic Champion", desc: "The analysis frameworks, biomarker ranges, and training prescriptions in AIM come from the same system used to win Olympic gold — refined through years of world-class competition, sports science research, and elite coaching." },
+            { emoji: "\u{1FA78}", title: "Your blood work and DEXA scans, decoded", desc: "Upload your lab results and body scans. AIM uses athlete-optimal ranges (not clinical ranges designed to catch disease) to flag what matters for performance. It tracks trends over time, cross-references with your training load, and tells you exactly when to retest." },
           ].map((d, i) => (
             <div key={i} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 20, padding: "36px 28px", transition: "all 0.3s", cursor: "default" }}
               onMouseOver={e => { e.currentTarget.style.borderColor = T.borderHover; e.currentTarget.style.transform = "translateY(-4px)"; }}
               onMouseOut={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.transform = "translateY(0)"; }}>
-              <div style={{ fontSize: 36, marginBottom: 20 }}>{d.emoji}</div>
+              <div style={{ fontSize: 36, marginBottom: 20, textAlign: "center" }}>{d.emoji}</div>
               <h3 style={{ fontSize: 18, fontWeight: 800, margin: "0 0 12px", letterSpacing: "-0.01em", lineHeight: 1.3 }}>{d.title}</h3>
-              <p style={{ fontSize: 14, color: T.textSoft, lineHeight: 1.7, margin: "0 0 16px" }}>{d.desc}</p>
-              <div style={{ padding: "10px 14px", background: T.accentDim, borderRadius: 10, border: `1px solid ${T.accentMid}` }}>
-                <p style={{ fontSize: 12, color: T.accent, margin: 0, fontWeight: 600, lineHeight: 1.5 }}>{d.highlight}</p>
-              </div>
+              <p style={{ fontSize: 14, color: T.textSoft, lineHeight: 1.7, margin: 0 }}>{d.desc}</p>
             </div>
           ))}
         </div>
@@ -158,10 +155,10 @@ export default function Landing() {
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {[
-              { type: "warning", label: "HEAT ADAPTATION", text: "Your HR:power ratio jumped 12% in yesterday's 85°F ride compared to last week's similar effort at 60°F — your cardiac drift was 9.1% vs. 2.8%. You're not heat adapted yet, and your race is in 3 weeks. → Recommendation: Add 20-minute post-ride sauna sessions at 80-100°C, 3× per week for 3 weeks. Based on Scoon et al., this expands plasma volume 7% and closes the heat gap. Track your drift weekly — you should see it halve by week 2." },
-              { type: "positive", label: "BLOOD WORK × TRAINING", text: "Your ferritin dropped from 62 → 28 ng/mL over the past 3 months. Combined with your training volume increase (+26%) and luteal phase timing, this is likely driving your VO2max plateau. → Recommendation: Begin 65mg iron bisglycinate with vitamin C, taken on an empty stomach away from coffee. Retest in 8-12 weeks." },
-              { type: "action", label: "BIOMECHANICS", text: "Your L:R power balance shifts from 50/50 on flats to 54/46 on climbs above 6% — your left leg is compensating, and the imbalance worsens with fatigue. This costs you ~8W at threshold on steep terrain. → Prescription: Add 2× weekly single-leg pedal drills (3×2min each leg at 85% FTP), Bulgarian split squats (3×8 each side), and low-cadence force intervals (5×3min at 55rpm) to build right-leg recruitment." },
-              { type: "warning", label: "SLEEP × RECOVERY", text: "Your deep sleep dropped 53% this week (48min vs. 1h42m avg) and your EightSleep bed temp was set to -1°C. Historically, your deep sleep is 34% higher at -4°C. Combined with your HRV declining 74→38ms over 3 nights, tomorrow's planned VO2max session will be counterproductive. → Recommendation: Set bed temp to -4°C tonight, skip tomorrow's intervals, replace with Z2 endurance. Your HRV should rebound within 48 hours." },
+              { type: "warning", label: "HEAT ADAPTATION", text: "Your HR:power ratio jumped 12% in yesterday's ride compared to last week's similar effort at a cooler temperature — your cardiac drift was 9.1% vs. 2.8%. You're not heat adapted yet, and your race is in 3 weeks. → Recommendation: Add post-ride sauna sessions 3× per week for 3 weeks. Track your drift weekly — you should see it decrease by week 2." },
+              { type: "positive", label: "BLOOD WORK × TRAINING", text: "Your ferritin dropped from 62 → 28 ng/mL over the past 3 months. Combined with your training volume increase and luteal phase timing, this is likely driving your VO2max plateau. → Recommendation: Begin iron bisglycinate with vitamin C, taken on an empty stomach away from coffee. Retest in 8-12 weeks." },
+              { type: "action", label: "BIOMECHANICS", text: "Your L:R power balance shifts from 50/50 on flats to 54/46 on climbs above 6% — your left leg is compensating, and the imbalance worsens with fatigue. → Prescription: Add single-leg pedal drills, Bulgarian split squats, and low-cadence force intervals to build right-leg recruitment." },
+              { type: "warning", label: "SLEEP × RECOVERY", text: "Your deep sleep dropped significantly this week and your EightSleep bed temp was set higher than your optimal. Combined with your HRV declining over 3 nights, tomorrow's planned VO2max session will be counterproductive. → Recommendation: Lower your bed temp tonight, skip tomorrow's intervals, replace with Z2 endurance. Your HRV should rebound within 48 hours." },
             ].map((insight, i) => (
               <div key={i} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px 24px", borderLeft: `3px solid ${insight.type === "positive" ? T.accent : insight.type === "warning" ? T.warn : T.purple}` }}>
                 <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", color: insight.type === "positive" ? T.accent : insight.type === "warning" ? T.warn : T.purple, marginBottom: 8 }}>{insight.label}</div>
@@ -216,8 +213,7 @@ export default function Landing() {
               { name: "Cronometer", desc: "Micronutrients" },
               { name: "Blood Work", desc: "Lab panels" },
               { name: "DEXA Scans", desc: "Body composition" },
-              { name: "Supersapiens", desc: "Glucose monitoring" },
-              { name: "Polar", desc: "HR & training" },
+{ name: "Polar", desc: "HR & training" },
               { name: "INSCYD", desc: "Metabolic profiling" },
             ]},
           ].map((group) => (
