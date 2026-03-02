@@ -101,13 +101,6 @@ export async function syncStravaActivity(userId, stravaActivityId) {
     await updatePowerProfile(userId, metrics.power_curve, profile?.weight_kg);
   }
 
-  // Update integration sync status
-  await supabaseAdmin
-    .from("integrations")
-    .update({ last_sync_at: new Date().toISOString(), sync_status: "success", sync_error: null })
-    .eq("user_id", userId)
-    .eq("provider", "strava");
-
   // Trigger AI analysis (fire-and-forget — don't block the sync)
   if (upserted?.id) {
     analyzeActivity(userId, upserted.id).catch(err =>
@@ -229,7 +222,32 @@ async function updatePowerProfile(userId, newCurve, weightKg) {
 }
 
 /**
+ * Fetch all Strava activities since a given epoch timestamp, with pagination.
+ * Returns the full list of summary activities.
+ */
+async function fetchAllActivitiesSince(accessToken, sinceEpoch) {
+  const allActivities = [];
+  let page = 1;
+  const perPage = 100; // Strava max per page
+
+  while (true) {
+    const batch = await stravaFetch(
+      accessToken,
+      `/athlete/activities?after=${sinceEpoch}&per_page=${perPage}&page=${page}`
+    );
+    if (!batch || batch.length === 0) break;
+    allActivities.push(...batch);
+    if (batch.length < perPage) break; // Last page
+    page++;
+  }
+
+  return allActivities;
+}
+
+/**
  * Full sync — fetch all recent activities since last sync.
+ * Paginates through all results and only updates last_sync_at after the
+ * entire batch completes, so partial failures don't skip activities.
  */
 export async function fullStravaSync(userId) {
   const tokenData = await getStravaToken(userId);
@@ -237,22 +255,23 @@ export async function fullStravaSync(userId) {
 
   const { accessToken, integration } = tokenData;
 
+  // Capture sync start time BEFORE fetching — any activities uploaded during
+  // sync will be caught on the next run
+  const syncStartedAt = new Date().toISOString();
+
   // Fetch activities since last sync (or last 30 days)
   const since = integration.last_sync_at
     ? Math.floor(new Date(integration.last_sync_at).getTime() / 1000)
     : Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000);
 
-  const activities = await stravaFetch(
-    accessToken,
-    `/athlete/activities?after=${since}&per_page=30`
-  );
-
-  // Update sync status
+  // Mark as syncing
   await supabaseAdmin
     .from("integrations")
     .update({ sync_status: "syncing" })
     .eq("user_id", userId)
     .eq("provider", "strava");
+
+  const activities = await fetchAllActivitiesSince(accessToken, since);
 
   const results = [];
   for (const act of activities) {
@@ -264,7 +283,65 @@ export async function fullStravaSync(userId) {
     }
   }
 
+  // Only update last_sync_at AFTER the full batch completes
+  await supabaseAdmin
+    .from("integrations")
+    .update({
+      last_sync_at: syncStartedAt,
+      sync_status: "success",
+      sync_error: null,
+    })
+    .eq("user_id", userId)
+    .eq("provider", "strava");
+
   return results;
+}
+
+/**
+ * Backfill sync — fetch ALL activities from the last N days regardless of
+ * last_sync_at. Use this to recover from missed syncs or initial onboarding.
+ */
+export async function backfillStravaSync(userId, days = 90) {
+  const tokenData = await getStravaToken(userId);
+  if (!tokenData) throw new Error("No valid Strava token");
+
+  const { accessToken } = tokenData;
+  const syncStartedAt = new Date().toISOString();
+  const since = Math.floor((Date.now() - days * 24 * 60 * 60 * 1000) / 1000);
+
+  // Mark as syncing
+  await supabaseAdmin
+    .from("integrations")
+    .update({ sync_status: "syncing" })
+    .eq("user_id", userId)
+    .eq("provider", "strava");
+
+  const activities = await fetchAllActivitiesSince(accessToken, since);
+
+  const results = [];
+  const errors = [];
+  for (const act of activities) {
+    try {
+      const result = await syncStravaActivity(userId, String(act.id));
+      results.push(result);
+    } catch (err) {
+      console.error(`Backfill: failed to sync activity ${act.id}:`, err.message);
+      errors.push({ id: act.id, name: act.name, error: err.message });
+    }
+  }
+
+  // Update last_sync_at to now
+  await supabaseAdmin
+    .from("integrations")
+    .update({
+      last_sync_at: syncStartedAt,
+      sync_status: errors.length > 0 ? "partial" : "success",
+      sync_error: errors.length > 0 ? `${errors.length} activities failed` : null,
+    })
+    .eq("user_id", userId)
+    .eq("provider", "strava");
+
+  return { results, errors };
 }
 
 /**

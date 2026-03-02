@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { T, font, mono } from "../theme/tokens";
 import {
   benchmarks, classifyPower, pctToNextLevel, getWorkoutPrescriptions,
@@ -247,7 +247,7 @@ function WorkoutPrescriptionCard({ workouts, title, subtitle }) {
 }
 
 // ── AI ANALYSIS PANEL ──
-function AIAnalysisPanel({ aiAnalysis, activity, profile, dailyMetrics, computed, athletePowerProfile, athleteClassifications }) {
+function AIAnalysisPanel({ aiAnalysis, activity, profile, dailyMetrics, computed, athletePowerProfile, athleteClassifications, onRequestAnalysis, analysisLoading }) {
   const [activeTab, setActiveTab] = useState("analysis");
   const [chatInput, setChatInput] = useState("");
   const [messages, setMessages] = useState([]);
@@ -303,19 +303,33 @@ function AIAnalysisPanel({ aiAnalysis, activity, profile, dailyMetrics, computed
     count: c.id === "all" ? analysisInsights.length : analysisInsights.filter(i => i.category === c.id).length,
   })).filter(c => c.id === "all" || c.count > 0) : [];
 
-  const handleSendChat = () => {
+  const handleSendChat = async () => {
     if (!chatInput.trim()) return;
-    setMessages(prev => [...prev, { role: "user", text: chatInput }]);
+    const userMsg = chatInput;
+    setMessages(prev => [...prev, { role: "user", text: userMsg }]);
     setChatInput("");
     setIsTyping(true);
-    // Placeholder — future task will wire this to real Claude API
-    setTimeout(() => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`/api/chat/ask`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          message: userMsg,
+          activityId: activity?.id,
+          history: messages,
+        }),
+      });
+      const data = await res.json();
+      setMessages(prev => [...prev, { role: "assistant", text: data.reply || "Sorry, I couldn't process that." }]);
+    } catch {
+      setMessages(prev => [...prev, { role: "assistant", text: "Something went wrong. Please try again." }]);
+    } finally {
       setIsTyping(false);
-      setMessages(prev => [...prev, {
-        role: "assistant",
-        text: "Chat with your training data is coming soon! This feature will let you ask questions about your power profile, training load, and get personalized workout recommendations.",
-      }]);
-    }, 1500);
+    }
   };
 
   useEffect(() => { if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight; }, [messages, isTyping]);
@@ -347,14 +361,33 @@ function AIAnalysisPanel({ aiAnalysis, activity, profile, dailyMetrics, computed
             {!analysisInsights ? (
               // No analysis yet
               <div style={{ textAlign: "center", padding: "40px 16px" }}>
-                <div style={{ fontSize: 28, marginBottom: 10 }}>{"\u2726"}</div>
-                <div style={{ fontSize: 13, color: T.textSoft, marginBottom: 6 }}>
-                  {activity ? "Analysis generating..." : "Sync an activity to see AI analysis"}
-                </div>
-                {activity && (
-                  <div style={{ fontSize: 10, color: T.textDim, marginTop: 8 }}>
-                    AI analysis will appear here after your next activity sync
-                  </div>
+                <div style={{ fontSize: 28, marginBottom: 10 }}>{analysisLoading ? "" : "\u2726"}</div>
+                {analysisLoading ? (
+                  <>
+                    <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 14 }}>
+                      {[0, 1, 2].map(i => (<div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: T.accent, animation: `bounce 1.4s ease-in-out ${i * 0.2}s infinite` }} />))}
+                    </div>
+                    <div style={{ fontSize: 13, color: T.accent, fontWeight: 600, marginBottom: 6 }}>Analyzing your training data...</div>
+                    <div style={{ fontSize: 10, color: T.textDim, lineHeight: 1.5 }}>
+                      Claude is reviewing your power, recovery, body composition, and training load to generate personalized insights.
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 13, color: T.textSoft, marginBottom: 6 }}>
+                      {activity ? "Ready to analyze this ride" : "Sync an activity to see AI analysis"}
+                    </div>
+                    {activity && (
+                      <>
+                        <div style={{ fontSize: 10, color: T.textDim, marginTop: 8, marginBottom: 16, lineHeight: 1.5 }}>
+                          Claude will review your power data, recovery metrics, body composition, and training load to generate cross-domain insights.
+                        </div>
+                        <button onClick={onRequestAnalysis} style={{ background: T.accent, border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 12, fontWeight: 700, color: T.bg, cursor: "pointer", fontFamily: font }}>
+                          {"\u2726"} Generate AI Analysis
+                        </button>
+                      </>
+                    )}
+                  </>
                 )}
               </div>
             ) : (
@@ -535,6 +568,47 @@ export default function Dashboard() {
   const [selectedActivityId, setSelectedActivityId] = useState(null);
   const { activity, profile, dailyMetrics, fitnessHistory, powerProfile, recentActivities, connectedIntegrations, loading, error } = useDashboardData(selectedActivityId);
   const { activities: activityList } = useActivities();
+
+  // ── AI Analysis: auto-trigger + manual trigger ──
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [liveAnalysis, setLiveAnalysis] = useState(null);
+  const analysisTriggeredRef = useRef(null); // track which activity ID we already triggered for
+
+  // The effective AI analysis: live (just generated) takes priority over stored
+  const effectiveAiAnalysis = liveAnalysis || activity?.ai_analysis || null;
+
+  const triggerAnalysis = useCallback(async () => {
+    if (!activity?.id) return;
+    setAnalysisLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const res = await fetch(`/api/activities/analyze?id=${activity.id}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setLiveAnalysis(data.analysis);
+      }
+    } catch (err) {
+      console.error("Failed to trigger analysis:", err);
+    } finally {
+      setAnalysisLoading(false);
+    }
+  }, [activity?.id]);
+
+  // Auto-trigger analysis when activity loads without ai_analysis
+  useEffect(() => {
+    if (activity?.id && !activity.ai_analysis && !analysisLoading && analysisTriggeredRef.current !== activity.id) {
+      analysisTriggeredRef.current = activity.id;
+      triggerAnalysis();
+    }
+    // Reset live analysis when switching activities
+    if (activity?.id !== analysisTriggeredRef.current) {
+      setLiveAnalysis(null);
+    }
+  }, [activity?.id, activity?.ai_analysis, analysisLoading, triggerAnalysis]);
 
   // ── Derive computed values from real data ──
   const computed = useMemo(() => {
@@ -1048,13 +1122,15 @@ export default function Dashboard() {
         {/* Right: AI Panel */}
         <div style={{ width: 370, borderLeft: `1px solid ${T.border}`, padding: 14, display: "flex", flexDirection: "column" }}>
           <AIAnalysisPanel
-            aiAnalysis={activity?.ai_analysis}
+            aiAnalysis={effectiveAiAnalysis}
             activity={activity}
             profile={profile}
             dailyMetrics={dailyMetrics}
             computed={computed}
             athletePowerProfile={athletePowerProfile}
             athleteClassifications={athleteClassifications}
+            onRequestAnalysis={triggerAnalysis}
+            analysisLoading={analysisLoading}
           />
         </div>
       </div>
