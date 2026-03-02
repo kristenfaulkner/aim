@@ -51,6 +51,10 @@ export function matchSleepToActivities(dailyMetrics, activities) {
 
   // Sort daily_metrics by date for rolling window computation
   const sortedDates = Object.keys(metricsByDate).sort();
+  const dateIndexMap = {};
+  for (let i = 0; i < sortedDates.length; i++) {
+    dateIndexMap[sortedDates[i]] = i;
+  }
 
   const matched = [];
 
@@ -63,12 +67,12 @@ export function matchSleepToActivities(dailyMetrics, activities) {
     const prevNight = metricsByDate[actDate]; // daily_metrics date = the night before
     if (!prevNight || prevNight.total_sleep_seconds == null) continue;
 
-    // Compute rolling averages
-    const dateIdx = sortedDates.indexOf(actDate);
+    // Compute rolling averages (O(1) lookup via dateIndexMap)
+    const dateIdx = dateIndexMap[actDate] ?? -1;
     const rolling3 = computeRollingAvg(sortedDates, metricsByDate, dateIdx, 3);
     const rolling7 = computeRollingAvg(sortedDates, metricsByDate, dateIdx, 7);
 
-    // Extract Eight Sleep extended metrics
+    // Extract Eight Sleep extended metrics if source_data is available
     const extended = prevNight.source_data?.eightsleep_extended || {};
 
     matched.push({

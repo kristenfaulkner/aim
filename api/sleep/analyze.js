@@ -13,7 +13,7 @@ import {
 
 export const config = {
   api: { bodyParser: true },
-  maxDuration: 60,
+  maxDuration: 120,
 };
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -119,7 +119,7 @@ export default async function handler(req, res) {
           .order("started_at", { ascending: false })
           .limit(365),
         supabaseAdmin.from("daily_metrics")
-          .select("date, sleep_score, total_sleep_seconds, deep_sleep_seconds, rem_sleep_seconds, light_sleep_seconds, sleep_latency_seconds, sleep_efficiency_pct, sleep_onset_time, wake_time, bed_temperature_celsius, hrv_ms, hrv_overnight_avg_ms, resting_hr_bpm, recovery_score, daily_tss, ctl, atl, tsb, ramp_rate, source_data")
+          .select("date, sleep_score, total_sleep_seconds, deep_sleep_seconds, rem_sleep_seconds, light_sleep_seconds, sleep_latency_seconds, sleep_efficiency_pct, sleep_onset_time, wake_time, bed_temperature_celsius, hrv_ms, hrv_overnight_avg_ms, resting_hr_bpm, recovery_score, daily_tss, ctl, atl, tsb, ramp_rate")
           .eq("user_id", session.userId)
           .order("date", { ascending: false })
           .limit(365),
@@ -208,7 +208,7 @@ export default async function handler(req, res) {
     // Send to Claude
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 4000,
+      max_tokens: 2000,
       system: SLEEP_PERFORMANCE_PROMPT,
       messages: [{ role: "user", content: JSON.stringify(context) }],
     });
