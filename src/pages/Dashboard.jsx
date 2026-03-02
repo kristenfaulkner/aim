@@ -1020,7 +1020,15 @@ export default function Dashboard() {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
             <div>
               <div style={{ fontSize: 10, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 3 }}>{rideDateStr}</div>
-              <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0, letterSpacing: "-0.02em" }}>{activity.name || "Untitled Ride"}</h1>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0, letterSpacing: "-0.02em" }}>{activity.name || "Untitled Ride"}</h1>
+                <button
+                  onClick={() => navigate(`/activity/${activity.id}`)}
+                  style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 6, padding: "4px 10px", fontSize: 11, color: T.textSoft, cursor: "pointer", fontFamily: font, fontWeight: 500, whiteSpace: "nowrap" }}
+                >
+                  View Details
+                </button>
+              </div>
               <div style={{ fontSize: 11, color: T.textSoft, marginTop: 3 }}>{rideSummary}</div>
             </div>
             {/* Activity Selector */}
