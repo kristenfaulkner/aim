@@ -6,6 +6,19 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
 
+  // Temporary debug mode
+  if (req.query.debug === "1") {
+    const baseUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : `https://${req.headers.host}`;
+    return res.json({
+      host: req.headers.host,
+      vercelProjectUrl: process.env.VERCEL_PROJECT_PRODUCTION_URL || "not set",
+      redirectUri: `${baseUrl}/api/auth/callback/strava`,
+      clientId: process.env.STRAVA_CLIENT_ID ? "set" : "missing",
+    });
+  }
+
   const session = await verifySession(req);
   if (!session) return res.status(401).json({ error: "Unauthorized" });
 
