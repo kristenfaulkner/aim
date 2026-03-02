@@ -33,10 +33,11 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 ### Frontend (`/src/`)
 - `App.jsx` — route definitions; protected routes wrap with `ProtectedRoute`
 - `context/AuthContext.jsx` — user auth state, profile management, Supabase auth listeners
-- `pages/` — 17 route-level pages (Dashboard, ActivityDetail, HealthLab, Boosters, ConnectApps, Settings, Onboarding, AcceptTerms, Auth, ResetPassword, Landing, Contact, 5 legal pages)
+- `pages/` — 18 route-level pages (Dashboard, Sleep, ActivityDetail, HealthLab, Boosters, ConnectApps, Settings, Onboarding, AcceptTerms, Auth, ResetPassword, Landing, Contact, 5 legal pages)
 - `components/` — reusable: `TrainingPeaksImport`, `BloodPanelUpload` (multi-file drag-and-drop), `DexaScanUpload` (single-file drag-and-drop with body composition extraction), `ActivityBrowser` (popover with time filters/search/pagination), `ProtectedRoute` (auth + consent gate), `NeuralBackground`, `SEO` (React 19 native metadata: title, description, OG, Twitter cards, canonical URL)
 - `hooks/useDashboardData.js` — parallel Supabase queries (7 concurrent) using `Promise.allSettled`
 - `hooks/useActivities.js` — paginated activity list (legacy, replaced by useActivityBrowser on Dashboard)
+- `hooks/useSleepData.js` — sleep data from `daily_metrics` with configurable time period, computes averages
 - `hooks/useActivityBrowser.js` — cursor-based paginated activity browser with time period filtering (Week/Month/Year/All) and client-side search
 - `hooks/useResponsive.js` — responsive breakpoint hook (`isMobile`/`isTablet`/`isDesktop`) via `matchMedia`
 - `lib/api.js` — `apiFetch()` utility adds Bearer token to all `/api` calls
@@ -295,6 +296,7 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 - AI post-ride analysis engine with smart context assembly (3-layer pre-computed summaries, ~60% token reduction)
 - AI chat coach endpoint (`/api/chat/ask` with conversation history + full athlete context)
 - Morning sleep summary (Claude-powered readiness assessment from Eight Sleep data)
+- **Sleep Intelligence page** — dedicated `/sleep` route with time-period filters (7d/30d/90d/1y/All), summary cards with sparklines (score/duration/efficiency/HRV), stacked sleep architecture chart (deep/REM/light), trend charts (score/HRV/RHR), AI morning report, expandable nightly detail with Eight Sleep extended metrics, empty state CTA
 - Dashboard (activities feed with View Details navigation, quick stats, recovery metrics, training load PMC chart, sleep summary, fuel breakdown, power classification, workout prescriptions, AI insights panel with "Unlock More Insights")
 - Activity detail page with tabbed AI panel (Summary / AI Analysis / Ask Claude tabs, category filters, confidence badges, data gaps, regenerate analysis)
 - Health Lab: blood panel upload with Claude AI OCR extraction (25 biomarkers), AI analysis cross-referencing training data, biomarker trend charts with athlete-optimal ranges, panel management; DEXA scan upload with Claude AI extraction (body fat %, lean/fat mass, BMD, visceral fat, regional L/R breakdown), AI analysis cross-referencing power/training data, scan history with summary cards
