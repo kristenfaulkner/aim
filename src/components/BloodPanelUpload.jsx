@@ -44,6 +44,9 @@ export default function BloodPanelUpload({ onUploadComplete, compact = false }) 
 
     const data = await res.json();
     if (!res.ok) {
+      if (data.duplicate) {
+        return { fileName: file.name, duplicate: true, testDate: data.existing_test_date };
+      }
       return { fileName: file.name, error: data.error || "Upload failed" };
     }
 
@@ -119,8 +122,9 @@ export default function BloodPanelUpload({ onUploadComplete, compact = false }) 
 
   // Success state
   if (results.length > 0 && !uploading) {
-    const successful = results.filter(r => !r.error);
-    const failed = results.filter(r => r.error);
+    const successful = results.filter(r => !r.error && !r.duplicate);
+    const duplicates = results.filter(r => r.duplicate);
+    const failed = results.filter(r => r.error && !r.duplicate);
     const totalExtracted = successful.reduce((sum, r) => sum + (r.extractedCount || 0), 0);
 
     return (
@@ -128,20 +132,36 @@ export default function BloodPanelUpload({ onUploadComplete, compact = false }) 
         <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(0,229,160,0.15)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
           <Check size={20} color={T.accent} />
         </div>
-        <div style={{ fontSize: 15, fontWeight: 700, color: T.accent, marginBottom: 4 }}>
-          {successful.length} Blood Panel{successful.length !== 1 ? "s" : ""} Uploaded
-        </div>
-        <div style={{ fontSize: 13, color: T.textSoft, marginBottom: 4 }}>
-          Extracted <span style={{ fontFamily: mono, fontWeight: 700, color: T.text }}>{totalExtracted}</span> biomarker{totalExtracted !== 1 ? "s" : ""} total
-        </div>
+        {successful.length > 0 && (
+          <>
+            <div style={{ fontSize: 15, fontWeight: 700, color: T.accent, marginBottom: 4 }}>
+              {successful.length} Blood Panel{successful.length !== 1 ? "s" : ""} Uploaded
+            </div>
+            <div style={{ fontSize: 13, color: T.textSoft, marginBottom: 4 }}>
+              Extracted <span style={{ fontFamily: mono, fontWeight: 700, color: T.text }}>{totalExtracted}</span> biomarker{totalExtracted !== 1 ? "s" : ""} total
+            </div>
+          </>
+        )}
+        {duplicates.length > 0 && (
+          <div style={{ fontSize: 12, color: T.textDim, marginBottom: 4 }}>
+            {duplicates.length} duplicate{duplicates.length !== 1 ? "s" : ""} skipped (already uploaded): {duplicates.map(d => d.fileName).join(", ")}
+          </div>
+        )}
         {failed.length > 0 && (
           <div style={{ fontSize: 12, color: "#ef4444", marginBottom: 4 }}>
             {failed.length} file{failed.length !== 1 ? "s" : ""} failed: {failed.map(f => f.fileName).join(", ")}
           </div>
         )}
-        <div style={{ fontSize: 11, color: T.textDim, marginBottom: 14 }}>
-          AI analysis is generating in the background...
-        </div>
+        {successful.length > 0 && (
+          <div style={{ fontSize: 11, color: T.textDim, marginBottom: 14 }}>
+            AI analysis is generating in the background...
+          </div>
+        )}
+        {successful.length === 0 && (
+          <div style={{ fontSize: 13, color: T.textSoft, marginBottom: 14 }}>
+            No new panels to process
+          </div>
+        )}
         <button onClick={reset} style={{
           padding: "8px 20px", borderRadius: 8, fontSize: 12, fontWeight: 600,
           background: T.accentDim, border: `1px solid ${T.accentMid}`,
@@ -216,6 +236,9 @@ export default function BloodPanelUpload({ onUploadComplete, compact = false }) 
         </div>
         <div style={{ fontSize: 11, color: T.textDim }}>
           PDF, JPG, or PNG up to {MAX_SIZE_MB}MB each
+        </div>
+        <div style={{ fontSize: 10, color: T.textDim, marginTop: 4 }}>
+          Files cannot be password-protected
         </div>
       </div>
 
