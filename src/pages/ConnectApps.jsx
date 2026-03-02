@@ -107,10 +107,25 @@ export default function ConnectApps() {
 
     if (isOAuth && !isCurrentlyConnected) {
       // Connect: redirect to OAuth
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      if (token) {
+      try {
+        const { data: { session }, error: sessionErr } = await supabase.auth.getSession();
+        if (sessionErr) {
+          console.error("Session error:", sessionErr);
+          setToast("Session error — please sign in again");
+          setTimeout(() => setToast(""), 4000);
+          return;
+        }
+        const token = session?.access_token;
+        if (!token) {
+          setToast("No active session — please sign in again");
+          setTimeout(() => setToast(""), 4000);
+          return;
+        }
         window.location.href = `${OAUTH_APPS[name]}?token=${encodeURIComponent(token)}`;
+      } catch (err) {
+        console.error("Connect error:", err);
+        setToast("Connection failed — please try again");
+        setTimeout(() => setToast(""), 4000);
       }
       return;
     }

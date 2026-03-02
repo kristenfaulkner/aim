@@ -12,7 +12,6 @@ export const integrations = [
   { name: "EightSleep", icon: "🔵", category: "recovery", desc: "Bed temp, sleep stages, HRV", color: "#4a90d9" },
   { name: "Withings", icon: "🟢", category: "body", desc: "Weight, body fat, muscle, hydration", color: "#00c9a7" },
   { name: "Apple Health", icon: "🔴", category: "body", desc: "Aggregate health data, VO2max", color: "#ff375f" },
-  { name: "Supersapiens", icon: "🟡", category: "nutrition", desc: "Continuous glucose monitoring", color: "#f5c542" },
   { name: "Hexis", icon: "🟣", category: "nutrition", desc: "Periodised nutrition, Carb Coding™", color: "#7c3aed", note: "Partnership integration — coming soon" },
   { name: "MyFitnessPal", icon: "🔵", category: "nutrition", desc: "Calories, macros, food logging", color: "#0073cf" },
   { name: "Cronometer", icon: "🟠", category: "nutrition", desc: "Micronutrients, detailed tracking", color: "#f97316" },
