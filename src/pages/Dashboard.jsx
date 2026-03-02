@@ -433,8 +433,11 @@ function AIAnalysisPanel({ aiAnalysis, activity, profile, dailyMetrics, computed
               </div>
             ) : (
               <div>
-                <div style={{ fontSize: 10, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>
-                  Workout Summary {activity?.started_at ? `\u00B7 ${new Date(activity.started_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}
+                <div style={{ fontSize: 10, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span>Workout Summary {activity?.started_at ? `\u00B7 ${new Date(activity.started_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}</span>
+                  <button onClick={onRequestAnalysis} disabled={analysisLoading} style={{ background: "none", border: `1px solid ${T.border}`, borderRadius: 6, padding: "3px 8px", fontSize: 9, color: T.textSoft, cursor: "pointer", fontFamily: font, fontWeight: 600 }}>
+                    {analysisLoading ? "..." : "\u21BB Regenerate"}
+                  </button>
                 </div>
                 {analysisSummary && (
                   <div style={{ fontSize: 13, color: T.text, lineHeight: 1.8, padding: "16px 18px", background: T.bg, borderRadius: 12, borderLeft: `3px solid ${T.accent}`, marginBottom: 16 }}>
@@ -509,8 +512,11 @@ function AIAnalysisPanel({ aiAnalysis, activity, profile, dailyMetrics, computed
               </div>
             ) : (
               <>
-                <div style={{ fontSize: 10, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                  Post-Ride Analysis {activity?.started_at ? `\u00B7 ${new Date(activity.started_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}
+                <div style={{ fontSize: 10, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span>Post-Ride Analysis {activity?.started_at ? `\u00B7 ${new Date(activity.started_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}</span>
+                  <button onClick={onRequestAnalysis} disabled={analysisLoading} style={{ background: "none", border: `1px solid ${T.border}`, borderRadius: 6, padding: "3px 8px", fontSize: 9, color: T.textSoft, cursor: "pointer", fontFamily: font, fontWeight: 600 }}>
+                    {analysisLoading ? "..." : "\u21BB Regenerate"}
+                  </button>
                 </div>
 
                 {/* AI Summary */}
