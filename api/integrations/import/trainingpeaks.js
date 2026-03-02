@@ -336,10 +336,8 @@ export default async function handler(req, res) {
           await updatePowerProfile(session.userId, metrics.power_curve, weightKg);
         }
 
-        // 6h. AI analysis for recent activities only (fire-and-forget)
-        const activityAge = Date.now() - new Date(metadata.started_at).getTime();
-        const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
-        if (upserted?.id && activityAge < thirtyDaysMs) {
+        // 6h. Fire-and-forget AI analysis
+        if (upserted?.id) {
           analyzeActivity(session.userId, upserted.id).catch(err =>
             console.error(`AI analysis failed for TP activity ${upserted.id}:`, err.message)
           );

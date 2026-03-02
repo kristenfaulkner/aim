@@ -1,5 +1,6 @@
 import React from "react";
 import { T, mono } from "../../theme/tokens";
+import { formatDistance, formatElevation, elevationUnit } from "../../lib/units";
 
 // ── Helpers ──
 
@@ -12,16 +13,6 @@ function formatDuration(seconds) {
   const mm = String(m).padStart(2, "0");
   const ss = String(sec).padStart(2, "0");
   return h > 0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
-}
-
-function metersToMiles(m) {
-  if (m == null) return "--";
-  return (m / 1609.344).toFixed(1);
-}
-
-function metersToFeet(m) {
-  if (m == null) return "--";
-  return Math.round(m * 3.28084);
 }
 
 // ── Metric Box ──
@@ -73,7 +64,7 @@ function MetricBox({ label, value, unit }) {
 
 // ── Last Ride Card ──
 
-export default function LastRideCard({ activity, onViewDetails, isMobile }) {
+export default function LastRideCard({ activity, onViewDetails, isMobile, units = "imperial" }) {
   if (!activity) return null;
 
   const a = activity;
@@ -88,9 +79,9 @@ export default function LastRideCard({ activity, onViewDetails, isMobile }) {
 
   const summaryParts = [
     a.duration_seconds != null ? formatDuration(a.duration_seconds) : null,
-    a.distance_meters != null ? `${metersToMiles(a.distance_meters)} mi` : null,
+    a.distance_meters != null ? formatDistance(a.distance_meters, units) : null,
     a.elevation_gain_meters != null
-      ? `${metersToFeet(a.elevation_gain_meters)} ft`
+      ? `${formatElevation(a.elevation_gain_meters, units)} ${elevationUnit(units)}`
       : null,
     a.tss != null ? `${Math.round(a.tss)} TSS` : null,
   ].filter(Boolean);

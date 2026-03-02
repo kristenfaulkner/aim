@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { T, font, mono } from "../theme/tokens";
 import { useDashboardData } from "../hooks/useDashboardData";
 import { useAuth } from "../context/AuthContext";
+import { usePreferences } from "../context/PreferencesContext";
+import { formatDistance, formatSpeed, formatElevation, elevationUnit, formatWeight, weightUnit } from "../lib/units";
 import { supabase } from "../lib/supabase";
 import { LogOut, Settings, Menu, X, User } from "lucide-react";
 import { useResponsive } from "../hooks/useResponsive";
@@ -24,9 +26,6 @@ function formatDuration(seconds) {
   const s = Math.round(seconds % 60);
   return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${m}:${String(s).padStart(2, "0")}`;
 }
-
-function metersToMiles(m) { return m ? (m / 1609.344).toFixed(1) : "—"; }
-function metersToFeet(m) { return m ? Math.round(m * 3.28084) : "—"; }
 
 function estimateFuelBreakdown(calories, intensityFactor) {
   if (!calories || calories <= 0 || intensityFactor == null) return null;
@@ -256,6 +255,7 @@ export default function Dashboard() {
   const [browserOpen, setBrowserOpen] = useState(false);
   const browserTriggerRef = useRef(null);
   const { isMobile, isTablet } = useResponsive();
+  const { units } = usePreferences();
   const { activity, profile, dailyMetrics, fitnessHistory, powerProfile, recentActivities, connectedIntegrations, loading, error } = useDashboardData(selectedActivityId);
 
   const handleSignout = async () => { await signout(); navigate("/"); };
@@ -473,7 +473,7 @@ export default function Dashboard() {
               <ActivityBrowserTrigger isOpen={browserOpen} onClick={() => setBrowserOpen(!browserOpen)} triggerRef={browserTriggerRef} />
               <ActivityBrowser isOpen={browserOpen} onClose={() => setBrowserOpen(false)} selectedActivityId={selectedActivityId} onSelectActivity={id => setSelectedActivityId(id)} anchorRef={browserTriggerRef} />
             </div>
-            <LastRideCard activity={activity} onViewDetails={() => navigate(`/activity/${activity.id}`)} isMobile={isMobile} />
+            <LastRideCard activity={activity} onViewDetails={() => navigate(`/activity/${activity.id}`)} isMobile={isMobile} units={units} />
 
             {/* Training Week + Fitness Chart Row */}
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>

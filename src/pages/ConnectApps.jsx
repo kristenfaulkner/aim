@@ -4,7 +4,7 @@ import { T, font, mono } from "../theme/tokens";
 import { btn, inputStyle } from "../theme/styles";
 import { useResponsive } from "../hooks/useResponsive";
 import { useAuth } from "../context/AuthContext";
-import { Check, ArrowRight, MessageCircle, Eye, EyeOff, ExternalLink, Menu, X, LogOut, Settings } from "lucide-react";
+import { Check, ArrowRight, MessageCircle, Eye, EyeOff, ExternalLink, Menu, X, LogOut, Settings, User } from "lucide-react";
 import { integrations, catLabels, catIcons } from "../data/integrations";
 import { supabase } from "../lib/supabase";
 import UniversalUpload from "../components/UniversalUpload";
@@ -83,6 +83,7 @@ export default function ConnectApps() {
   const [search, setSearch] = useState("");
   const [showRequest, setShowRequest] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [requestText, setRequestText] = useState("");
   const [requestSent, setRequestSent] = useState(false);
   const [toast, setToast] = useState("");
@@ -297,12 +298,12 @@ export default function ConnectApps() {
           </div>
           {!isMobile && (
             <div style={{ display: "flex", gap: 3 }}>
-              {[{ label: "Dashboard", path: "/dashboard" }, { label: "Activities", path: "/workouts" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }, { label: "Settings", path: "/settings" }].map(item => (
+              {[{ label: "Dashboard", path: "/dashboard" }, { label: "Activities", path: "/workouts" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }].map(item => (
                 <button key={item.label} onClick={() => navigate(item.path)} style={{
                   background: item.label === "Connect" ? T.accentDim : "none", border: "none", padding: "5px 12px", borderRadius: 7,
                   fontSize: 11, fontWeight: 600, color: item.label === "Connect" ? T.accent : T.textSoft,
                   cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 4,
-                }}>{item.label === "Settings" ? <><Settings size={12} /> {item.label}</> : item.label}</button>
+                }}>{item.label}</button>
               ))}
             </div>
           )}
@@ -310,13 +311,25 @@ export default function ConnectApps() {
         {isMobile ? (
           <button onClick={() => setMenuOpen(true)} style={{ background: "none", border: "none", color: T.text, cursor: "pointer", padding: 8, minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}><Menu size={20} /></button>
         ) : (
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 30, height: 30, borderRadius: 9, background: `linear-gradient(135deg, ${T.purple}, ${T.pink})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: T.white }}>
+          <div style={{ position: "relative" }}>
+            <div onClick={() => setUserMenuOpen(!userMenuOpen)} style={{ width: 30, height: 30, borderRadius: 9, background: `linear-gradient(135deg, ${T.purple}, ${T.pink})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: T.white, cursor: "pointer" }}>
               {profile?.full_name ? profile.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() : "U"}
             </div>
-            <button onClick={handleSignout} style={{ background: "none", border: `1px solid rgba(239,68,68,0.2)`, padding: "5px 10px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: "#ef4444", cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 5 }}>
-              <LogOut size={13} /> Sign Out
-            </button>
+            {userMenuOpen && (<>
+              <div onClick={() => setUserMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 149 }} />
+              <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, padding: 4, minWidth: 160, zIndex: 150, boxShadow: "0 4px 16px rgba(0,0,0,0.08)" }}>
+                <button onClick={() => { setUserMenuOpen(false); navigate("/profile"); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", background: "none", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 600, color: T.text, cursor: "pointer", fontFamily: font }}>
+                  <User size={14} /> Profile
+                </button>
+                <button onClick={() => { setUserMenuOpen(false); navigate("/settings"); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", background: "none", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 600, color: T.text, cursor: "pointer", fontFamily: font }}>
+                  <Settings size={14} /> Settings
+                </button>
+                <div style={{ height: 1, background: T.border, margin: "4px 0" }} />
+                <button onClick={() => { setUserMenuOpen(false); handleSignout(); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", background: "none", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 600, color: "#ef4444", cursor: "pointer", fontFamily: font }}>
+                  <LogOut size={14} /> Sign Out
+                </button>
+              </div>
+            </>)}
           </div>
         )}
       </nav>
@@ -335,7 +348,7 @@ export default function ConnectApps() {
               </div>
               <span style={{ fontSize: 14, fontWeight: 600 }}>{profile?.full_name || "Athlete"}</span>
             </div>
-            {[{ label: "Dashboard", path: "/dashboard" }, { label: "Activities", path: "/workouts" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }, { label: "Settings", path: "/settings" }].map(item => (
+            {[{ label: "Dashboard", path: "/dashboard" }, { label: "Activities", path: "/workouts" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }, { label: "Profile", path: "/profile" }, { label: "Settings", path: "/settings" }].map(item => (
               <button key={item.label} onClick={() => { setMenuOpen(false); navigate(item.path); }} style={{
                 background: item.label === "Connect" ? T.accentDim : "none", border: "none", padding: "12px 14px", borderRadius: 8,
                 fontSize: 14, fontWeight: 600, color: item.label === "Connect" ? T.accent : T.textSoft,

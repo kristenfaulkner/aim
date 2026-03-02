@@ -190,9 +190,8 @@ export default async function handler(req, res) {
       await updatePowerProfile(session.userId, metrics.power_curve, weightKg);
     }
 
-    // 10. Fire-and-forget AI analysis (recent activities only)
-    const activityAge = Date.now() - new Date(metadata.started_at).getTime();
-    if (upserted?.id && activityAge < 30 * 24 * 60 * 60 * 1000) {
+    // 10. Fire-and-forget AI analysis
+    if (upserted?.id) {
       analyzeActivity(session.userId, upserted.id).catch(err =>
         console.error(`AI analysis failed for FIT upload ${upserted.id}:`, err.message)
       );

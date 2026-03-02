@@ -329,7 +329,7 @@ export default function Landing() {
       {/* Metrics strip */}
       <section style={{ borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, padding: isMobile ? "24px 16px" : "32px 0", background: T.surface }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: isMobile ? 20 : 0, textAlign: "center" }}>
-          {[{ n: "100+", l: "Metrics Tracked" }, { n: "18+", l: "App Integrations" }, { n: "40+", l: "Blood Biomarkers" }, { n: "24/7", l: "AI Analysis" }].map(s => (
+          {[{ n: "100+", l: "Metrics Tracked" }, { n: "18+", l: "App Integrations" }, { n: "25+", l: "Blood Biomarkers" }, { n: "24/7", l: "AI Analysis" }].map(s => (
             <div key={s.l}>
               <div style={{ fontSize: isMobile ? 28 : 36, fontWeight: 800, fontFamily: mono, background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{s.n}</div>
               <div style={{ fontSize: 13, color: T.textSoft, marginTop: 4 }}>{s.l}</div>
@@ -361,7 +361,7 @@ export default function Landing() {
                 I went from Venture Capital in Silicon Valley to the Olympic podium, and the whole way I was searching for insights that didn't exist. I had power files, blood work, sleep data, body comp scans, and a hormone cycle that affected everything. But no tool could connect them.
               </p>
               <p style={{ fontSize: isMobile ? 16 : 20, color: T.text, lineHeight: 1.7, margin: "0 0 20px", fontWeight: 500 }}>
-                I built AIM because I wanted the analysis I couldn't find anywhere else. The biomarker patterns, the recovery protocols, the performance boosters, the training frameworks that actually won races. Everything I learned racing at the highest level, I've put into this platform.
+                I built AIM because I wanted the cross-domain analysis I couldn't find anywhere else. The biomarker patterns, the recovery protocols, the performance boosters, the training frameworks that actually won races. Everything I learned racing at the highest level, I've put into this platform.
               </p>
               <p style={{ fontSize: isMobile ? 16 : 20, color: T.text, lineHeight: 1.7, margin: "0 0 20px", fontWeight: 500 }}>
                 Our health is our most valuable asset. I want to make world-class performance intelligence accessible to every athlete, not just those with a pro team behind them.

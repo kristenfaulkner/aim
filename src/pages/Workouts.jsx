@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { T, font, mono } from "../theme/tokens";
 import { useAuth } from "../context/AuthContext";
+import { usePreferences } from "../context/PreferencesContext";
+import { formatDistance, formatSpeed, formatElevation, elevationUnit } from "../lib/units";
 import { useActivityBrowser } from "../hooks/useActivityBrowser";
 import { useResponsive } from "../hooks/useResponsive";
 import { supabase } from "../lib/supabase";
@@ -33,10 +35,6 @@ function formatDuration(sec) {
   return h > 0
     ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
     : `${m}:${String(s).padStart(2, "0")}`;
-}
-
-function metersToMiles(m) {
-  return (m / 1609.344).toFixed(1);
 }
 
 function groupActivities(activities, timePeriod) {
@@ -73,7 +71,7 @@ function groupActivities(activities, timePeriod) {
 
 // ── ActivityRow ──
 
-function ActivityRow({ activity, isSelected, onSelect }) {
+function ActivityRow({ activity, isSelected, onSelect, units }) {
   const [hover, setHover] = useState(false);
 
   return (
@@ -117,7 +115,7 @@ function ActivityRow({ activity, isSelected, onSelect }) {
           {formatDuration(activity.duration_seconds)}
         </span>
         <div style={{ display: "flex", gap: 8, fontSize: 10, color: T.textSoft, fontFamily: mono }}>
-          {activity.distance_meters > 0 && <span>{metersToMiles(activity.distance_meters)} mi</span>}
+          {activity.distance_meters > 0 && <span>{formatDistance(activity.distance_meters, units)}</span>}
           {activity.tss > 0 && <span>{Math.round(activity.tss)} TSS</span>}
           {activity.avg_power_watts > 0 && <span>{Math.round(activity.avg_power_watts)}W</span>}
         </div>
@@ -216,6 +214,7 @@ function NavBar({ profile, isMobile, menuOpen, setMenuOpen, userMenuOpen, setUse
 export default function Workouts() {
   const navigate = useNavigate();
   const { signout, user } = useAuth();
+  const { units } = usePreferences();
   const { isMobile, isTablet } = useResponsive();
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -330,13 +329,10 @@ export default function Workouts() {
     }
   }, [activity?.id]);
 
+  // Reset live analysis when switching activities
   useEffect(() => {
-    if (activity?.id && !activity.ai_analysis && !analysisLoading && analysisTriggeredRef.current !== activity.id) {
-      analysisTriggeredRef.current = activity.id;
-      triggerAnalysis();
-    }
-    if (activity?.id !== analysisTriggeredRef.current) setLiveAnalysis(null);
-  }, [activity?.id, activity?.ai_analysis, analysisLoading, triggerAnalysis]);
+    setLiveAnalysis(null);
+  }, [activity?.id]);
 
   // ── Computed values (for AIPanel) ──
   const computed = useMemo(() => {
@@ -474,6 +470,7 @@ export default function Workouts() {
                       activity={a}
                       isSelected={a.id === selectedActivityId}
                       onSelect={setSelectedActivityId}
+                      units={units}
                     />
                   ))}
                 </div>
@@ -539,7 +536,7 @@ export default function Workouts() {
                 </div>
                 <div style={{ display: "flex", gap: 12, fontSize: 11, color: T.textSoft, fontFamily: mono, flexWrap: "wrap" }}>
                   {activity.duration_seconds > 0 && <span>{formatDuration(activity.duration_seconds)}</span>}
-                  {activity.distance_meters > 0 && <span>{metersToMiles(activity.distance_meters)} mi</span>}
+                  {activity.distance_meters > 0 && <span>{formatDistance(activity.distance_meters, units)}</span>}
                   {activity.avg_power_watts > 0 && <span>{Math.round(activity.avg_power_watts)}W avg</span>}
                   {activity.tss > 0 && <span>{Math.round(activity.tss)} TSS</span>}
                 </div>

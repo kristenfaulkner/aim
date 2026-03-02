@@ -7,7 +7,7 @@ import { supabase } from "../lib/supabase";
 import BloodPanelUpload from "../components/BloodPanelUpload";
 import DexaScanUpload from "../components/DexaScanUpload";
 import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis } from "recharts";
-import { LogOut, Trash2, ChevronDown, ChevronUp, ExternalLink, Settings, Menu, X } from "lucide-react";
+import { LogOut, Trash2, ChevronDown, ChevronUp, ExternalLink, Settings, Menu, X, User } from "lucide-react";
 import { useResponsive } from "../hooks/useResponsive";
 
 // ── Transform a blood_panels DB row into { id, date, source, values } ──
@@ -252,6 +252,7 @@ export default function HealthLab() {
   const { signout, profile } = useAuth();
   const sex = profile?.sex || "female";
   const [menuOpen, setMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { isMobile, isTablet } = useResponsive();
 
   const [panels, setPanels] = useState([]);
@@ -356,14 +357,13 @@ export default function HealthLab() {
           </div>
           {!isMobile && (
             <div style={{ display: "flex", gap: 3 }}>
-              {["Dashboard", "Activities", "Sleep", "Health Lab", "Connect", "Settings"].map(item => (
+              {["Dashboard", "Activities", "Sleep", "Health Lab", "Connect"].map(item => (
                 <button key={item} onClick={() => {
                   if (item === "Dashboard") navigate("/dashboard");
                   if (item === "Activities") navigate("/workouts");
                   if (item === "Sleep") navigate("/sleep");
                   if (item === "Connect") navigate("/connect");
-                  if (item === "Settings") navigate("/settings");
-                }} style={{ background: item === "Health Lab" ? T.accentDim : "none", border: "none", padding: "5px 12px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: item === "Health Lab" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 4 }}>{item === "Settings" ? <><Settings size={12} /> {item}</> : item}</button>
+                }} style={{ background: item === "Health Lab" ? T.accentDim : "none", border: "none", padding: "5px 12px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: item === "Health Lab" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 4 }}>{item}</button>
               ))}
             </div>
           )}
@@ -371,13 +371,25 @@ export default function HealthLab() {
         {isMobile ? (
           <button onClick={() => setMenuOpen(true)} style={{ background: "none", border: "none", color: T.text, cursor: "pointer", padding: 8, minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}><Menu size={20} /></button>
         ) : (
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 30, height: 30, borderRadius: 9, background: `linear-gradient(135deg, ${T.purple}, ${T.pink})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 }}>
+          <div style={{ position: "relative" }}>
+            <div onClick={() => setUserMenuOpen(!userMenuOpen)} style={{ width: 30, height: 30, borderRadius: 9, background: `linear-gradient(135deg, ${T.purple}, ${T.pink})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: T.white, cursor: "pointer" }}>
               {profile?.full_name ? profile.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() : "U"}
             </div>
-            <button onClick={handleSignout} style={{ background: "none", border: `1px solid rgba(239,68,68,0.2)`, padding: "5px 10px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: "#ef4444", cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 5 }}>
-              <LogOut size={13} /> Sign Out
-            </button>
+            {userMenuOpen && (<>
+              <div onClick={() => setUserMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 149 }} />
+              <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, padding: 4, minWidth: 160, zIndex: 150, boxShadow: "0 4px 16px rgba(0,0,0,0.08)" }}>
+                <button onClick={() => { setUserMenuOpen(false); navigate("/profile"); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", background: "none", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 600, color: T.text, cursor: "pointer", fontFamily: font }}>
+                  <User size={14} /> Profile
+                </button>
+                <button onClick={() => { setUserMenuOpen(false); navigate("/settings"); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", background: "none", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 600, color: T.text, cursor: "pointer", fontFamily: font }}>
+                  <Settings size={14} /> Settings
+                </button>
+                <div style={{ height: 1, background: T.border, margin: "4px 0" }} />
+                <button onClick={() => { setUserMenuOpen(false); handleSignout(); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", background: "none", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 600, color: "#ef4444", cursor: "pointer", fontFamily: font }}>
+                  <LogOut size={14} /> Sign Out
+                </button>
+              </div>
+            </>)}
           </div>
         )}
       </nav>
@@ -390,8 +402,8 @@ export default function HealthLab() {
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
               <button onClick={() => setMenuOpen(false)} style={{ background: "none", border: "none", color: T.text, cursor: "pointer", padding: 8, minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}><X size={20} /></button>
             </div>
-            {["Dashboard", "Activities", "Sleep", "Health Lab", "Connect", "Settings"].map(item => (
-              <button key={item} onClick={() => { setMenuOpen(false); if (item === "Dashboard") navigate("/dashboard"); if (item === "Activities") navigate("/workouts"); if (item === "Sleep") navigate("/sleep"); if (item === "Connect") navigate("/connect"); if (item === "Settings") navigate("/settings"); }} style={{ background: item === "Health Lab" ? T.accentDim : "none", border: "none", padding: "12px 14px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: item === "Health Lab" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font, textAlign: "left" }}>{item}</button>
+            {["Dashboard", "Activities", "Sleep", "Health Lab", "Connect", "Profile", "Settings"].map(item => (
+              <button key={item} onClick={() => { setMenuOpen(false); if (item === "Dashboard") navigate("/dashboard"); if (item === "Activities") navigate("/workouts"); if (item === "Sleep") navigate("/sleep"); if (item === "Connect") navigate("/connect"); if (item === "Profile") navigate("/profile"); if (item === "Settings") navigate("/settings"); }} style={{ background: item === "Health Lab" ? T.accentDim : "none", border: "none", padding: "12px 14px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: item === "Health Lab" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font, textAlign: "left" }}>{item}</button>
             ))}
             <div style={{ marginTop: "auto", paddingTop: 16, borderTop: `1px solid ${T.border}` }}>
               <button onClick={() => { setMenuOpen(false); handleSignout(); }} style={{ background: "none", border: `1px solid rgba(239,68,68,0.2)`, padding: "12px 14px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: "#ef4444", cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 8, width: "100%" }}>

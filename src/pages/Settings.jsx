@@ -47,8 +47,6 @@ export default function Settings() {
 
   // Preferences form state
   const [timezone, setTimezone] = useState("");
-  const [usesCycleTracking, setUsesCycleTracking] = useState(false);
-  const [hormonalContraception, setHormonalContraception] = useState("");
   const [prefsSaving, setPrefsSaving] = useState(false);
   const [prefsSaved, setPrefsSaved] = useState(false);
 
@@ -87,8 +85,6 @@ export default function Settings() {
       setSmsOptIn(!!profile.sms_opt_in);
       setSmsConsent(!!profile.sms_opt_in);
       setTimezone(profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
-      setUsesCycleTracking(profile.uses_cycle_tracking || false);
-      setHormonalContraception(profile.hormonal_contraception || "");
     }
     async function loadPrefs() {
       if (!user || !profile) return;
@@ -135,8 +131,6 @@ export default function Settings() {
     try {
       await updateProfile({
         timezone: timezone || null,
-        uses_cycle_tracking: usesCycleTracking,
-        hormonal_contraception: hormonalContraception || null,
       });
       setPrefsSaved(true);
       setTimeout(() => setPrefsSaved(false), 3000);
@@ -355,29 +349,6 @@ export default function Settings() {
                   ))}
                 </select>
               </div>
-
-              {profile?.sex === "female" && (
-                <div style={{ padding: 24, background: T.card, borderRadius: 16, border: `1px solid ${T.border}`, marginBottom: 24 }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 700 }}>Menstrual Cycle Tracking</div>
-                      <div style={{ fontSize: 12, color: T.textDim, marginTop: 2 }}>AIM can adjust insights based on cycle phase</div>
-                    </div>
-                    <button onClick={() => setUsesCycleTracking(!usesCycleTracking)}
-                      style={{ width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer", padding: 2, background: usesCycleTracking ? T.accent : T.border, transition: "background 0.2s" }}>
-                      <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "transform 0.2s", transform: usesCycleTracking ? "translateX(20px)" : "translateX(0)" }} />
-                    </button>
-                  </div>
-                  {usesCycleTracking && (
-                    <div style={{ marginTop: 12 }}>
-                      {lbl("Hormonal contraception?")}
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                        {["None", "Pill", "IUD", "Implant", "Other"].map(h => selBtn(h, hormonalContraception === h.toLowerCase(), () => setHormonalContraception(h.toLowerCase())))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
 
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <button onClick={savePreferences} disabled={prefsSaving} style={{

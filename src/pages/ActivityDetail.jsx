@@ -6,6 +6,8 @@ import { ArrowLeft, Clock, Zap, Heart, Mountain, Gauge, Activity, TrendingUp, Fl
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 import { useResponsive } from "../hooks/useResponsive";
+import { usePreferences } from "../context/PreferencesContext";
+import { formatDistance, formatSpeed, formatElevation, elevationUnit, formatWeight, weightUnit } from "../lib/units";
 
 function formatDuration(seconds) {
   if (!seconds) return "--";
@@ -16,16 +18,6 @@ function formatDuration(seconds) {
   return `${m}m ${s}s`;
 }
 
-function formatDistance(meters) {
-  if (!meters) return "--";
-  const km = meters / 1000;
-  return km >= 10 ? `${km.toFixed(1)} km` : `${km.toFixed(2)} km`;
-}
-
-function formatSpeed(mps) {
-  if (!mps) return "--";
-  return `${(mps * 3.6).toFixed(1)} km/h`;
-}
 
 function MetricCard({ icon, label, value, unit, color }) {
   return (
@@ -656,6 +648,7 @@ export default function ActivityDetail() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { isMobile, isTablet } = useResponsive();
   const { signout, profile } = useAuth();
+  const { units } = usePreferences();
   const handleSignout = async () => { await signout(); navigate("/"); };
 
   const fetchActivity = useCallback(async () => {
@@ -850,9 +843,9 @@ export default function ActivityDetail() {
             {/* Primary metrics */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
               <MetricCard icon={<Clock size={16} />} label="Duration" value={formatDuration(a.duration_seconds)} />
-              <MetricCard icon={<Activity size={16} />} label="Distance" value={formatDistance(a.distance_meters)} />
-              <MetricCard icon={<Mountain size={16} />} label="Elevation" value={a.elevation_gain_meters ? `${Math.round(a.elevation_gain_meters)}` : "--"} unit="m" />
-              <MetricCard icon={<Gauge size={16} />} label="Avg Speed" value={formatSpeed(a.avg_speed_mps)} />
+              <MetricCard icon={<Activity size={16} />} label="Distance" value={formatDistance(a.distance_meters, units)} />
+              <MetricCard icon={<Mountain size={16} />} label="Elevation" value={a.elevation_gain_meters ? formatElevation(a.elevation_gain_meters, units) : "--"} unit={elevationUnit(units)} />
+              <MetricCard icon={<Gauge size={16} />} label="Avg Speed" value={formatSpeed(a.avg_speed_mps, units)} />
             </div>
 
             {/* Power metrics */}
