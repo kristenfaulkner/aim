@@ -180,8 +180,9 @@ export default async function handler(req, res) {
     const mode = requestedMode || detectMode(todayActivity, todayPlannedWorkout);
 
     // Build context for Claude
+    const profileSafe = profile ? { ...profile, full_name: profile.full_name || "Athlete" } : { full_name: "Athlete" };
     const context = {
-      athlete: profile || {},
+      athlete: profileSafe,
       dailyMetrics,
       recentActivities,
     };

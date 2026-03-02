@@ -771,7 +771,8 @@ export async function buildAnalysisContext(userId, activityId) {
   const getData = (result) =>
     result.status === "fulfilled" ? result.value.data : null;
 
-  const profile = getData(profileResult) || {};
+  const profileRaw = getData(profileResult) || {};
+  const profile = { ...profileRaw, full_name: profileRaw.full_name || "Athlete" };
   const allActivities = getData(activitiesResult) || [];
   const dailyMetrics = getData(dailyMetricsResult) || [];
   const powerProfile = getData(powerProfileResult) || null;
