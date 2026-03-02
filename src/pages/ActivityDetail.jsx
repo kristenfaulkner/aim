@@ -723,9 +723,14 @@ export default function ActivityDetail() {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
 
-      if (res.ok) {
-        const { analysis } = await res.json();
-        setActivity(prev => ({ ...prev, ai_analysis: analysis, ai_analysis_generated_at: new Date().toISOString() }));
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch {
+        console.error("Analysis returned non-JSON response");
+        return;
+      }
+      if (res.ok && data.analysis) {
+        setActivity(prev => ({ ...prev, ai_analysis: data.analysis, ai_analysis_generated_at: new Date().toISOString() }));
       }
     } catch (err) {
       console.error("Analysis failed:", err);
@@ -814,9 +819,14 @@ export default function ActivityDetail() {
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
               <button onClick={() => setMenuOpen(false)} style={{ background: "none", border: "none", color: T.text, cursor: "pointer", padding: 8, minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}><X size={20} /></button>
             </div>
-            {["Dashboard", "Activities", "Sleep", "Health Lab", "Connect", "Settings"].map(item => (
-              <button key={item} onClick={() => { setMenuOpen(false); if (item === "Dashboard") navigate("/dashboard"); if (item === "Activities") navigate("/workouts"); if (item === "Sleep") navigate("/sleep"); if (item === "Connect") navigate("/connect"); if (item === "Health Lab") navigate("/health-lab"); if (item === "Settings") navigate("/settings"); }} style={{ background: item === "Dashboard" ? T.accentDim : "none", border: "none", padding: "12px 14px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: item === "Dashboard" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font, textAlign: "left", display: "flex", alignItems: "center", gap: 8 }}>{item === "Settings" ? <><Settings size={14} /> {item}</> : item}</button>
+            {["Dashboard", "Activities", "Sleep", "Health Lab", "Connect", "Profile", "Settings"].map(item => (
+              <button key={item} onClick={() => { setMenuOpen(false); if (item === "Dashboard") navigate("/dashboard"); if (item === "Activities") navigate("/workouts"); if (item === "Sleep") navigate("/sleep"); if (item === "Connect") navigate("/connect"); if (item === "Health Lab") navigate("/health-lab"); if (item === "Profile") navigate("/profile"); if (item === "Settings") navigate("/settings"); }} style={{ background: item === "Dashboard" ? T.accentDim : "none", border: "none", padding: "12px 14px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: item === "Dashboard" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font, textAlign: "left", display: "flex", alignItems: "center", gap: 8 }}>{item}</button>
             ))}
+            <div style={{ marginTop: "auto", paddingTop: 16, borderTop: `1px solid ${T.border}` }}>
+              <button onClick={() => { setMenuOpen(false); handleSignout(); }} style={{ background: "none", border: `1px solid rgba(239,68,68,0.2)`, padding: "12px 14px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: "#ef4444", cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
+                <LogOut size={14} /> Sign Out
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -301,7 +301,12 @@ export default function Dashboard() {
         method: "POST",
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch {
+        setAnalysisError("Analysis server error — please try again");
+        return;
+      }
       if (res.ok) setLiveAnalysis(data.analysis);
       else setAnalysisError(data.error || `Analysis failed (${res.status})`);
     } catch (err) {

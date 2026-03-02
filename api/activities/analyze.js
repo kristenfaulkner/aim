@@ -1,7 +1,7 @@
 import { verifySession, cors } from "../_lib/auth.js";
 import { analyzeActivity } from "../_lib/ai.js";
 
-export const config = { maxDuration: 60 };
+export const config = { maxDuration: 120 };
 
 /**
  * POST /api/activities/analyze?id=<uuid>
