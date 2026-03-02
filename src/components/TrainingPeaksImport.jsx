@@ -266,7 +266,7 @@ export default function TrainingPeaksImport({ onClose, onComplete }) {
           label="Workout Files (.ZIP)"
           hint="Drag & drop or click to browse"
           fileLabel={zipFile ? `${zipFile.name} (${(zipFile.size / 1024 / 1024).toFixed(1)} MB)` : null}
-          required
+          optional
         />
         <input ref={zipRef} type="file" accept=".zip" style={{ display: "none" }}
           onChange={e => { const f = e.target.files[0]; if (f && validateZip(f)) { setZipFile(f); setError(null); } }} />
