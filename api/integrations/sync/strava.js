@@ -5,6 +5,7 @@ import { updateDailyMetrics, updatePowerProfile } from "../../_lib/training-load
 import { verifySession, cors } from "../../_lib/auth.js";
 import { analyzeActivity } from "../../_lib/ai.js";
 import { sendWorkoutSMS } from "../../sms/send.js";
+import { isHigherPriority, findCrossSourceDuplicate } from "../../_lib/source-priority.js";
 
 /**
  * Sync a single Strava activity by ID.
@@ -86,7 +87,43 @@ export async function syncStravaActivity(userId, stravaActivityId) {
     source_data: activity,
   };
 
-  // Upsert activity and get the ID back
+  // Check for cross-source duplicates from higher-priority sources.
+  // Strava is lowest priority — if the same workout exists from TP or a
+  // device source, we just enrich it with Strava metadata instead of
+  // creating a duplicate row.
+  const { data: nearbyActivities } = await supabaseAdmin
+    .from("activities")
+    .select("id, source, source_id, started_at, duration_seconds, name, description, source_data")
+    .eq("user_id", userId)
+    .neq("source", "strava")
+    .gte("started_at", new Date(new Date(activity.start_date).getTime() - 3 * 60 * 1000).toISOString())
+    .lte("started_at", new Date(new Date(activity.start_date).getTime() + 3 * 60 * 1000).toISOString());
+
+  const higherPriorityDup = findCrossSourceDuplicate(
+    nearbyActivities || [], activity.start_date, activity.moving_time, "strava"
+  );
+
+  if (higherPriorityDup && isHigherPriority(higherPriorityDup.source, "strava")) {
+    // Higher-priority source owns this activity — just enrich with Strava metadata
+    const enrichData = {
+      source_data: {
+        ...(higherPriorityDup.source_data || {}),
+        strava: activity, // Store full Strava API data for reference
+      },
+    };
+    // Enrich name/description only if the existing ones are missing
+    if (!higherPriorityDup.name && activity.name) enrichData.name = activity.name;
+    if (!higherPriorityDup.description && activity.description) enrichData.description = activity.description;
+
+    await supabaseAdmin
+      .from("activities")
+      .update(enrichData)
+      .eq("id", higherPriorityDup.id);
+
+    return { ...record, id: higherPriorityDup.id, enriched: true };
+  }
+
+  // No higher-priority duplicate — proceed with normal upsert
   const { data: upserted } = await supabaseAdmin
     .from("activities")
     .upsert(record, { onConflict: "user_id,source,source_id" })

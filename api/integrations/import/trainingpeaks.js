@@ -4,7 +4,8 @@
  *
  * Receives a Supabase Storage path to a ZIP of .FIT files (and optional
  * base64 CSV workout summary), processes each file, computes metrics,
- * deduplicates against existing Strava activities, and returns import stats.
+ * deduplicates against existing activities using source priority
+ * (device > TrainingPeaks > Strava), and returns import stats.
  */
 import AdmZip from "adm-zip";
 import { parse as csvParse } from "csv-parse/sync";
@@ -14,6 +15,7 @@ import { updateDailyMetrics, updatePowerProfile } from "../../_lib/training-load
 import { supabaseAdmin } from "../../_lib/supabase.js";
 import { verifySession, cors } from "../../_lib/auth.js";
 import { analyzeActivity } from "../../_lib/ai.js";
+import { isHigherPriority } from "../../_lib/source-priority.js";
 
 export const config = {
   maxDuration: 300, // 5 minutes for large imports
@@ -106,40 +108,93 @@ export default async function handler(req, res) {
         // 6c. Match CSV row for metadata enrichment
         const csvMatch = matchCsvRow(csvRows, metadata.started_at);
 
-        if (duplicate && duplicate.source !== "trainingpeaks") {
-          // MERGE: enrich existing activity with TP metadata
-          const mergeData = {};
+        if (duplicate && isHigherPriority("trainingpeaks", duplicate.source)) {
+          // UPGRADE: TP is more authoritative than existing (e.g. Strava).
+          // Replace metrics with TP-computed values, keep useful metadata.
           const existingSourceData = duplicate.source_data || {};
+          const tpSourceData = {
+            rpe: csvMatch?.rpe,
+            coach_comments: csvMatch?.comments,
+            notes: csvMatch?.notes,
+            planned_workout: csvMatch?.planned_workout,
+            imported_from: entry.entryName,
+          };
 
-          if (csvMatch) {
-            // Add TP metadata to source_data
-            mergeData.source_data = {
+          const upgradeData = {
+            source_data: { ...existingSourceData, trainingpeaks: tpSourceData, fit_file: entry.entryName },
+          };
+
+          // Override metrics with TP values (only where TP has data)
+          if (metadata.duration_seconds) upgradeData.duration_seconds = metadata.duration_seconds;
+          if (metadata.distance_meters) upgradeData.distance_meters = metadata.distance_meters;
+          if (metadata.elevation_gain_meters != null) upgradeData.elevation_gain_meters = metadata.elevation_gain_meters;
+          if (metadata.avg_speed_mps != null) upgradeData.avg_speed_mps = metadata.avg_speed_mps;
+          if (metadata.max_speed_mps != null) upgradeData.max_speed_mps = metadata.max_speed_mps;
+          if (metadata.calories != null) upgradeData.calories = metadata.calories;
+          if (metadata.avg_temperature != null) upgradeData.temperature_celsius = metadata.avg_temperature;
+          if (metrics.avg_power_watts != null) upgradeData.avg_power_watts = metrics.avg_power_watts;
+          if (metrics.normalized_power_watts != null) upgradeData.normalized_power_watts = metrics.normalized_power_watts;
+          if (metrics.max_power_watts != null) upgradeData.max_power_watts = metrics.max_power_watts;
+          if (metrics.avg_hr_bpm != null) upgradeData.avg_hr_bpm = metrics.avg_hr_bpm;
+          if (metrics.max_hr_bpm != null) upgradeData.max_hr_bpm = metrics.max_hr_bpm;
+          if (metrics.avg_cadence_rpm != null) upgradeData.avg_cadence_rpm = metrics.avg_cadence_rpm;
+          if (metrics.tss != null) upgradeData.tss = metrics.tss;
+          if (metrics.intensity_factor != null) upgradeData.intensity_factor = metrics.intensity_factor;
+          if (metrics.variability_index != null) upgradeData.variability_index = metrics.variability_index;
+          if (metrics.efficiency_factor != null) upgradeData.efficiency_factor = metrics.efficiency_factor;
+          if (metrics.hr_drift_pct != null) upgradeData.hr_drift_pct = metrics.hr_drift_pct;
+          if (metrics.decoupling_pct != null) upgradeData.decoupling_pct = metrics.decoupling_pct;
+          if (metrics.work_kj != null) upgradeData.work_kj = metrics.work_kj;
+          if (metrics.zone_distribution) upgradeData.zone_distribution = metrics.zone_distribution;
+          if (metrics.power_curve) upgradeData.power_curve = metrics.power_curve;
+
+          // Use TP name/description if the existing ones are missing or generic
+          if (csvMatch?.title && (!duplicate.name || /^(Morning|Afternoon|Evening|Lunch) Ride$/.test(duplicate.name))) {
+            upgradeData.name = csvMatch.title;
+          }
+          if (csvMatch?.description && !duplicate.description) {
+            upgradeData.description = csvMatch.description;
+          }
+
+          await supabaseAdmin
+            .from("activities")
+            .update(upgradeData)
+            .eq("id", duplicate.id);
+
+          // Recompute training load and power profile with upgraded metrics
+          if (upgradeData.tss) {
+            await updateDailyMetrics(session.userId, { started_at: metadata.started_at, tss: upgradeData.tss });
+          }
+          if (metrics.power_curve) {
+            await updatePowerProfile(session.userId, metrics.power_curve, weightKg);
+          }
+
+          results.merged++;
+          continue;
+        }
+
+        if (duplicate) {
+          // ENRICH: existing source is higher or equal priority (e.g. Wahoo/Garmin).
+          // Only add TP metadata without touching metrics.
+          const existingSourceData = duplicate.source_data || {};
+          const mergeData = {
+            source_data: {
               ...existingSourceData,
               trainingpeaks: {
-                rpe: csvMatch.rpe,
-                coach_comments: csvMatch.comments,
-                notes: csvMatch.notes,
-                planned_workout: csvMatch.planned_workout,
+                rpe: csvMatch?.rpe,
+                coach_comments: csvMatch?.comments,
+                notes: csvMatch?.notes,
+                planned_workout: csvMatch?.planned_workout,
                 imported_from: entry.entryName,
               },
-            };
+            },
+          };
 
-            // Enrich description if the existing one is empty
-            if (csvMatch.description && !duplicate.description) {
-              mergeData.description = csvMatch.description;
-            }
-            // Add title if existing name is generic
-            if (csvMatch.title && duplicate.name && (
-              duplicate.name === "Morning Ride" || duplicate.name === "Afternoon Ride" ||
-              duplicate.name === "Evening Ride" || duplicate.name === "Lunch Ride"
-            )) {
-              mergeData.name = csvMatch.title;
-            }
-          } else {
-            mergeData.source_data = {
-              ...existingSourceData,
-              trainingpeaks: { imported_from: entry.entryName },
-            };
+          if (csvMatch?.description && !duplicate.description) {
+            mergeData.description = csvMatch.description;
+          }
+          if (csvMatch?.title && (!duplicate.name || /^(Morning|Afternoon|Evening|Lunch) Ride$/.test(duplicate.name))) {
+            mergeData.name = csvMatch.title;
           }
 
           await supabaseAdmin
