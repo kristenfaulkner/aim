@@ -7,7 +7,7 @@ This is the living catalog of every AI-powered feature in AIM. It documents both
 ### Document Structure
 
 1. **Part 1: Active AI Prompts** — Every system prompt currently deployed, organized by feature
-2. **Part 2: Insight Categories** — The complete 34-category catalog of cross-domain insight patterns (Categories 1-22 active in production; 23-28 ready for implementation; 29-31 P2 future; 32-34 P3 future)
+2. **Part 2: Insight Categories** — The complete 35-category catalog of cross-domain insight patterns (Categories 1-29 active in production; 30-32 P2 future; 33-35 P3 future)
 3. **Part 3: Quality Standards** — Rules, confidence levels, and the no-medical-advice policy
 
 ---
@@ -1286,12 +1286,59 @@ The 34-category catalog below defines what patterns AIM looks for in athlete dat
 
 ---
 
-## CATEGORY 29: Periodization & Season Intelligence (P2 — future)
+## CATEGORY 29: W' Balance & Anaerobic Reserve
+
+**Required sources:** Power stream + CP model (cp_watts, w_prime_kj)
+**When to run:** Post-ride (when W'bal data computed)
+
+### 29A. Depletion Patterns
+
+**What to look for:** When and how deeply W' was depleted. Empty tank events (<5% W') mean the athlete was at their absolute limit — correlate with race/tactical moments
+**Example insights:**
+- "You depleted W' to 2% at 45km and never recovered above 38% — the winning attack at 52km came when your reserves were critically low. On Feb 18 when HRV was 72ms, you recovered to 65% between similar efforts."
+
+**Confidence:** High (deterministic computation from power stream + CP model)
+
+### 29B. Recovery Efficiency
+
+**What to look for:** How quickly W' reconstituted below CP. Faster recovery = better aerobic fitness. Compare recovery rate to previous similar efforts
+**Example insights:**
+- "Your W' recovery rate of 8.5%/min is strong — you can handle ~4 above-CP efforts per hour with 3-min recoveries. This is up from 6.2%/min last month, suggesting improved aerobic fitness."
+
+**Confidence:** High
+
+### 29C. Pacing Intelligence
+
+**What to look for:** Did the athlete deplete W' at the right moments? In a race, depleting at the finish is ideal. Depleting early with long ride remaining suggests pacing errors
+**Example insights:**
+- "You spent 12 minutes below 25% W' in the first hour, leaving nothing for the decisive final climb. On your best race result (Mar 8), you stayed above 60% until the final 20 minutes."
+
+**Confidence:** Medium-High
+
+### 29D. Sleep/HRV Cross-Reference
+
+**What to look for:** Compare W' depletion depth and recovery rate on well-rested vs fatigued days. Low HRV days often show slower W' reconstitution
+**Example insights:**
+- "On days with HRV >60ms, your W' recovery rate averages 9.2%/min. Today (HRV 42ms), it was only 5.8%/min — your aerobic engine is compromised, which slows W' reconstitution."
+
+**Confidence:** Medium
+
+### 29E. Training Prescription
+
+**What to look for:** Use W' balance patterns to suggest race tactics
+**Example insights:**
+- "Based on your recovery rate, you can sustain 3 above-CP efforts per hour with 3-min recoveries. For Saturday's crit, plan attacks in the final 4 laps when others' W' will be lower."
+
+**Confidence:** Medium
+
+---
+
+## CATEGORY 30: Periodization & Season Intelligence (P2 — future, was Cat 29)
 
 **Required sources:** Phase data + training history
 **When to run:** Weekly summary, phase transitions
 
-### 29A. Phase Compliance Tracking
+### 30A. Phase Compliance Tracking
 
 **What to look for:** Whether actual training matches prescribed phase goals (volume, intensity distribution)
 **Example insights:**
@@ -1299,7 +1346,7 @@ The 34-category catalog below defines what patterns AIM looks for in athlete dat
 
 **Confidence:** High (deterministic comparison to plan)
 
-### 29B. Phase Transition Recommendations
+### 30B. Phase Transition Recommendations
 
 **What to look for:** Readiness signals for moving between training phases
 **Example insights:**
@@ -1307,7 +1354,7 @@ The 34-category catalog below defines what patterns AIM looks for in athlete dat
 
 **Confidence:** Medium
 
-### 29C. Taper Anxiety Management
+### 30C. Taper Anxiety Management
 
 **What to look for:** Performance anxiety signals during taper (excessive training, sleep disruption)
 **Example insights:**
@@ -1317,12 +1364,12 @@ The 34-category catalog below defines what patterns AIM looks for in athlete dat
 
 ---
 
-## CATEGORY 30: Personal Model Insights (P2 — future)
+## CATEGORY 31: Personal Model Insights (P2 — future)
 
 **Required sources:** Personal models (accumulated data)
 **When to run:** When model confidence thresholds are crossed
 
-### 30A. Model Maturity Notifications
+### 31A. Model Maturity Notifications
 
 **What to look for:** When enough data accumulates to activate or improve a personal model
 **Example insights:**
@@ -1330,7 +1377,7 @@ The 34-category catalog below defines what patterns AIM looks for in athlete dat
 
 **Confidence:** High (meta-confidence about model quality)
 
-### 30B. Model-Based Predictions
+### 31B. Model-Based Predictions
 
 **What to look for:** Proactive predictions from mature personal models before key sessions
 **Example insights:**
@@ -1338,7 +1385,7 @@ The 34-category catalog below defines what patterns AIM looks for in athlete dat
 
 **Confidence:** Varies (depends on underlying model maturity)
 
-### 30C. Model Improvement Suggestions
+### 31C. Model Improvement Suggestions
 
 **What to look for:** Data gaps that would most improve personal model accuracy
 **Example insights:**
@@ -1348,12 +1395,12 @@ The 34-category catalog below defines what patterns AIM looks for in athlete dat
 
 ---
 
-## CATEGORY 31: Plateau & Breakthrough Analysis (P2 — future)
+## CATEGORY 32: Plateau & Breakthrough Analysis (P2 — future)
 
 **Required sources:** Power profile history (12+ weeks)
 **When to run:** Weekly summary, when plateau or breakthrough detected
 
-### 31A. Plateau Detection with Causal Analysis
+### 32A. Plateau Detection with Causal Analysis
 
 **What to look for:** Stagnation in key power durations with potential explanations from cross-domain data
 **Example insights:**
@@ -1361,7 +1408,7 @@ The 34-category catalog below defines what patterns AIM looks for in athlete dat
 
 **Confidence:** Medium (correlation-based — always present multiple possible causes)
 
-### 31B. Breakthrough Attribution
+### 32B. Breakthrough Attribution
 
 **What to look for:** What changed before a new personal best or significant improvement
 **Example insights:**
@@ -1371,51 +1418,51 @@ The 34-category catalog below defines what patterns AIM looks for in athlete dat
 
 ---
 
-## CATEGORY 32: Team Health Monitoring (P3 — future, requires coach dashboard)
+## CATEGORY 33: Team Health Monitoring (P3 — future, requires coach dashboard)
 
 **Required sources:** Multiple athlete profiles + readiness data
 **When to run:** Coach dashboard daily view
 
-### 32A. Team Readiness Overview
+### 33A. Team Readiness Overview
 
 **What to look for:** Aggregate team recovery status, flagging athletes at risk
 **Confidence:** High (aggregation of individual models)
 
-### 32B. Illness Risk Flagging
+### 33B. Illness Risk Flagging
 
 **What to look for:** Athletes showing pre-illness patterns (Category 24) who may affect team
 **Confidence:** Medium
 
 ---
 
-## CATEGORY 33: Team Training Load Management (P3 — future)
+## CATEGORY 34: Team Training Load Management (P3 — future)
 
 **Required sources:** Multiple athlete training logs + team calendar
 **When to run:** Coach dashboard weekly planning
 
-### 33A. Team Load Distribution
+### 34A. Team Load Distribution
 
 **What to look for:** Load balance across team members, identifying overloaded/underloaded athletes
 **Confidence:** High (deterministic load comparison)
 
-### 33B. Group Session Optimization
+### 34B. Group Session Optimization
 
 **What to look for:** Optimal groupings for shared sessions based on fitness levels and training targets
 **Confidence:** Medium
 
 ---
 
-## CATEGORY 34: Shared Race Preparation (P3 — future)
+## CATEGORY 35: Shared Race Preparation (P3 — future)
 
 **Required sources:** Team race calendar + individual power profiles + race course data
 **When to run:** Pre-race planning (7-14 days out)
 
-### 34A. Team Tactics from Individual Strengths
+### 35A. Team Tactics from Individual Strengths
 
 **What to look for:** Optimal race roles based on each athlete's power profile shape and durability
 **Confidence:** Medium-High (requires power profiles for all team members)
 
-### 34B. Pacing Strategy Coordination
+### 35B. Pacing Strategy Coordination
 
 **What to look for:** Coordinated pacing plans for team time trials or relay events
 **Confidence:** High (physics-based calculations from individual profiles)

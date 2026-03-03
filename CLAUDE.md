@@ -283,7 +283,7 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 
 See `docs/build-status.md` for the full detailed log. Summary of what's built:
 
-**Core**: Auth (email/password/Google SSO/magic link), onboarding, Vercel deployment, mobile-responsive, testing (266 tests), SEO, legal compliance, account management
+**Core**: Auth (email/password/Google SSO/magic link), onboarding, Vercel deployment, mobile-responsive, testing (289 tests), SEO, legal compliance, account management
 **Integrations**: Strava (full), EightSleep (full + hourly cron), Wahoo (full sync + backfill + webhook), TrainingPeaks (file import), Twilio SMS, Resend email, Oura (full + hourly cron), Whoop (full + hourly cron), Withings (full + hourly cron)
 **AI (11 features)**: Post-ride analysis, email summaries, SMS coach, chat coach, sleep summary, blood panel OCR, nutrition parsing, dashboard intelligence, adaptive 3-mode AI, athlete bio generation, insight feedback loop (thumbs up/down + personalized AI prompt injection)
 **Pages**: Dashboard V2, Sleep Intelligence, ActivityDetail, HealthLab, Boosters, ConnectApps, Settings, WorkoutDatabase, Landing, Legal pages
