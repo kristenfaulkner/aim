@@ -1,6 +1,7 @@
 import React from "react";
 import { T, mono } from "../../theme/tokens";
 import { formatDistance, formatElevation, elevationUnit } from "../../lib/units";
+import { formatActivityDate } from "../../lib/formatTime";
 
 // ── Helpers ──
 
@@ -70,11 +71,7 @@ export default function LastRideCard({ activity, onViewDetails, isMobile, units 
   const a = activity;
 
   const dateStr = a.started_at
-    ? new Date(a.started_at).toLocaleDateString("en-US", {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-      })
+    ? formatActivityDate(a, { weekday: "short", month: "short", day: "numeric" })
     : "";
 
   const summaryParts = [

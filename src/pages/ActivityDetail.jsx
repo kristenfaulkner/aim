@@ -9,6 +9,7 @@ import { useResponsive } from "../hooks/useResponsive";
 import { usePreferences } from "../context/PreferencesContext";
 import { formatDistance, formatSpeed, formatElevation, elevationUnit, formatWeight, weightUnit } from "../lib/units";
 import { FormattedText } from "../lib/formatText.jsx";
+import { formatActivityDate, formatActivityTime, getActivityTimezoneAbbrev } from "../lib/formatTime";
 
 function formatDuration(seconds) {
   if (!seconds) return "--";
@@ -1233,9 +1234,9 @@ export default function ActivityDetail() {
   }
 
   const a = activity;
-  const date = new Date(a.started_at);
-  const formattedDate = date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
-  const formattedTime = date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const formattedDate = formatActivityDate(a, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+  const formattedTime = formatActivityTime(a, { hour: "numeric", minute: "2-digit" });
+  const tzAbbrev = getActivityTimezoneAbbrev(a);
 
   return (
     <div style={{ minHeight: "100vh", background: T.bg }}>
@@ -1340,7 +1341,7 @@ export default function ActivityDetail() {
               {nameSaving && <span style={{ fontSize: 12, color: T.textDim, fontWeight: 400 }}>Saving...</span>}
             </h1>
           )}
-          <p style={{ fontSize: 14, color: T.textDim, margin: 0 }}>{formattedDate} at {formattedTime}</p>
+          <p style={{ fontSize: 14, color: T.textDim, margin: 0 }}>{formattedDate} at {formattedTime}{tzAbbrev ? ` ${tzAbbrev}` : ""}</p>
           {a.description && <p style={{ fontSize: 14, color: T.textSoft, margin: "8px 0 0", lineHeight: 1.5 }}>{a.description}</p>}
           <TagPills tags={a.activity_tags} />
         </div>
