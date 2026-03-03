@@ -1,15 +1,20 @@
 import { supabaseAdmin } from "../../_lib/supabase.js";
-import { getWahooToken, wahooFetch, mapWahooToActivity } from "../../_lib/wahoo.js";
-import { updateDailyMetrics } from "../../_lib/training-load.js";
+import { getWahooToken, wahooFetch, mapWahooToActivity, downloadWahooFit } from "../../_lib/wahoo.js";
+import { computeActivityMetrics } from "../../_lib/metrics.js";
+import { updateDailyMetrics, updatePowerProfile } from "../../_lib/training-load.js";
 import { verifySession, cors } from "../../_lib/auth.js";
 import { analyzeActivity } from "../../_lib/ai.js";
 import { sendWorkoutSMS } from "../../sms/send.js";
 import { sendWorkoutEmail } from "../../email/send.js";
 import { backfillUserMetrics } from "../../_lib/backfill.js";
+import { buildLapsPayload } from "../../_lib/intervals.js";
 import { detectAllTags, persistTags } from "../../_lib/tags.js";
 import { fetchActivityWeather, extractLocationFromActivity } from "../../_lib/weather-enrich.js";
 import { resolveActivityTimezone } from "../../_lib/timezone.js";
 import { detectTravel } from "../../_lib/travel.js";
+import { computeDurabilityData } from "../../_lib/durability.js";
+import { computeWbalStream } from "../../_lib/wbal.js";
+import { parseFitFile } from "../../_lib/fit.js";
 
 /**
  * Sync a single Wahoo workout. Called with the full workout object (which
@@ -28,19 +33,132 @@ export async function syncWahooWorkout(userId, workout, options = {}) {
     return null;
   }
 
+  // Fetch user profile upfront (ftp, weight, timezone)
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("ftp_watts, weight_kg, timezone")
+    .eq("id", userId)
+    .single();
+  const ftp = profile?.ftp_watts || null;
+  const weightKg = profile?.weight_kg || null;
+
   // Resolve timezone
   const wahooLat = workout.latitude || null;
   const wahooLng = workout.longitude || null;
-  let profileTz = "America/Los_Angeles";
-  if (wahooLat == null || wahooLng == null) {
-    const { data: prof } = await supabaseAdmin.from("profiles").select("timezone").eq("id", userId).single();
-    profileTz = prof?.timezone || "America/Los_Angeles";
-  }
+  const profileTz = profile?.timezone || "America/Los_Angeles";
   const startedAtRaw = workout.starts || ws.created_at;
   const tz = resolveActivityTimezone(startedAtRaw, wahooLat, wahooLng, profileTz);
 
-  // Map to activity record
+  // Map to activity record (summary-based baseline)
   const record = mapWahooToActivity(userId, workout, ws, tz);
+
+  // --- FIT file processing (graceful fallback to summary-only) ---
+  let streams = null;
+  let fitLaps = null;
+  const fitUrl = ws.file?.url || null;
+
+  if (fitUrl) {
+    try {
+      const fitBuffer = await downloadWahooFit(fitUrl);
+      if (fitBuffer) {
+        const parsed = parseFitFile(fitBuffer, `wahoo_${workout.id}.fit`);
+        streams = parsed.streams;
+        fitLaps = parsed.fitLaps;
+        console.log(`[Wahoo Sync] FIT parsed for workout ${workout.id}: ${streams?.watts?.data?.length || 0} power samples`);
+      }
+    } catch (err) {
+      console.error(`[Wahoo Sync] FIT download/parse failed for workout ${workout.id}:`, err.message);
+    }
+  }
+
+  // Compute metrics from FIT streams (overrides summary values)
+  let metrics = {};
+  if (streams?.watts?.data?.length > 0) {
+    try {
+      metrics = computeActivityMetrics(streams, record.duration_seconds, ftp);
+    } catch (err) {
+      console.error(`[Wahoo Sync] Metrics computation failed for workout ${workout.id}:`, err.message);
+    }
+  }
+
+  // Extract intervals from FIT laps + streams
+  let lapsPayload = null;
+  if (streams?.watts && ftp) {
+    try {
+      lapsPayload = buildLapsPayload(streams, ftp, fitLaps);
+    } catch (err) {
+      console.error(`[Wahoo Sync] Interval extraction failed for workout ${workout.id}:`, err.message);
+    }
+  }
+
+  // Compute durability from power stream
+  let durabilityPayload = null;
+  if (streams?.watts?.data && weightKg) {
+    try {
+      const sr = streams.time?.data?.length > 1
+        ? (streams.time.data[streams.time.data.length - 1] - streams.time.data[0]) / (streams.time.data.length - 1)
+        : 1;
+      durabilityPayload = computeDurabilityData(streams.watts.data, streams.time?.data, weightKg, sr);
+    } catch (err) {
+      console.error(`[Wahoo Sync] Durability computation failed for workout ${workout.id}:`, err.message);
+    }
+  }
+
+  // Compute W'bal from power stream + CP model
+  let wbalPayload = null;
+  let wbalMinPct = null;
+  let wbalEmptyEvents = 0;
+  if (streams?.watts?.data) {
+    try {
+      const { data: pp } = await supabaseAdmin
+        .from("power_profiles")
+        .select("cp_watts, w_prime_kj")
+        .eq("user_id", userId)
+        .order("computed_date", { ascending: false })
+        .limit(1)
+        .single();
+      if (pp?.cp_watts && pp?.w_prime_kj) {
+        const wbalResult = computeWbalStream(
+          streams.watts.data, streams.time?.data,
+          pp.cp_watts, pp.w_prime_kj * 1000
+        );
+        if (wbalResult) {
+          wbalPayload = wbalResult;
+          wbalMinPct = wbalResult.summary.min_wbal_pct;
+          wbalEmptyEvents = wbalResult.summary.empty_tank_events;
+        }
+      }
+    } catch (err) {
+      console.error(`[Wahoo Sync] W'bal computation failed for workout ${workout.id}:`, err.message);
+    }
+  }
+
+  // Merge computed fields into record (computed metrics override summary values)
+  if (Object.keys(metrics).length > 0) {
+    record.avg_power_watts = metrics.avg_power_watts ?? record.avg_power_watts;
+    record.normalized_power_watts = metrics.normalized_power_watts ?? record.normalized_power_watts;
+    record.max_power_watts = metrics.max_power_watts ?? record.max_power_watts;
+    record.avg_hr_bpm = metrics.avg_hr_bpm ?? record.avg_hr_bpm;
+    record.max_hr_bpm = metrics.max_hr_bpm ?? record.max_hr_bpm;
+    record.avg_cadence_rpm = metrics.avg_cadence_rpm ?? record.avg_cadence_rpm;
+    record.tss = metrics.tss ?? record.tss;
+    record.intensity_factor = metrics.intensity_factor ?? null;
+    record.variability_index = metrics.variability_index ?? null;
+    record.efficiency_factor = metrics.efficiency_factor ?? null;
+    record.hr_drift_pct = metrics.hr_drift_pct ?? null;
+    record.decoupling_pct = metrics.decoupling_pct ?? null;
+    record.work_kj = metrics.work_kj ?? record.work_kj;
+    record.zone_distribution = metrics.zone_distribution ?? null;
+    record.power_curve = metrics.power_curve ?? null;
+    record.ftp_at_time = (metrics.tss != null && ftp) ? ftp : null;
+  }
+  if (lapsPayload) record.laps = lapsPayload;
+  if (durabilityPayload) record.durability_data = durabilityPayload;
+  if (wbalPayload) {
+    record.wbal_data = wbalPayload;
+    record.wbal_min_pct = wbalMinPct;
+    record.wbal_empty_events = wbalEmptyEvents;
+  }
 
   // Upsert activity
   const { data: upserted, error: upsertError } = await supabaseAdmin
@@ -63,6 +181,15 @@ export async function syncWahooWorkout(userId, workout, options = {}) {
     }
   }
 
+  // Update power profile with personal bests from FIT data
+  if (metrics.power_curve) {
+    try {
+      await updatePowerProfile(userId, metrics.power_curve, weightKg);
+    } catch (err) {
+      console.error(`[Wahoo Sync] Power profile update failed:`, err.message);
+    }
+  }
+
   // Fire-and-forget: weather + tags + travel
   if (upserted?.id) {
     (async () => {
@@ -77,9 +204,7 @@ export async function syncWahooWorkout(userId, workout, options = {}) {
           }
         }
 
-        // Tag detection
-        const { data: profile } = await supabaseAdmin.from("profiles").select("ftp_watts").eq("id", userId).single();
-        const ftp = profile?.ftp_watts;
+        // Tag detection (now with laps for richer tagging)
         const activityWithLaps = { ...record, id: upserted.id };
         const tags = detectAllTags(activityWithLaps, null, record.activity_weather, ftp);
         if (tags.length > 0) {

@@ -1,11 +1,7 @@
 import { waitUntil } from "@vercel/functions";
 import { supabaseAdmin } from "../_lib/supabase.js";
-import { analyzeActivity } from "../_lib/ai.js";
-import { sendWorkoutEmail } from "../email/send.js";
-import { sendWorkoutSMS } from "../sms/send.js";
 import { backfillUserMetrics } from "../_lib/backfill.js";
-import { resolveActivityTimezone } from "../_lib/timezone.js";
-import { mapWahooToActivity } from "../_lib/wahoo.js";
+import { syncWahooWorkout } from "../integrations/sync/wahoo.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
@@ -40,50 +36,30 @@ export default async function handler(req, res) {
   }
 
   const userId = integration.user_id;
-
   console.log(`[Wahoo Webhook] Matched user ${userId} for wahoo user ${wahooUserId}`);
 
-  // Resolve timezone — Wahoo may provide lat/lng, fallback to user profile
-  const wahooLat = workout?.latitude || workout_summary.latitude || null;
-  const wahooLng = workout?.longitude || workout_summary.longitude || null;
-  let profileTz = "America/Los_Angeles";
-  if (wahooLat == null || wahooLng == null) {
-    const { data: prof } = await supabaseAdmin.from("profiles").select("timezone").eq("id", userId).single();
-    profileTz = prof?.timezone || "America/Los_Angeles";
-  }
-  const startedAtRaw = workout?.starts || workout_summary.created_at;
-  const tz = resolveActivityTimezone(startedAtRaw, wahooLat, wahooLng, profileTz);
+  // Construct workout object matching syncWahooWorkout's expected shape
+  const wahooWorkout = {
+    id: workout?.id,
+    starts: workout?.starts || workout_summary.created_at,
+    workout_type_id: workout?.workout_type_id,
+    latitude: workout?.latitude || workout_summary.latitude || null,
+    longitude: workout?.longitude || workout_summary.longitude || null,
+    name: workout?.name || workout_summary.name,
+    workout_summary: workout_summary,
+  };
 
-  // Map to activity record using shared mapping (correct DB column names)
-  const activity = mapWahooToActivity(userId, workout, workout_summary, tz);
-
-  const { data: upserted, error: upsertError } = await supabaseAdmin.from("activities").upsert(activity, {
-    onConflict: "user_id,source,source_id",
-  }).select("id").single();
-
-  if (upsertError) {
-    console.error(`[Wahoo Webhook] Upsert failed:`, upsertError.message);
-  }
-
-  // Respond immediately, then run AI analysis + notifications in background
+  // Respond immediately, then process in background
   res.status(200).json({ ok: true });
 
   // waitUntil keeps the function alive after response is sent
   waitUntil(
     (async () => {
-      if (upserted?.id) {
-        try {
-          await analyzeActivity(userId, upserted.id);
-          console.log(`[Wahoo Webhook] AI analysis complete for activity ${upserted.id}`);
-          // Email and SMS fire in parallel after analysis
-          await Promise.allSettled([
-            sendWorkoutEmail(userId, upserted.id),
-            sendWorkoutSMS(userId, upserted.id),
-          ]);
-          console.log(`[Wahoo Webhook] Notifications sent for activity ${upserted.id}`);
-        } catch (err) {
-          console.error(`[Wahoo Webhook] Post-processing failed for activity ${upserted.id}:`, err.message);
-        }
+      try {
+        const result = await syncWahooWorkout(userId, wahooWorkout, { notify: true });
+        console.log(`[Wahoo Webhook] Sync complete for workout ${workout?.id}, activity ${result?.id}`);
+      } catch (err) {
+        console.error(`[Wahoo Webhook] Sync failed for workout ${workout?.id}:`, err.message);
       }
       try {
         await backfillUserMetrics(userId);

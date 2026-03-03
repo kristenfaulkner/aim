@@ -72,7 +72,7 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
   - `wbal.js` — W' Balance (Skiba differential reconstitution): real-time anaerobic reserve tracking, depletion/recovery events, empty tank detection, AI formatting
   - `travel.js` — Travel detection pure functions: haversine distance, timezone/altitude shift detection, jet lag recovery estimation, altitude power penalty
   - `cross-training.js` — Cross-training utilities: recovery impact estimation (none/minor/moderate/major), TSS approximation from intensity + duration
-  - `wahoo.js` — Wahoo API client (OAuth token refresh, workout type mapping, activity field mapping) + shared mapWahooToActivity used by webhook + sync
+  - `wahoo.js` — Wahoo API client (OAuth token refresh, workout type mapping, activity field mapping, FIT file download) + shared mapWahooToActivity used by webhook + sync
   - `strava.js` — Strava API client with token refresh
   - `oura.js` — Oura Ring API v2 client (OAuth token refresh with single-use refresh tokens, sleep/readiness/activity/SpO2 data fetching and mapping)
   - `whoop.js` — Whoop API v2 client (OAuth token refresh, recovery/sleep/body measurement data fetching and mapping)
@@ -195,7 +195,7 @@ All plans include 14-day free trial, no credit card required.
 
 ### Tier 1 — Cycling Core (launch priority)
 - **Strava** ✅ — OAuth + full sync + backfill + metrics + streams + webhook (activity create/update/delete) + auto 365-day backfill on first connect
-- **Wahoo** ✅ — OAuth + full sync + backfill + webhook (workout summaries, maps workout data to activities), auto 365-day backfill on first connect, token refresh
+- **Wahoo** ✅ — OAuth + full sync + backfill + webhook (FIT file download + full stream processing: computed metrics, intervals, durability, W'bal, power profile updates), auto 365-day backfill on first connect, token refresh
 - **Garmin Connect** — activities, body battery, stress, daily HR (not yet started)
 - **TrainingPeaks** ✅ — file import: ZIP extracted client-side with JSZip → batched base64 upload (.fit/.tcx/.gpx with full metrics computation, no file size limit). ZIP optional for CSV-only enrichment. + workouts CSV (titles/RPE/comments/body weight) + metrics CSV (daily RHR/HRV/sleep/SpO2/body fat/Whoop recovery)
 
@@ -284,7 +284,7 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 See `docs/build-status.md` for the full detailed log. Summary of what's built:
 
 **Core**: Auth (email/password/Google SSO/magic link), onboarding, Vercel deployment, mobile-responsive, testing (289 tests), SEO, legal compliance, account management
-**Integrations**: Strava (full), EightSleep (full + hourly cron), Wahoo (full sync + backfill + webhook), TrainingPeaks (file import), Twilio SMS, Resend email, Oura (full + hourly cron), Whoop (full + hourly cron), Withings (full + hourly cron)
+**Integrations**: Strava (full), EightSleep (full + hourly cron), Wahoo (full sync + backfill + webhook + FIT stream processing), TrainingPeaks (file import), Twilio SMS, Resend email, Oura (full + hourly cron), Whoop (full + hourly cron), Withings (full + hourly cron)
 **AI (11 features)**: Post-ride analysis, email summaries, SMS coach, chat coach, sleep summary, blood panel OCR, nutrition parsing, dashboard intelligence, adaptive 3-mode AI, athlete bio generation, insight feedback loop (thumbs up/down + personalized AI prompt injection)
 **Pages**: Dashboard V2, Sleep Intelligence, ActivityDetail, HealthLab, Boosters, ConnectApps, Settings, WorkoutDatabase, Landing, Legal pages
 **Structured Workouts (5 phases)**: Interval extraction, canonical tagging (32+14 tags), weather enrichment, interval execution coaching, performance models (heat/sleep/HRV/fueling/durability), searchable workout database
@@ -367,6 +367,7 @@ All AI-generated content, hardcoded text, and UI copy must follow these rules:
 
 ## Conventions
 
+- **Engineering standards** — before building any feature, reference `docs/ENGINEERING-STANDARDS.md` for API patterns, component rules, styling rules, state management, performance guidelines, and anti-patterns. Follow existing patterns.
 - **Design Bible first** — before building any new UI feature, page, or component, reference `docs/AIM-DESIGN-BIBLE.md` for design tokens, layout patterns, component library, and page-by-page specs. Match existing patterns.
 - **No TypeScript** — plain JavaScript throughout
 - **Inline styles** using design token object `T` from `src/theme/tokens.js`; no Tailwind or CSS-in-JS
@@ -391,6 +392,7 @@ All AI-generated content, hardcoded text, and UI copy must follow these rules:
 ## Reference Docs
 
 Detailed specifications archived in `docs/`:
+- `docs/ENGINEERING-STANDARDS.md` — **coding standards**: API patterns, component rules, styling rules, state management, hook patterns, performance guidelines, security, anti-patterns. **MUST be referenced before building any feature.**
 - `docs/build-status.md` — full log of all completed features (extracted from this file for size)
 - `docs/data-flows.md` — detailed data flow pipelines (sync, import, AI, SMS, sleep, metrics)
 - `docs/product-blueprint.md` — full product spec, booster library, menstrual cycle science, onboarding fields, pricing tiers, user stories

@@ -120,6 +120,26 @@ export async function wahooFetch(accessToken, path) {
  * @param {{ timezone_iana: string, start_time_local: string }} tz - pre-resolved timezone
  * @returns {object} activity record ready for upsert
  */
+/**
+ * Download a Wahoo FIT file from the CDN URL.
+ * Returns a Buffer or null on failure (graceful — caller falls back to summary-only).
+ */
+export async function downloadWahooFit(fitUrl, timeoutMs = 15000) {
+  if (!fitUrl) return null;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(fitUrl, { signal: controller.signal });
+    if (!res.ok) return null;
+    const arrayBuffer = await res.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export function mapWahooToActivity(userId, workout, ws, tz) {
   const durationSec = parseFloat(ws.duration_active_accum || 0);
   const distanceM = parseFloat(ws.distance_accum || 0);
