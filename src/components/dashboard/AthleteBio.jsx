@@ -37,8 +37,8 @@ export default function AthleteBio({ profile, onUpdateProfile, isMobile }) {
       if (data.bio) {
         await onUpdateProfile({ athlete_bio: data.bio });
       }
-    } catch {
-      // Silent fail — bio is non-critical, user can regenerate manually
+    } catch (err) {
+      setError(err.message || "Failed to generate bio");
     } finally {
       setGenerating(false);
     }
@@ -175,6 +175,24 @@ export default function AthleteBio({ profile, onUpdateProfile, isMobile }) {
     );
   }
 
-  // Fallback — no bio, not generating (shouldn't normally show)
-  return null;
+  // No bio, not generating — failed or waiting, show retry
+  return (
+    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: 18 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Your Athlete Profile</div>
+      {error && <div style={{ fontSize: 11, color: T.danger, marginBottom: 8 }}>{error}</div>}
+      <button
+        onClick={() => { hasTriggered.current = false; setError(null); generateAndSave(); }}
+        style={{
+          display: "flex", alignItems: "center", gap: 8,
+          padding: "8px 16px", borderRadius: 10, border: "none",
+          background: T.gradient, color: T.white,
+          fontSize: 12, fontWeight: 700, cursor: "pointer",
+          fontFamily: font,
+        }}
+      >
+        <Sparkles size={14} />
+        Generate Profile
+      </button>
+    </div>
+  );
 }
