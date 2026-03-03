@@ -34,7 +34,7 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 - `App.jsx` — route definitions; protected routes wrap with `ProtectedRoute`
 - `context/AuthContext.jsx` — user auth state, profile management, Supabase auth listeners
 - `pages/` — 19 route-level pages (Dashboard, Sleep, ActivityDetail, HealthLab, Boosters, ConnectApps, Settings, WorkoutDatabase, Onboarding, AcceptTerms, Auth, ResetPassword, Landing, Contact, 5 legal pages)
-- `components/` — reusable: `TrainingPeaksImport`, `BloodPanelUpload` (multi-file drag-and-drop), `DexaScanUpload` (single-file drag-and-drop with body composition extraction), `ActivityBrowser` (popover with time filters/search/pagination), `ProtectedRoute` (auth + consent gate), `NeuralBackground`, `SEO` (React 19 native metadata: title, description, OG, Twitter cards, canonical URL)
+- `components/` — reusable: `TrainingPeaksImport`, `BloodPanelUpload` (multi-file drag-and-drop), `DexaScanUpload` (single-file drag-and-drop with body composition extraction), `ActivityBrowser` (popover with time filters/search/pagination), `ProtectedRoute` (auth + consent gate), `NeuralBackground`, `SEO` (React 19 native metadata: title, description, OG, Twitter cards, canonical URL), `SessionNotes` (activity annotation: freeform notes, star rating, RPE slider 0-10, tag input with alias normalization — shared across Activities and ActivityDetail pages)
 - `components/dashboard/` — modular dashboard components: `ReadinessCard` (SVG ring + 4 metric pills), `AIPanel` (3-tab AI analysis/summary/chat), `LastRideCard` (8-metric grid), `TrainingWeekChart` (7-day TSS bars), `FitnessChart` (CTL/ATL/TSB SVG), `WorkingGoals` (expandable goal cards with 3 tabs), `NutritionLogger` (5-stage conversational modal with Claude parsing)
 - `hooks/useDashboardData.js` — parallel Supabase queries (7 concurrent) using `Promise.allSettled`
 - `hooks/useActivities.js` — paginated activity list (legacy, replaced by useActivityBrowser on Dashboard)
@@ -44,6 +44,8 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 - `lib/api.js` — `apiFetch()` utility adds Bearer token to all `/api` calls
 - `lib/supabase.js` — Supabase client init
 - `lib/zones.js` — `computePowerZones(ftp)` and `computeHRZones(maxHR)` used by Onboarding + Settings
+- `lib/formatText.jsx` — `cleanText()` strips markdown artifacts from AI JSON text fields; `FormattedText` component renders paragraphs, `**bold**` as `<strong>`, `*italic*` as `<em>`
+- `lib/formatTime.js` — `formatActivityDate()`, `formatActivityTime()`, `getActivityTimezoneAbbrev()` helpers
 - `data/` — static data: integrations metadata, biomarker clinical ranges, booster protocols, power classification tables
 - `theme/tokens.js` — design tokens exported as `T` (colors, fonts); `catColors` for booster categories; `breakpoints` and `touchMin` for responsive design; `breakpoints` (mobile/tablet) and `touchMin` (44px)
 
@@ -74,7 +76,7 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 - `integrations/import/` — file-based imports (TrainingPeaks ZIP/CSV, ZIP optional for CSV-only enrichment)
 - `cron/sync-eightsleep.js` — hourly Vercel Cron syncs last 2 days of Eight Sleep data; skips users synced in last 6 hours
 - `webhooks/` — inbound webhooks (strava activity events, wahoo workout summaries)
-- `activities/` — list, detail (includes activity_tags + planned_vs_actual data), annotate, analyze, search (tag-based), query (advanced tag/filter/grouping search), smart-chips (AI-suggested query chips), backfill-intervals, backfill-metrics endpoints
+- `activities/` — list, detail (includes activity_tags + planned_vs_actual data), annotate (saves user_notes/rating/RPE/tags + name; auto-extracts tags from notes via keyword matching; normalizes all tags to canonical form via `TAG_ALIASES` — e.g. "S&E"→"low cadence", "TT"→"time trial"), analyze, search (tag-based), query (advanced tag/filter/grouping search), smart-chips (AI-suggested query chips), backfill-intervals, backfill-metrics endpoints
 - `tags/` — tag dictionary endpoint
 - `health/` — blood panel upload (Claude AI extraction from PDF/image), DEXA scan upload (Claude AI extraction of body composition/regional data), and panel management
 - `sleep/summary.js` — Claude-powered morning readiness assessment
@@ -364,6 +366,11 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 - **Structured Workouts Engine (Phase 3)** — Interval execution coaching: deterministic interval insights (fade/cadence/HR/pacing), planned vs actual comparison with execution scoring (0-100), AI context enrichment with Category 16 (Interval Execution Coaching), PlannedVsActual UI component on ActivityDetail
 - **Structured Workouts Engine (Phase 4)** — Conditional performance models: heat penalty (temp→EF/HR drift), sleep→execution quality, HRV readiness thresholds (red/yellow/green), fueling→durability, kJ/kg durability model; AI system prompt Categories 17-22 (Durability, Fueling Causality, Readiness-to-Response, Workout Type Progression, Anomaly Detection, Race-Specific Analysis); performance models integrated into dashboard intelligence
 - **Structured Workouts Engine (Phase 5)** — Searchable workout database: advanced query endpoint with tag filters/date range/grouping/aggregation, smart chips API (tag co-occurrence analysis, suggested queries), WorkoutDatabase page at `/workout-db` with smart query chips, tag filter panel, aggregation bar, grouped comparison tables, sortable results grid; route added to App.jsx
+- **SessionNotes shared component** — `src/components/SessionNotes.jsx` extracted and shared across Activities and ActivityDetail pages; freeform notes, star rating (1-5), RPE slider (0-10 with Borg labels), tag input with suggestion chips; uses `key={activityId}` for reset on activity switch; `onSaved` callback for parent state sync
+- **Tag normalization & alias system** — `TAG_ALIASES` map (50+ entries) in both `api/activities/annotate.js` (server-authoritative) and `src/components/SessionNotes.jsx` (client-side for instant chip rendering); normalizes cycling shorthands: "S&E"→"low cadence", "TT"/"TT bike"→"time trial", "crit"→"race", "sst"→"sweet spot", "MAP"→"vo2max", etc.; new canonical tags "test" and "openers" added with their own suggestion chips and NOTE_TAG_PATTERNS
+- **Note-to-tag keyword extraction** — `annotate.js` auto-extracts structured tags from `user_notes` via regex patterns (e.g. writing "S&E intervals today" auto-tags as "low cadence" + "interval"); merged with explicit `user_tags` before saving; runs on every annotate call
+- **Markdown rendering fix across all AI surfaces** — `src/lib/formatText.jsx` (`cleanText` + `FormattedText`): strips `##` headings and `---` rules, renders `**bold**` as `<strong>` and `*italic*` as `<em>`, proper paragraph spacing; applied to AIPanel (both tabs + chat + preview), ActivityDetail AI panel, SleepAIPanel (summary + insight.body), Sleep.jsx morning report
+- **AI voice fix** — Added Rule 10 to ANALYSIS_SYSTEM_PROMPT: always write in second person ("your worst sleep nights") — never "athletes in the bottom quartile" when describing the user's own data
 
 ### Remaining — Prioritized Feature Backlog
 

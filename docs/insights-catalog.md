@@ -7,7 +7,7 @@ This is the living catalog of every AI-powered feature in AIM. It documents both
 ### Document Structure
 
 1. **Part 1: Active AI Prompts** — Every system prompt currently deployed, organized by feature
-2. **Part 2: Insight Categories** — The 22-category catalog of cross-domain insight patterns (15 original + 7 structured workout categories)
+2. **Part 2: Insight Categories** — The complete 22-category catalog of cross-domain insight patterns (all 22 active in production)
 3. **Part 3: Quality Standards** — Rules, confidence levels, and the no-medical-advice policy
 
 ---
@@ -26,7 +26,7 @@ Every AI feature in AIM uses a system prompt sent to Claude. Below are all 12 ac
 **Output:** JSON with summary, 6-12 insights, dataGaps
 **Frontend:** Activity detail page AI panel + Dashboard AI panel
 
-This is the core analysis engine — the largest and most detailed prompt. It embeds all 15 insight categories.
+This is the core analysis engine — the largest and most detailed prompt. It embeds all 22 insight categories.
 
 ```
 You are the AI analysis engine for AIM, a performance intelligence platform for endurance athletes. AIM was built by Kristen Faulkner, 2x Olympic Gold Medalist in cycling (Paris 2024, Road Race & Team Pursuit).
@@ -1161,6 +1161,8 @@ Before generating any insight:
 - [ ] Has an actionable takeaway
 - [ ] References the athlete's OWN data and history, not generic advice
 - [ ] Grounded in exercise science
+- [ ] Written in **second person** — "your worst sleep nights", never "athletes in the bottom quartile"
+- [ ] No raw markdown in output — no `##`, `---`, or `**text**` literals; these must be stripped by the display layer
 
 ## Confidence Levels
 
@@ -1222,3 +1224,8 @@ When discovering a new pattern or receiving user feedback, add it using this tem
 | 10 | DEXA Scan OCR | `api/health/dexa-upload.js` | File upload | sonnet-4-6 | 4000 | JSON extraction |
 | 11 | DEXA Scan Analysis | `api/health/dexa-upload.js` | After extraction | sonnet-4-6 | 3000 | JSON insights |
 | 12 | Nutrition Parser | `api/nutrition/parse.js` | Free-text input | sonnet-4-6 | 2000 | JSON items |
+| 13 | SMS Workout Summary | `api/sms/send.js` | Post-activity | sonnet-4-6 | 1500 | Plain text (SMS) |
+
+**Quality rules enforced in all prompts (as of March 2026):**
+- Rule 10 (added): Always second person — "your nights in the bottom quartile", never "athletes in the bottom quartile"
+- All AI output is passed through `src/lib/formatText.jsx` at render time to strip `##`, `---`, render `**bold**` as `<strong>`, and space paragraphs correctly

@@ -9,7 +9,7 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 // ─────────────────────────────────────────────────────────────────────────────
 // AIM AI ANALYSIS SYSTEM PROMPT
 //
-// This prompt embeds the complete AIM Insights Catalog (13 categories + extras)
+// This prompt embeds the complete AIM Insights Catalog (all 22 categories)
 // so Claude knows exactly WHAT to look for, HOW to phrase it, and what TONE
 // and SPECIFICITY we expect. Each category is a modular block — new categories
 // can be added without rewriting the whole prompt.
