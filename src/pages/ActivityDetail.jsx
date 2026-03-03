@@ -12,6 +12,8 @@ import { FormattedText } from "../lib/formatText.jsx";
 import InsightFeedback from "../components/InsightFeedback";
 import { formatActivityDate, formatActivityTime, getActivityTimezoneAbbrev } from "../lib/formatTime";
 import SessionNotes from "../components/SessionNotes.jsx";
+import WbalChart from "../components/WbalChart.jsx";
+import { useWbalData } from "../hooks/useWbalData.js";
 
 function formatDuration(seconds) {
   if (!seconds) return "--";
@@ -860,6 +862,7 @@ export default function ActivityDetail() {
   const { isMobile, isTablet } = useResponsive();
   const { signout, profile } = useAuth();
   const { units } = usePreferences();
+  const { data: wbalData, loading: wbalLoading } = useWbalData(id);
   const handleSignout = async () => { await signout(); navigate("/"); };
 
   const fetchActivity = useCallback(async () => {
@@ -1194,6 +1197,11 @@ export default function ActivityDetail() {
 
             {/* Zone distribution */}
             <ZoneBar zones={a.zone_distribution} isMobile={isMobile} />
+
+            {/* W' Balance */}
+            {(wbalData || wbalLoading) && a.avg_power_watts && (
+              <WbalChart data={wbalData} loading={wbalLoading} />
+            )}
 
             {/* Power curve */}
             <PowerCurveDisplay curve={a.power_curve} />

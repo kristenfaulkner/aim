@@ -14,6 +14,7 @@ import { fetchActivityWeather, extractLocationFromActivity } from "../../_lib/we
 import { resolveActivityTimezone, parseStravaTimezone } from "../../_lib/timezone.js";
 import { detectTravel } from "../../_lib/travel.js";
 import { computeDurabilityData } from "../../_lib/durability.js";
+import { computeWbalStream } from "../../_lib/wbal.js";
 
 /**
  * Sync a single Strava activity by ID.
@@ -96,6 +97,35 @@ export async function syncStravaActivity(userId, stravaActivityId, options = {})
     }
   }
 
+  // Compute W'bal from power stream + CP model
+  let wbalPayload = null;
+  let wbalMinPct = null;
+  let wbalEmptyEvents = 0;
+  if (streams.watts?.data) {
+    try {
+      const { data: pp } = await supabaseAdmin
+        .from("power_profiles")
+        .select("cp_watts, w_prime_kj")
+        .eq("user_id", userId)
+        .order("computed_date", { ascending: false })
+        .limit(1)
+        .single();
+      if (pp?.cp_watts && pp?.w_prime_kj) {
+        const wbalResult = computeWbalStream(
+          streams.watts.data, streams.time?.data,
+          pp.cp_watts, pp.w_prime_kj * 1000
+        );
+        if (wbalResult) {
+          wbalPayload = wbalResult;
+          wbalMinPct = wbalResult.summary.min_wbal_pct;
+          wbalEmptyEvents = wbalResult.summary.empty_tank_events;
+        }
+      }
+    } catch (err) {
+      console.error(`W'bal computation failed for Strava ${stravaActivityId}:`, err.message);
+    }
+  }
+
   // Build activity record
   const record = {
     user_id: userId,
@@ -130,6 +160,9 @@ export async function syncStravaActivity(userId, stravaActivityId, options = {})
     power_curve: metrics.power_curve ?? null,
     laps: lapsPayload,
     durability_data: durabilityPayload,
+    wbal_data: wbalPayload,
+    wbal_min_pct: wbalMinPct,
+    wbal_empty_events: wbalEmptyEvents,
     start_lat: stravaLat,
     start_lng: stravaLng,
     timezone_iana: tz.timezone_iana,

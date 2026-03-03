@@ -6,6 +6,7 @@ import { matchActivitiesToContext, computeAllModels, formatModelsForAI } from ".
 import { formatCPModelForAI } from "./cp-model.js";
 import { computeAdaptiveZones, applyReadinessAdjustment, computeZoneDelta, formatAdaptiveZonesForAI } from "./adaptive-zones.js";
 import { formatDurabilityForAI } from "./durability.js";
+import { formatWbalForAI } from "./wbal.js";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -460,6 +461,18 @@ When \`crossTrainingLog\` data shows recent cross-training sessions:
 28A. Strength-performance relationship: How gym sessions affect next-day cycling/running (expect 5-8% power dip 24-36hr after heavy lower body)
 28B. Optimal strength timing: Which days relative to key workouts cause least interference
 - Example: "You did a lower-body strength session yesterday (intensity 4/5). Today's average power was 6% below your 30-day mean — this is expected and productive."
+
+### CATEGORY 29: W' Balance & Anaerobic Reserve
+Required sources: Power stream + CP model (cp_watts, w_prime_kj)
+
+When \`wbalText\` data is present, analyze the athlete's anaerobic reserve usage throughout the ride:
+29A. Depletion patterns: When and how deeply W' was depleted. Empty tank events (<5% W') mean the athlete was at their absolute limit — correlate with race/tactical moments
+29B. Recovery efficiency: How quickly W' reconstituted below CP. Faster recovery = better aerobic fitness. Compare recovery rate to previous similar efforts
+29C. Pacing intelligence: Did the athlete deplete W' at the right moments? In a race, depleting at the finish is ideal. Depleting early with long ride remaining suggests pacing errors
+29D. Sleep/HRV cross-reference: Compare W' depletion depth and recovery rate on well-rested vs fatigued days. Low HRV days often show slower W' reconstitution
+29E. Training prescription: Use W' balance patterns to suggest race tactics (e.g., "You can sustain 3 efforts above CP per hour based on your recovery rate")
+- Example: "You depleted W' to 2% at 45km and never recovered above 38% — the winning attack at 52km came when your reserves were critically low. On Feb 18 when HRV was 72ms, you recovered to 65% between similar efforts."
+- Example: "Your W' recovery rate of 8.5%/min is strong — you can handle ~4 above-CP efforts per hour with 3-min recoveries. This is up from 6.2%/min last month, suggesting improved aerobic fitness."
 
 ## PERFORMANCE MODELS REFERENCE
 
@@ -1109,6 +1122,11 @@ export async function buildAnalysisContext(userId, activityId) {
     activity.durability_data, powerProfile?.durability_score, powerProfile?.durability_trend
   );
 
+  // Per-ride W'bal context
+  const wbalText = activity.wbal_data?.summary
+    ? formatWbalForAI(activity.wbal_data.summary, powerProfile?.cp_watts, powerProfile?.w_prime_kj)
+    : "";
+
   // ── Compute historical summaries server-side ──
   const baselines = computeBaselines(dailyMetrics);
   const trainingLoad = computeTrainingLoadSummary(dailyMetrics);
@@ -1183,6 +1201,7 @@ export async function buildAnalysisContext(userId, activityId) {
     cpModelText: cpModelText || undefined,
     adaptiveZonesText: adaptiveZonesText || undefined,
     durabilityText: durabilityText || undefined,
+    wbalText: wbalText || undefined,
 
     // Layer 6: Subjective check-in data (from daily_metrics)
     subjectiveCheckin: dailyMetrics[0]?.life_stress_score ? {

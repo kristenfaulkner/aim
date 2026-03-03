@@ -152,6 +152,7 @@ export function useDashboardData(selectedActivityId = null) {
       backfillRan.current = true;
       apiFetch("/activities/backfill-metrics", { method: "POST" }).catch(() => {});
       apiFetch("/activities/backfill-cp", { method: "POST" }).catch(() => {});
+      apiFetch("/activities/backfill-wbal", { method: "POST" }).catch(() => {});
     }
   }, [user]);
 
