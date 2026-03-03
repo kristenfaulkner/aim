@@ -1,9 +1,12 @@
 /**
- * Shared backfill utility — recalculates derived metrics for activities
+ * Shared backfill utility — computes derived metrics for activities
  * that have power data but are missing TSS, IF, VI, EF, or work_kj.
  *
- * Called automatically after every sync/import and on dashboard load
- * so metrics are always up-to-date with the user's current FTP.
+ * Uses ftp_at_time on each activity: once TSS is computed and stamped
+ * with an FTP, it is never retroactively recalculated. Only activities
+ * that have never had TSS computed get the current FTP applied.
+ *
+ * Called automatically after every sync/import and on dashboard load.
  */
 import { supabaseAdmin } from "./supabase.js";
 import {
@@ -36,7 +39,7 @@ export async function backfillUserMetrics(userId) {
   // Find activities with any power data (NP or avg power)
   const { data: activities, error: fetchErr } = await supabaseAdmin
     .from("activities")
-    .select("id, normalized_power_watts, avg_power_watts, avg_hr_bpm, duration_seconds, tss, intensity_factor, variability_index, efficiency_factor, work_kj, started_at")
+    .select("id, normalized_power_watts, avg_power_watts, avg_hr_bpm, duration_seconds, tss, intensity_factor, variability_index, efficiency_factor, work_kj, ftp_at_time, started_at")
     .eq("user_id", userId)
     .or("normalized_power_watts.gt.0,avg_power_watts.gt.0");
 
@@ -50,6 +53,13 @@ export async function backfillUserMetrics(userId) {
     const avgPower = act.avg_power_watts;
     const avgHr = act.avg_hr_bpm;
     const duration = act.duration_seconds;
+
+    // If TSS was already computed with an FTP, don't recalculate —
+    // that FTP was correct for the time of the ride
+    if (act.ftp_at_time != null && act.tss != null) {
+      skipped++;
+      continue;
+    }
 
     // Use NP when available; fall back to avg_power for TSS estimation
     const powerForCalc = np || avgPower;
@@ -73,10 +83,9 @@ export async function backfillUserMetrics(userId) {
     if (act.efficiency_factor == null && newEf != null) updates.efficiency_factor = newEf;
     if (act.work_kj == null && estimatedWorkKj != null) updates.work_kj = estimatedWorkKj;
 
-    // Recalculate TSS/IF if FTP changed (stored value differs from computed)
-    if (act.tss != null && newTss != null && act.tss !== newTss) {
-      updates.tss = newTss;
-      updates.intensity_factor = newIf;
+    // Stamp the FTP used for this computation
+    if (updates.tss != null) {
+      updates.ftp_at_time = ftp;
     }
 
     if (Object.keys(updates).length === 0) {

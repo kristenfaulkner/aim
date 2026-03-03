@@ -108,6 +108,7 @@ export default async function handler(req, res) {
         if (metrics.avg_hr_bpm != null) updates.avg_hr_bpm = metrics.avg_hr_bpm;
         if (metrics.max_hr_bpm != null) updates.max_hr_bpm = metrics.max_hr_bpm;
         if (metrics.avg_cadence_rpm != null) updates.avg_cadence_rpm = metrics.avg_cadence_rpm;
+        if (ftp) updates.ftp_at_time = ftp;
 
         await supabaseAdmin
           .from("activities")

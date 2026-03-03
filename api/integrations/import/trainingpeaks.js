@@ -295,6 +295,7 @@ export default async function handler(req, res) {
           hr_drift_pct: metrics.hr_drift_pct ?? null,
           decoupling_pct: metrics.decoupling_pct ?? null,
           work_kj: metrics.work_kj ?? null,
+          ftp_at_time: (metrics.tss != null && ftp) ? ftp : null,
           temperature_celsius: metadata.avg_temperature ?? null,
           zone_distribution: metrics.zone_distribution ?? null,
           power_curve: metrics.power_curve ?? null,

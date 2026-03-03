@@ -85,6 +85,7 @@ export async function syncStravaActivity(userId, stravaActivityId, options = {})
     hr_drift_pct: metrics.hr_drift_pct ?? null,
     decoupling_pct: metrics.decoupling_pct ?? null,
     work_kj: metrics.work_kj ?? (activity.kilojoules || null),
+    ftp_at_time: (metrics.tss != null && ftp) ? ftp : null,
     temperature_celsius: activity.average_temp ?? null,
     zone_distribution: metrics.zone_distribution ?? null,
     power_curve: metrics.power_curve ?? null,
