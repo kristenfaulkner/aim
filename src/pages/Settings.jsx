@@ -47,6 +47,7 @@ export default function Settings() {
 
   // Preferences form state
   const [timezone, setTimezone] = useState("");
+  const [zonePreference, setZonePreference] = useState("auto");
   const [prefsSaving, setPrefsSaving] = useState(false);
   const [prefsSaved, setPrefsSaved] = useState(false);
 
@@ -89,6 +90,7 @@ export default function Settings() {
       setSmsOptIn(!!profile.sms_opt_in);
       setSmsConsent(!!profile.sms_opt_in);
       setTimezone(profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+      setZonePreference(profile.zone_preference || "auto");
     }
     async function loadPrefs() {
       if (!user || !profile) return;
@@ -136,6 +138,15 @@ export default function Settings() {
       await updateProfile({
         timezone: timezone || null,
       });
+      // Save zone preference via settings API (lives on profiles table)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        await fetch("/api/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ zone_preference: zonePreference }),
+        });
+      }
       setPrefsSaved(true);
       setTimeout(() => setPrefsSaved(false), 3000);
     } catch (err) {
@@ -352,6 +363,35 @@ export default function Settings() {
                     <option key={tz} value={tz}>{formatTz(tz)}</option>
                   ))}
                 </select>
+              </div>
+
+              <div style={{ padding: 24, background: T.card, borderRadius: 16, border: `1px solid ${T.border}`, marginBottom: 24 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 8px" }}>Training Zones</h3>
+                <p style={{ fontSize: 13, color: T.textSoft, margin: "0 0 16px", lineHeight: 1.5 }}>
+                  Choose how your training zones are calculated. Auto uses Critical Power (CP) zones when available, otherwise falls back to FTP-based Coggan zones.
+                </p>
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                  {[
+                    { value: "auto", label: "Auto", desc: "CP zones when available, else FTP" },
+                    { value: "cp", label: "CP-Based", desc: "Always use Critical Power zones" },
+                    { value: "coggan", label: "Coggan (FTP)", desc: "Classic Coggan zones from FTP" },
+                  ].map(opt => (
+                    <button key={opt.value} onClick={() => setZonePreference(opt.value)}
+                      style={{
+                        flex: 1, minWidth: 140, padding: "14px 16px", borderRadius: 12,
+                        background: zonePreference === opt.value ? T.accentDim : T.surface,
+                        border: `2px solid ${zonePreference === opt.value ? T.accent : T.border}`,
+                        cursor: "pointer", textAlign: "left", fontFamily: font,
+                        transition: "all 0.2s",
+                      }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: zonePreference === opt.value ? T.accent : T.text, marginBottom: 2 }}>
+                        {zonePreference === opt.value && <Check size={12} style={{ marginRight: 4, verticalAlign: "middle" }} />}
+                        {opt.label}
+                      </div>
+                      <div style={{ fontSize: 11, color: T.textDim }}>{opt.desc}</div>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>

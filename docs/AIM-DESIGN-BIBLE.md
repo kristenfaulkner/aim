@@ -414,12 +414,13 @@ Used on LastRideCard, ActivityDetail:
 - **Audience:** All users (setup and ongoing)
 - **Key stats:** FTP, max HR, weight, power zones, HR zones, notification toggles
 - **Layout:** Single-column form sections
-- **Sections:**
-  1. Profile: name, email, weight, FTP, max HR
-  2. Power Zones: auto-computed from FTP (Coggan Z1-Z7), editable overrides
-  3. HR Zones: auto-computed from max HR, editable overrides
-  4. Notifications: SMS toggle, email toggle, push toggle (future)
-  5. Account: delete account, export data
+- **Sections (tabbed sidebar):**
+  1. Units & Display: imperial/metric toggle
+  2. Preferences: timezone selector, training zones preference (Auto/CP-Based/Coggan — 3-card selector, saves via `PUT /api/settings`)
+  3. Notifications: email toggles, SMS coach (phone, consent, per-type toggles)
+  4. Password: reset via email
+  5. Appearance: coming soon (dashboard layout)
+  6. Account & Data: export JSON, reprocess activities, delete account (confirmation modal)
 
 ### 6.9 Workout Database
 - **URL:** `/workout-db`
@@ -468,6 +469,24 @@ Used on LastRideCard, ActivityDetail:
 - **Auth methods:** Email/password, Google SSO, magic link
 - **Accept Terms:** Interstitial for SSO users who haven't accepted terms yet
 - **Design notes:** Minimal, branded, accent CTA button
+
+### 6.13 My Stats
+- **URL:** `/my-stats`
+- **Purpose:** Read-only athlete stats dashboard — power model, zones, durability, body comp, training load, recovery baselines
+- **Audience:** Serious athletes who want to see all their metrics in one place
+- **Layout:** Single column, max-width 900px, `SectionCard` containers with 16px gap
+- **Sections:**
+  1. **Power Model** — FTP, CP, W', Pmax StatBoxes. Edit button links to Profile. Shows CP-vs-FTP delta and R² fit quality.
+  2. **Power Profile Bests** — 6-column grid (5s/30s/1m/5m/20m/60m) with W and W/kg. 3-column on mobile.
+  3. **Training Zones** — Tabbed (Power | HR | CP). ZoneBar rows with colored bars and watt ranges.
+     - **Readiness adjustment banner:** Appears on Power/CP tabs when readiness shifts zones. Shows adjustment % and reason. Base/Today toggle switches between unadjusted and shifted zone wattages.
+     - **Zone evolution:** CP tab shows delta text ("Z4 floor +8W") and a mini line chart of CP evolution from `zones_history` (up to 52 snapshots).
+  4. **Body Composition** — Weight, height, FTP W/kg, DEXA body fat %, lean W/kg.
+  5. **Training Load** — CTL/ATL/TSB/Ramp Rate StatBoxes. Form label (Fresh/Optimal/Fatigued/Overreaching) color-coded.
+  6. **Durability** — Durability Score (% retention, green/yellow/red). Fatigue-bucket power grid (kJ/kg rows × 5s/1m/5m/20m columns). Race prediction chips (5m power at 30/40/50 kJ/kg). Durability trend line chart. Recent rides table (date, name, kJ/kg, 5m%, 20m% — click navigates to activity).
+  7. **Recovery Baselines** — HRV, RHR, Sleep Score, Sleep Duration with 30-day averages. Recovery traffic light.
+- **Data hooks:** `useMyStats`, `useAdaptiveZones`, `useDurability`
+- **Design notes:** Mono font for all metrics. Empty states guide user to Profile or integrations. Zone preference (auto/CP/Coggan) is set in Settings > Preferences.
 
 ---
 
@@ -701,13 +720,14 @@ Features that have backend support but need UI design and implementation. Each e
 | 10 | Onboarding | ✅ | ✅ | — |
 | 11 | Landing Page | ✅ | ✅ | — |
 | 12 | Auth Pages | ✅ | ✅ | — |
-| 13 | Daily Check-In | ✅ backend | Needs Design | — |
-| 14 | Cross-Training Logger | ✅ backend | Needs Design | — |
-| 15 | Travel Status Card | ✅ backend | Needs Design | — |
-| 16 | Check-In Trends | Future | Future | — |
-| 17 | Cross-Training History | Future | Future | — |
-| 18 | Recovery Device Cards | ✅ OAuth | Needs Design | — |
-| 19 | CP Model Visualization | ✅ schema | Needs Design | — |
+| 13 | My Stats | ✅ | ✅ | — |
+| 14 | Daily Check-In | ✅ backend | Needs Design | — |
+| 15 | Cross-Training Logger | ✅ backend | Needs Design | — |
+| 16 | Travel Status Card | ✅ backend | Needs Design | — |
+| 17 | Check-In Trends | Future | Future | — |
+| 18 | Cross-Training History | Future | Future | — |
+| 19 | Recovery Device Cards | ✅ OAuth | Needs Design | — |
+| 20 | CP Model Visualization | ✅ schema | Needs Design | — |
 | 20 | Post-Workout Email (full AI analysis) | ✅ | Needs Design | — |
 | 21 | Athlete Bio Card | ✅ | Needs Design | — |
 

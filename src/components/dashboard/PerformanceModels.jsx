@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { T, font, mono } from "../../theme/tokens";
 import { apiFetch } from "../../lib/api";
-import { Thermometer, Heart, Zap, Flame, Moon } from "lucide-react";
+import { Thermometer, Heart, Zap, Flame, Moon, ChevronRight } from "lucide-react";
 
 const badgeColors = {
   high: T.accent,
@@ -23,11 +24,13 @@ function ConfidenceBadge({ level }) {
   );
 }
 
-function ModelTile({ icon, label, headline, sub, confidence }) {
+function ModelTile({ icon, label, headline, sub, confidence, onClick }) {
   return (
-    <div style={{
+    <div onClick={onClick} style={{
       background: T.surface, borderRadius: 10, padding: "10px 12px",
       display: "flex", flexDirection: "column", gap: 4,
+      cursor: onClick ? "pointer" : "default",
+      transition: onClick ? "background 0.15s" : undefined,
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -127,6 +130,7 @@ function buildTiles(models) {
       headline,
       sub: m.summary?.split(";")[0] || null,
       confidence: m.confidence,
+      link: "/my-stats",
     });
   }
 
@@ -171,6 +175,7 @@ function buildTiles(models) {
 }
 
 export default function PerformanceModels({ isMobile }) {
+  const navigate = useNavigate();
   const [models, setModels] = useState(null);
   const [durabilityScore, setDurabilityScore] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -258,6 +263,7 @@ export default function PerformanceModels({ isMobile }) {
               headline={tile.headline}
               sub={tile.sub}
               confidence={tile.confidence}
+              onClick={tile.link ? () => navigate(tile.link) : undefined}
             />
           ))}
         </div>

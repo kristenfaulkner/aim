@@ -9,6 +9,7 @@ import { useAdaptiveZones } from "../hooks/useAdaptiveZones";
 import { useDurability } from "../hooks/useDurability";
 import { computePowerZones, computeHRZones, computeCPZones } from "../lib/zones";
 import { formatWeight, weightUnit } from "../lib/units";
+import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { LogOut, Menu, X, User, Settings, Edit3, BarChart3 } from "lucide-react";
 import SEO from "../components/SEO";
 
@@ -103,6 +104,7 @@ export default function MyStats() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [zoneView, setZoneView] = useState("power"); // power | hr | cp
+  const [showAdjusted, setShowAdjusted] = useState(true); // true = today's adjusted zones
 
   const { profile, powerProfile, latestMetrics, latestDexa, averages, loading } = useMyStats();
   const adaptiveZonesData = useAdaptiveZones();
@@ -295,32 +297,53 @@ export default function MyStats() {
             </div>
           }
         >
-          {/* Readiness adjustment banner */}
+          {/* Readiness adjustment banner + toggle */}
           {adaptiveZonesData.adjustmentPct != null && adaptiveZonesData.adjustmentPct !== 0 && (zoneView === "cp" || zoneView === "power") && (
             <div style={{
               background: adaptiveZonesData.adjustmentPct <= -5 ? "rgba(239,68,68,0.08)" : "rgba(245,158,11,0.08)",
               border: `1px solid ${adaptiveZonesData.adjustmentPct <= -5 ? "rgba(239,68,68,0.2)" : "rgba(245,158,11,0.2)"}`,
               borderRadius: 8, padding: "6px 10px", marginBottom: 10, fontSize: 11, color: T.textSoft,
+              display: "flex", justifyContent: "space-between", alignItems: "center",
             }}>
-              Today adjusted <span style={{ fontWeight: 700, color: adaptiveZonesData.adjustmentPct <= -5 ? T.danger : T.warn }}>{adaptiveZonesData.adjustmentPct}%</span> — {adaptiveZonesData.adjustmentReason}
+              <span>
+                Today adjusted <span style={{ fontWeight: 700, color: adaptiveZonesData.adjustmentPct <= -5 ? T.danger : T.warn }}>{adaptiveZonesData.adjustmentPct}%</span> — {adaptiveZonesData.adjustmentReason}
+              </span>
+              <div style={{ display: "flex", gap: 2, marginLeft: 8 }}>
+                {["Base", "Today"].map(label => (
+                  <button key={label} onClick={() => setShowAdjusted(label === "Today")} style={{
+                    background: (label === "Today") === showAdjusted ? T.accentDim : "none",
+                    border: "none", padding: "2px 8px", borderRadius: 4, fontSize: 10,
+                    fontWeight: 600, color: (label === "Today") === showAdjusted ? T.accent : T.textDim,
+                    cursor: "pointer",
+                  }}>{label}</button>
+                ))}
+              </div>
             </div>
           )}
-          {zoneView === "power" && powerZones ? (
-            powerZones.map(z => (
-              <ZoneBar key={z.zone} zone={z.zone} name={z.name} min={z.min} max={z.max} color={z.color} />
-            ))
-          ) : zoneView === "hr" && hrZones ? (
-            hrZones.map(z => (
-              <ZoneBar key={z.zone} zone={z.zone} name={z.name} min={z.min} max={z.max} color={z.color} />
-            ))
-          ) : zoneView === "cp" && cpZones ? (
-            cpZones.map(z => (
-              <ZoneBar key={z.zone} zone={z.zone} name={z.name} min={z.min} max={z.max || "+" } color={z.color} />
-            ))
-          ) : (
-            <EmptyState message={zoneView === "power" ? "Set your FTP to see power zones." : zoneView === "hr" ? "Set your Max HR to see HR zones." : "Sync activities to compute CP zones."} />
-          )}
-          {/* Zone evolution */}
+          {(() => {
+            // Determine which zones to render (adjusted or base)
+            const hasAdjustment = adaptiveZonesData.adjustmentPct != null && adaptiveZonesData.adjustmentPct !== 0;
+            const useAdjusted = hasAdjustment && showAdjusted && adaptiveZonesData.adjustedZones;
+            if (zoneView === "power" && powerZones) {
+              const zones = useAdjusted ? adaptiveZonesData.adjustedZones : powerZones;
+              return zones.map(z => (
+                <ZoneBar key={z.zone} zone={z.zone} name={z.name} min={z.min} max={z.max} color={z.color} />
+              ));
+            }
+            if (zoneView === "hr" && hrZones) {
+              return hrZones.map(z => (
+                <ZoneBar key={z.zone} zone={z.zone} name={z.name} min={z.min} max={z.max} color={z.color} />
+              ));
+            }
+            if (zoneView === "cp" && cpZones) {
+              const zones = useAdjusted ? adaptiveZonesData.adjustedZones : cpZones;
+              return zones.map(z => (
+                <ZoneBar key={z.zone} zone={z.zone} name={z.name} min={z.min} max={z.max || "+"} color={z.color} />
+              ));
+            }
+            return <EmptyState message={zoneView === "power" ? "Set your FTP to see power zones." : zoneView === "hr" ? "Set your Max HR to see HR zones." : "Sync activities to compute CP zones."} />;
+          })()}
+          {/* Zone evolution deltas */}
           {adaptiveZonesData.delta?.length > 0 && (zoneView === "cp") && (
             <div style={{ marginTop: 8, fontSize: 10, color: T.textSoft }}>
               {adaptiveZonesData.delta.filter(d => d.deltaMin !== 0).slice(0, 3).map(d => (
@@ -328,6 +351,25 @@ export default function MyStats() {
                   {d.zone} floor {d.deltaMin > 0 ? "+" : ""}{d.deltaMin}W ({d.oldMin}→{d.newMin}W)
                 </span>
               ))}
+            </div>
+          )}
+          {/* Zone evolution mini-chart */}
+          {adaptiveZonesData.history?.length >= 2 && zoneView === "cp" && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>
+                CP Evolution
+              </div>
+              <ResponsiveContainer width="100%" height={80}>
+                <LineChart data={adaptiveZonesData.history.map(h => ({
+                  date: new Date(h.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+                  cp: h.cp_watts,
+                }))}>
+                  <XAxis dataKey="date" tick={{ fontSize: 9, fill: T.textDim }} interval="preserveStartEnd" />
+                  <YAxis domain={["dataMin - 5", "dataMax + 5"]} hide />
+                  <Tooltip contentStyle={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 11 }} formatter={(v) => [`${v}W`, "CP"]} />
+                  <Line type="monotone" dataKey="cp" stroke={T.accent} strokeWidth={2} dot={{ r: 3, fill: T.accent }} />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           )}
         </SectionCard>
@@ -431,6 +473,52 @@ export default function MyStats() {
                         <span style={{ fontFamily: mono, fontWeight: 600 }}>{p.predictedWatts}W</span>
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+              {/* Durability trend chart */}
+              {durabilityData.trend?.length >= 2 && (
+                <div style={{ marginTop: 14 }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>
+                    Durability Trend
+                  </div>
+                  <ResponsiveContainer width="100%" height={100}>
+                    <LineChart data={durabilityData.trend.map(t => ({
+                      date: new Date(t.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+                      score: Math.round(t.score * 100),
+                    }))}>
+                      <XAxis dataKey="date" tick={{ fontSize: 9, fill: T.textDim }} interval="preserveStartEnd" />
+                      <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: T.textDim }} width={28} />
+                      <Tooltip contentStyle={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 11 }} formatter={(v) => [`${v}%`, "Retention"]} />
+                      <Line type="monotone" dataKey="score" stroke={T.accent} strokeWidth={2} dot={{ r: 2, fill: T.accent }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+              {/* Recent rides durability */}
+              {durabilityData.recentRides?.length > 0 && (
+                <div style={{ marginTop: 14 }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
+                    Recent Rides
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto auto", gap: "2px 10px", fontSize: 11 }}>
+                    <span style={{ fontWeight: 600, color: T.textDim }}>Ride</span>
+                    <span style={{ fontWeight: 600, color: T.textDim, textAlign: "right" }}>kJ/kg</span>
+                    <span style={{ fontWeight: 600, color: T.textDim, textAlign: "right" }}>5m</span>
+                    <span style={{ fontWeight: 600, color: T.textDim, textAlign: "right" }}>20m</span>
+                    {durabilityData.recentRides.slice(0, 6).flatMap(r => {
+                      const score5 = r.score_5m != null ? Math.round(r.score_5m * 100) : null;
+                      const score20 = r.score_20m != null ? Math.round(r.score_20m * 100) : null;
+                      const dateStr = r.date ? new Date(r.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
+                      return [
+                        <span key={r.id + "-n"} onClick={() => navigate(`/activity/${r.id}`)} style={{ color: T.textSoft, cursor: "pointer", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.name}>
+                          {dateStr} {r.name ? `— ${r.name}` : ""}
+                        </span>,
+                        <span key={r.id + "-k"} style={{ fontFamily: mono, textAlign: "right", color: T.text }}>{r.total_kj_per_kg != null ? Math.round(r.total_kj_per_kg) : "—"}</span>,
+                        <span key={r.id + "-5"} style={{ fontFamily: mono, textAlign: "right", color: score5 != null ? (score5 >= 90 ? T.accent : score5 >= 80 ? T.warn : T.danger) : T.textDim }}>{score5 != null ? `${score5}%` : "—"}</span>,
+                        <span key={r.id + "-20"} style={{ fontFamily: mono, textAlign: "right", color: score20 != null ? (score20 >= 90 ? T.accent : score20 >= 80 ? T.warn : T.danger) : T.textDim }}>{score20 != null ? `${score20}%` : "—"}</span>,
+                      ];
+                    })}
                   </div>
                 </div>
               )}
