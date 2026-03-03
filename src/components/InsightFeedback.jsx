@@ -70,10 +70,13 @@ export default function InsightFeedback({
     <div style={{
       display: "flex",
       alignItems: "center",
-      gap: 2,
+      gap: 6,
       marginTop: 6,
       justifyContent: "flex-end",
     }}>
+      <span style={{ fontSize: 10, color: T.textDim }}>
+        {feedback === 1 ? "Thanks!" : feedback === -1 ? "Thanks!" : "Helpful?"}
+      </span>
       <button
         onClick={() => submit(1)}
         disabled={submitting}
