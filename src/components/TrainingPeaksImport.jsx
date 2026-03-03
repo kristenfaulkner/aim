@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import JSZip from "jszip";
 import { T, font, mono } from "../theme/tokens";
 import { btn } from "../theme/styles";
 import {
@@ -9,11 +10,13 @@ import { integrations } from "../data/integrations";
 import { supabase } from "../lib/supabase";
 import { useResponsive } from "../hooks/useResponsive";
 
-const MAX_ZIP_MB = 500;
+const MAX_ZIP_MB = 2000; // Effectively unlimited — ZIP is extracted client-side
 const MAX_CSV_MB = 10;
+const MAX_BATCH_BYTES = 30 * 1024 * 1024; // 30MB raw per batch
+const WORKOUT_EXTENSIONS = /\.(fit|fit\.gz|gz|tcx|tcx\.gz|gpx|gpx\.gz)$/i;
 
 export default function TrainingPeaksImport({ onClose, onComplete }) {
-  const [step, setStep] = useState("instructions"); // instructions | uploading | processing | complete
+  const [step, setStep] = useState("instructions"); // instructions | extracting | processing | complete
   const [zipFile, setZipFile] = useState(null);
   const [csvFile, setCsvFile] = useState(null);
   const [metricsCsvFile, setMetricsCsvFile] = useState(null);
@@ -21,6 +24,8 @@ export default function TrainingPeaksImport({ onClose, onComplete }) {
   const [draggingCsv, setDraggingCsv] = useState(false);
   const [draggingMetrics, setDraggingMetrics] = useState(false);
   const [progress, setProgress] = useState("");
+  const [fileProgress, setFileProgress] = useState({ current: 0, total: 0 });
+  const [runningStats, setRunningStats] = useState({ imported: 0, merged: 0, skipped: 0, failed: 0 });
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [showErrors, setShowErrors] = useState(false);
@@ -54,35 +59,103 @@ export default function TrainingPeaksImport({ onClose, onComplete }) {
     return true;
   };
 
+  const readAsBase64 = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
   const handleImport = async () => {
     if (!zipFile && !csvFile && !metricsCsvFile) { setError("Please select at least one file"); return; }
     setError(null);
-    setStep("uploading");
+    setRunningStats({ imported: 0, merged: 0, skipped: 0, failed: 0 });
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not authenticated — please sign in again");
 
-      // 1. Upload ZIP to Supabase Storage (if provided)
-      let storagePath = null;
-      if (zipFile) {
-        setProgress(`Uploading ZIP file (${(zipFile.size / 1024 / 1024).toFixed(1)} MB)...`);
-        storagePath = `${session.user.id}/imports/${Date.now()}-trainingpeaks.zip`;
-        const { error: uploadErr } = await supabase.storage
-          .from("import-files")
-          .upload(storagePath, zipFile, { contentType: "application/zip" });
+      const authHeaders = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      };
 
-        if (uploadErr) throw new Error(`Upload failed: ${uploadErr.message}`);
+      let allErrors = [];
+      let totalFiles = 0;
+      const stats = { imported: 0, merged: 0, skipped: 0, failed: 0 };
+
+      // ── Phase 1: Extract ZIP client-side ──
+      if (zipFile) {
+        setStep("extracting");
+        setProgress("Reading ZIP file...");
+
+        const zip = await JSZip.loadAsync(zipFile);
+
+        // Filter to workout files
+        const workoutEntries = [];
+        zip.forEach((relativePath, entry) => {
+          if (!entry.dir && WORKOUT_EXTENSIONS.test(relativePath)) {
+            workoutEntries.push({ name: relativePath, entry });
+          }
+        });
+
+        if (workoutEntries.length === 0) {
+          throw new Error("ZIP contains no workout files (.fit, .tcx, .gpx)");
+        }
+
+        totalFiles = workoutEntries.length;
+        setFileProgress({ current: 0, total: totalFiles });
+        setProgress(`Extracting ${totalFiles} workout files...`);
+
+        // Group files into batches by size
+        const batches = [];
+        let currentBatch = [];
+        let currentSize = 0;
+
+        for (const { name, entry } of workoutEntries) {
+          const data = await entry.async("base64");
+          const rawSize = Math.ceil(data.length * 0.75); // approximate decoded size
+
+          if (currentSize + rawSize > MAX_BATCH_BYTES && currentBatch.length > 0) {
+            batches.push(currentBatch);
+            currentBatch = [];
+            currentSize = 0;
+          }
+          currentBatch.push({ name, data });
+          currentSize += rawSize;
+        }
+        if (currentBatch.length > 0) batches.push(currentBatch);
+
+        // ── Phase 2: Send batches to API ──
+        setStep("processing");
+        let filesProcessed = 0;
+
+        for (let i = 0; i < batches.length; i++) {
+          const batch = batches[i];
+          setProgress(`Processing files ${filesProcessed + 1}–${filesProcessed + batch.length} of ${totalFiles}...`);
+
+          const res = await fetch("/api/integrations/import/trainingpeaks", {
+            method: "POST",
+            headers: authHeaders,
+            body: JSON.stringify({ files: batch }),
+          });
+
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || `Batch ${i + 1} failed`);
+
+          stats.imported += data.imported || 0;
+          stats.merged += data.merged || 0;
+          stats.skipped += data.skipped || 0;
+          stats.failed += data.failed || 0;
+          if (data.errors?.length) allErrors.push(...data.errors);
+
+          filesProcessed += batch.length;
+          setFileProgress({ current: filesProcessed, total: totalFiles });
+          setRunningStats({ ...stats });
+        }
       }
 
-      // 2. Prepare CSVs as base64 if provided
-      const readAsBase64 = (file) => new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result.split(",")[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-
+      // ── Phase 3: Finalize (CSV enrichment + wrap-up) ──
       let csvData = null;
       let metricsCsvData = null;
       if (csvFile || metricsCsvFile) {
@@ -91,28 +164,39 @@ export default function TrainingPeaksImport({ onClose, onComplete }) {
         if (metricsCsvFile) metricsCsvData = await readAsBase64(metricsCsvFile);
       }
 
-      // 3. Call processing endpoint
-      setStep("processing");
-      setProgress(zipFile ? "Processing FIT files — computing metrics and checking for duplicates..." : "Processing CSV data...");
+      setProgress("Finalizing import...");
+      stats.total = totalFiles;
 
-      const res = await fetch("/api/integrations/import/trainingpeaks", {
+      const finalRes = await fetch("/api/integrations/import/trainingpeaks", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ zipPath: storagePath, csvData, metricsCsvData }),
+        headers: authHeaders,
+        body: JSON.stringify({
+          finalize: true,
+          csvData,
+          metricsCsvData,
+          stats,
+        }),
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Import failed");
+      const finalData = await finalRes.json();
+      if (!finalRes.ok) throw new Error(finalData.error || "Finalize failed");
 
-      setResult(data);
+      const finalResult = {
+        total: totalFiles,
+        imported: stats.imported,
+        merged: stats.merged + (finalData.csvMerged || 0),
+        skipped: stats.skipped,
+        failed: stats.failed,
+        errors: allErrors,
+        analysisQueued: finalData.analysisQueued,
+      };
+
+      setResult(finalResult);
       setStep("complete");
-      if (onComplete) onComplete(data);
+      if (onComplete) onComplete(finalResult);
 
       // Auto-trigger sequential AI analysis for imported activities (fire-and-forget)
-      if (data.analysisQueued) {
+      if (finalResult.analysisQueued) {
         (async () => {
           try {
             let remaining = Infinity;
@@ -184,7 +268,10 @@ export default function TrainingPeaksImport({ onClose, onComplete }) {
   }
 
   // ── Processing state ──
-  if (step === "processing" || step === "uploading") {
+  if (step === "extracting" || step === "processing") {
+    const pct = fileProgress.total > 0 ? Math.round((fileProgress.current / fileProgress.total) * 100) : 0;
+    const hasStats = runningStats.imported + runningStats.merged + runningStats.skipped + runningStats.failed > 0;
+
     return (
       <Overlay>
         <div style={{ textAlign: "center", padding: "20px 0" }}>
@@ -192,16 +279,46 @@ export default function TrainingPeaksImport({ onClose, onComplete }) {
             <Loader size={32} color={T.accent} style={{ animation: "spin 1.5s linear infinite" }} />
           </div>
           <div style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 6 }}>
-            {step === "uploading" ? "Uploading..." : "Processing FIT Files..."}
+            {step === "extracting" ? "Extracting Files..." : "Processing Files..."}
           </div>
           <div style={{ fontSize: 13, color: T.textSoft, lineHeight: 1.6 }}>
             {progress}
           </div>
-          {step === "processing" && (
-            <div style={{ fontSize: 11, color: T.textDim, marginTop: 12 }}>
-              This may take a few minutes for large exports.
+
+          {/* Progress bar */}
+          {fileProgress.total > 0 && (
+            <div style={{ margin: "16px auto 0", maxWidth: 300 }}>
+              <div style={{
+                height: 6, borderRadius: 3, background: T.surface,
+                overflow: "hidden",
+              }}>
+                <div style={{
+                  width: `${pct}%`, height: "100%", borderRadius: 3,
+                  background: T.accent, transition: "width 0.3s ease",
+                }} />
+              </div>
+              <div style={{ fontSize: 11, color: T.textDim, marginTop: 6 }}>
+                {fileProgress.current} of {fileProgress.total} files ({pct}%)
+              </div>
             </div>
           )}
+
+          {/* Running stats */}
+          {hasStats && (
+            <div style={{
+              fontSize: 11, color: T.textSoft, marginTop: 12,
+              display: "flex", justifyContent: "center", gap: 12,
+            }}>
+              {runningStats.imported > 0 && <span style={{ color: T.accent }}>{runningStats.imported} imported</span>}
+              {runningStats.merged > 0 && <span>{runningStats.merged} merged</span>}
+              {runningStats.skipped > 0 && <span>{runningStats.skipped} skipped</span>}
+              {runningStats.failed > 0 && <span style={{ color: "#ef4444" }}>{runningStats.failed} failed</span>}
+            </div>
+          )}
+
+          <div style={{ fontSize: 11, color: T.textDim, marginTop: 12 }}>
+            This may take a few minutes for large exports.
+          </div>
           <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
         </div>
       </Overlay>
@@ -402,22 +519,6 @@ function StepBadge({ n }) {
       fontSize: 11, fontWeight: 800, color: T.accent, fontFamily: mono,
     }}>
       {n}
-    </div>
-  );
-}
-
-function StatCard({ label, value, color }) {
-  return (
-    <div style={{
-      padding: "14px", background: T.surface, borderRadius: 10,
-      border: `1px solid ${T.border}`,
-    }}>
-      <div style={{ fontSize: 24, fontWeight: 800, fontFamily: mono, color }}>
-        {value}
-      </div>
-      <div style={{ fontSize: 11, color: T.textDim, marginTop: 2 }}>
-        {label}
-      </div>
     </div>
   );
 }
