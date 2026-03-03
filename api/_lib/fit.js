@@ -199,6 +199,26 @@ export function parseFitFile(buffer, filename = "unknown.fit") {
     Math.max(elevationGain, session.total_ascent || 0)
   );
 
+  // Extract GPS start coordinates for timezone detection
+  // fit-file-parser converts semicircles to degrees automatically
+  let startLat = session.start_position_lat ?? null;
+  let startLng = session.start_position_long ?? null;
+  // Fallback to first record's position if session-level is missing
+  if (startLat == null || startLng == null) {
+    for (const rec of records) {
+      const lat = rec.position_lat ?? null;
+      const lng = rec.position_long ?? null;
+      if (lat != null && lng != null) {
+        startLat = lat;
+        startLng = lng;
+        break;
+      }
+    }
+  }
+  // Validate coordinates are sensible decimal degrees
+  if (startLat != null && (startLat < -90 || startLat > 90)) startLat = null;
+  if (startLng != null && (startLng < -180 || startLng > 180)) startLng = null;
+
   // Generate a stable source_id for dedup
   const hashInput = deviceSerial
     ? `${deviceSerial}_${startedAt}`
@@ -217,6 +237,8 @@ export function parseFitFile(buffer, filename = "unknown.fit") {
     avg_speed_mps: avgSpeedMps,
     max_speed_mps: maxSpeedMps,
     source_id: sourceId,
+    start_lat: startLat,
+    start_lng: startLng,
     original_filename: filename,
   };
 

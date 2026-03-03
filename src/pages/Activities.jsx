@@ -14,13 +14,6 @@ import { apiFetch } from "../lib/api";
 
 // ── Constants ──
 
-const TIME_PERIODS = [
-  { id: "week", label: "7 Days" },
-  { id: "month", label: "Month" },
-  { id: "year", label: "Year" },
-  { id: "all", label: "All" },
-];
-
 const MONTH_NAMES = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
@@ -228,7 +221,6 @@ export default function Workouts() {
     loading: browserLoading,
     hasMore,
     timePeriod,
-    setTimePeriod,
     selectedYear,
     setSelectedYear,
     selectedMonth,
@@ -237,7 +229,7 @@ export default function Workouts() {
     searchQuery,
     setSearchQuery,
     loadMore,
-  } = useActivityBrowser({ enabled: true, initialTimePeriod: "all" });
+  } = useActivityBrowser({ enabled: true, initialTimePeriod: "month" });
 
   // Fetch profile
   useEffect(() => {
@@ -462,58 +454,35 @@ export default function Workouts() {
                 />
               </div>
 
-              {/* Time period pills */}
-              <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
-                {TIME_PERIODS.map(p => (
-                  <button
-                    key={p.id}
-                    onClick={() => setTimePeriod(p.id)}
-                    style={{
-                      flex: 1, padding: "6px 0", borderRadius: 6, fontSize: 10, fontWeight: 600,
-                      fontFamily: font, border: "none", cursor: "pointer",
-                      background: timePeriod === p.id ? T.accentDim : T.surface,
-                      color: timePeriod === p.id ? T.accent : T.textSoft,
-                      transition: "all 0.15s",
-                    }}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-
               {/* Month + Year selectors */}
-              {(timePeriod === "month" || timePeriod === "year") && (
-                <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-                  {timePeriod === "month" && (
-                    <select
-                      value={selectedMonth}
-                      onChange={e => setSelectedMonth(Number(e.target.value))}
-                      style={{
-                        flex: 1, padding: "6px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600,
-                        fontFamily: font, border: `1px solid ${T.border}`, background: T.surface,
-                        color: T.text, cursor: "pointer", outline: "none", appearance: "none",
-                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239ca3af' fill='none' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
-                        backgroundRepeat: "no-repeat", backgroundPosition: "right 8px center", paddingRight: 24,
-                      }}
-                    >
-                      {MONTH_NAMES.map((name, i) => <option key={i} value={i}>{name}</option>)}
-                    </select>
-                  )}
-                  <select
-                    value={selectedYear}
-                    onChange={e => setSelectedYear(Number(e.target.value))}
-                    style={{
-                      flex: 1, padding: "6px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600,
-                      fontFamily: font, border: `1px solid ${T.border}`, background: T.surface,
-                      color: T.text, cursor: "pointer", outline: "none", appearance: "none",
-                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239ca3af' fill='none' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
-                      backgroundRepeat: "no-repeat", backgroundPosition: "right 8px center", paddingRight: 24,
-                    }}
-                  >
-                    {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
-                  </select>
-                </div>
-              )}
+              <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+                <select
+                  value={selectedMonth}
+                  onChange={e => setSelectedMonth(Number(e.target.value))}
+                  style={{
+                    flex: 1, padding: "6px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+                    fontFamily: font, border: `1px solid ${T.border}`, background: T.surface,
+                    color: T.text, cursor: "pointer", outline: "none", appearance: "none",
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239ca3af' fill='none' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+                    backgroundRepeat: "no-repeat", backgroundPosition: "right 8px center", paddingRight: 24,
+                  }}
+                >
+                  {MONTH_NAMES.map((name, i) => <option key={i} value={i}>{name}</option>)}
+                </select>
+                <select
+                  value={selectedYear}
+                  onChange={e => setSelectedYear(Number(e.target.value))}
+                  style={{
+                    flex: 1, padding: "6px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+                    fontFamily: font, border: `1px solid ${T.border}`, background: T.surface,
+                    color: T.text, cursor: "pointer", outline: "none", appearance: "none",
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239ca3af' fill='none' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+                    backgroundRepeat: "no-repeat", backgroundPosition: "right 8px center", paddingRight: 24,
+                  }}
+                >
+                  {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
             </div>
 
             {/* Activity List */}

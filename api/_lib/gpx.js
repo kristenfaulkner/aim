@@ -83,6 +83,8 @@ export function parseGpxFile(buffer, filename = "unknown.gpx") {
   let prevLat = null;
   let prevLon = null;
   let prevTime = null;
+  let startLat = null;
+  let startLng = null;
 
   for (const pt of trackpoints) {
     if (!pt.time) continue;
@@ -107,6 +109,7 @@ export function parseGpxFile(buffer, filename = "unknown.gpx") {
       }
     }
     if (!isNaN(lat) && !isNaN(lon)) {
+      if (startLat == null) { startLat = lat; startLng = lon; }
       prevLat = lat;
       prevLon = lon;
       prevTime = ptTime;
@@ -173,6 +176,8 @@ export function parseGpxFile(buffer, filename = "unknown.gpx") {
     avg_speed_mps: avgSpeedMps ? Math.round(avgSpeedMps * 100) / 100 : null,
     max_speed_mps: maxSpeed > 0 ? Math.round(maxSpeed * 100) / 100 : null,
     source_id: sourceId,
+    start_lat: startLat,
+    start_lng: startLng,
     original_filename: filename,
   };
 

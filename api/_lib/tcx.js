@@ -67,6 +67,19 @@ export function parseTcxFile(buffer, filename = "unknown.tcx") {
     throw new Error("TCX file contains no trackpoints");
   }
 
+  // Extract GPS start coordinates from first trackpoint with position
+  let startLat = null;
+  let startLng = null;
+  for (const pt of trackpoints) {
+    const lat = pt.Position?.LatitudeDegrees;
+    const lng = pt.Position?.LongitudeDegrees;
+    if (lat != null && lng != null) {
+      startLat = Number(lat);
+      startLng = Number(lng);
+      break;
+    }
+  }
+
   // Parse timestamps and build streams
   const watts = [];
   const heartrate = [];
@@ -172,6 +185,8 @@ export function parseTcxFile(buffer, filename = "unknown.tcx") {
     avg_speed_mps: avgSpeedMps ? Math.round(avgSpeedMps * 100) / 100 : null,
     max_speed_mps: maxSpeed > 0 ? Math.round(maxSpeed * 100) / 100 : null,
     source_id: sourceId,
+    start_lat: startLat,
+    start_lng: startLng,
     original_filename: filename,
   };
 

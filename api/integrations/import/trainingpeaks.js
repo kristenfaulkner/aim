@@ -19,6 +19,7 @@ import { verifySession, cors } from "../../_lib/auth.js";
 import { isHigherPriority } from "../../_lib/source-priority.js";
 import { backfillUserMetrics } from "../../_lib/backfill.js";
 import { buildLapsPayload } from "../../_lib/intervals.js";
+import { resolveActivityTimezone } from "../../_lib/timezone.js";
 
 export const config = {
   maxDuration: 300, // 5 minutes for large imports
@@ -96,12 +97,13 @@ export default async function handler(req, res) {
     // 4. Get user profile for FTP
     const { data: profile } = await supabaseAdmin
       .from("profiles")
-      .select("ftp_watts, weight_kg")
+      .select("ftp_watts, weight_kg, timezone")
       .eq("id", session.userId)
       .single();
 
     const ftp = profile?.ftp_watts || null;
     const weightKg = profile?.weight_kg || null;
+    const profileTimezone = profile?.timezone || "America/Los_Angeles";
 
     // 5. Load existing activities for dedup (include metric fields for re-import enrichment)
     const { data: existingActivities } = await supabaseAdmin
@@ -293,7 +295,12 @@ export default async function handler(req, res) {
           continue;
         }
 
-        // 6d. Build new activity record (mirrors strava.js pattern)
+        // 6d. Resolve timezone from GPS
+        const tz = resolveActivityTimezone(
+          metadata.started_at, metadata.start_lat, metadata.start_lng, profileTimezone
+        );
+
+        // 6e. Build new activity record (mirrors strava.js pattern)
         const record = {
           user_id: session.userId,
           source: "trainingpeaks",
@@ -327,6 +334,10 @@ export default async function handler(req, res) {
           power_curve: metrics.power_curve ?? null,
           lr_balance: lrBalance ?? null,
           laps: lapsPayload,
+          start_lat: metadata.start_lat ?? null,
+          start_lng: metadata.start_lng ?? null,
+          timezone_iana: tz.timezone_iana,
+          start_time_local: tz.start_time_local,
           source_data: {
             trainingpeaks: {
               rpe: csvMatch?.rpe,

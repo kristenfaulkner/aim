@@ -4,6 +4,7 @@ import { analyzeActivity } from "../_lib/ai.js";
 import { sendWorkoutEmail } from "../email/send.js";
 import { sendWorkoutSMS } from "../sms/send.js";
 import { backfillUserMetrics } from "../_lib/backfill.js";
+import { resolveActivityTimezone } from "../_lib/timezone.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
@@ -46,6 +47,17 @@ export default async function handler(req, res) {
   const durationSec = parseFloat(ws.duration_active_accum || 0);
   const distanceM = parseFloat(ws.distance_accum || 0);
 
+  // Resolve timezone — Wahoo may provide lat/lng, fallback to user profile
+  const wahooLat = workout?.latitude || ws.latitude || null;
+  const wahooLng = workout?.longitude || ws.longitude || null;
+  let profileTz = "America/Los_Angeles";
+  if (wahooLat == null || wahooLng == null) {
+    const { data: prof } = await supabaseAdmin.from("profiles").select("timezone").eq("id", userId).single();
+    profileTz = prof?.timezone || "America/Los_Angeles";
+  }
+  const startedAtRaw = workout?.starts || ws.created_at;
+  const tz = resolveActivityTimezone(startedAtRaw, wahooLat, wahooLng, profileTz);
+
   const activity = {
     user_id: userId,
     source: "wahoo",
@@ -63,6 +75,10 @@ export default async function handler(req, res) {
     normalized_power: parseFloat(ws.power_bike_np_last || 0) || null,
     total_calories: parseFloat(ws.calories_accum || 0) || null,
     tss: parseFloat(ws.power_bike_tss_last || 0) || null,
+    start_lat: wahooLat ? parseFloat(wahooLat) : null,
+    start_lng: wahooLng ? parseFloat(wahooLng) : null,
+    timezone_iana: tz.timezone_iana,
+    start_time_local: tz.start_time_local,
     source_data: {
       wahoo_workout_id: workout?.id,
       wahoo_summary_id: ws.id,

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { T, font, mono } from "../../theme/tokens";
 import { supabase } from "../../lib/supabase";
+import { FormattedText } from "../../lib/formatText";
 
 // ── CATEGORY DEFINITIONS ──
 const allCategories = [
@@ -222,7 +223,7 @@ export default function AIPanel({
                     padding: "16px 18px", background: T.bg, borderRadius: 12,
                     borderLeft: `3px solid ${T.accent}`, marginBottom: 16,
                   }}>
-                    {analysisSummary}
+                    <FormattedText text={analysisSummary} />
                   </div>
                 )}
 
@@ -309,7 +310,7 @@ export default function AIPanel({
                     padding: "10px 14px", background: T.bg, borderRadius: 10,
                     borderLeft: `3px solid ${T.accent}`,
                   }}>
-                    {analysisSummary}
+                    <FormattedText text={analysisSummary} />
                   </div>
                 )}
 
@@ -403,9 +404,10 @@ export default function AIPanel({
                         </span>
                       )}
                     </div>
-                    <div style={{ fontSize: 11, lineHeight: 1.6, color: T.textSoft }}>
-                      {insight.body}
-                    </div>
+                    <FormattedText
+                      text={insight.body}
+                      style={{ fontSize: 11, lineHeight: 1.6, color: T.textSoft }}
+                    />
                   </div>
                 ))}
 
@@ -481,7 +483,9 @@ export default function AIPanel({
                     fontSize: 12, lineHeight: 1.6,
                     fontWeight: msg.role === "user" ? 600 : 400,
                   }}>
-                    {msg.text}
+                    {msg.role === "user"
+                      ? msg.text
+                      : <FormattedText text={msg.text} />}
                   </div>
                 </div>
               ))}

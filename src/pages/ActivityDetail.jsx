@@ -8,6 +8,7 @@ import { useAuth } from "../context/AuthContext";
 import { useResponsive } from "../hooks/useResponsive";
 import { usePreferences } from "../context/PreferencesContext";
 import { formatDistance, formatSpeed, formatElevation, elevationUnit, formatWeight, weightUnit } from "../lib/units";
+import { FormattedText } from "../lib/formatText";
 
 function formatDuration(seconds) {
   if (!seconds) return "--";
@@ -21,14 +22,14 @@ function formatDuration(seconds) {
 
 function MetricCard({ icon, label, value, unit, color }) {
   return (
-    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "18px 20px", display: "flex", flexDirection: "column", gap: 6 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, padding: "10px 12px", display: "flex", flexDirection: "column", gap: 4 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
         <div style={{ color: color || T.accent, opacity: 0.7 }}>{icon}</div>
-        <span style={{ fontSize: 11, color: T.textDim, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</span>
+        <span style={{ fontSize: 10, color: T.textDim, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</span>
       </div>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-        <span style={{ fontSize: 28, fontWeight: 800, fontFamily: mono, letterSpacing: "-0.03em", color: color || T.text }}>{value}</span>
-        {unit && <span style={{ fontSize: 12, color: T.textDim, fontWeight: 500 }}>{unit}</span>}
+      <div style={{ display: "flex", alignItems: "baseline", gap: 3 }}>
+        <span style={{ fontSize: 18, fontWeight: 800, fontFamily: mono, letterSpacing: "-0.03em", color: color || T.text }}>{value}</span>
+        {unit && <span style={{ fontSize: 11, color: T.textDim, fontWeight: 500 }}>{unit}</span>}
       </div>
     </div>
   );
@@ -1091,6 +1092,9 @@ export default function ActivityDetail() {
   const [error, setError] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [nameEditing, setNameEditing] = useState(false);
+  const [localName, setLocalName] = useState("");
+  const [nameSaving, setNameSaving] = useState(false);
   const { isMobile, isTablet } = useResponsive();
   const { signout, profile } = useAuth();
   const { units } = usePreferences();
@@ -1177,6 +1181,35 @@ export default function ActivityDetail() {
   };
 
   useEffect(() => { fetchActivity(); }, [fetchActivity]);
+
+  // Sync localName when activity first loads
+  useEffect(() => {
+    if (activity) setLocalName(activity.name || "");
+  }, [activity?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const saveName = useCallback(async (newName) => {
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === (activity?.name || "")) {
+      setLocalName(activity?.name || "");
+      setNameEditing(false);
+      return;
+    }
+    setNameSaving(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      await fetch(`/api/activities/annotate?id=${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ name: trimmed }),
+      });
+      setActivity(prev => ({ ...prev, name: trimmed }));
+      setLocalName(trimmed);
+    } catch { /* ignore */ } finally {
+      setNameSaving(false);
+      setNameEditing(false);
+    }
+  }, [activity?.name, id]);
 
   if (loading) {
     return (
@@ -1275,9 +1308,36 @@ export default function ActivityDetail() {
         <div style={{ marginBottom: 32 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
             <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 6, background: T.accentDim, border: `1px solid ${T.accentMid}`, color: T.accent, textTransform: "uppercase", letterSpacing: "0.05em" }}>{a.activity_type}</span>
-            <span style={{ fontSize: 11, fontWeight: 500, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.05em" }}>{a.source}</span>
           </div>
-          <h1 style={{ fontSize: isMobile ? 22 : 32, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 6px" }}>{a.name || "Untitled Activity"}</h1>
+          {nameEditing ? (
+            <input
+              autoFocus
+              value={localName}
+              onChange={e => setLocalName(e.target.value)}
+              onBlur={() => saveName(localName)}
+              onKeyDown={e => { if (e.key === "Enter") { e.target.blur(); } if (e.key === "Escape") { setLocalName(a.name || ""); setNameEditing(false); } }}
+              style={{
+                fontSize: isMobile ? 22 : 32, fontWeight: 800, letterSpacing: "-0.03em",
+                margin: "0 0 6px", width: "100%", background: T.surface,
+                border: `2px solid ${T.accentMid}`, borderRadius: 8,
+                padding: "4px 10px", fontFamily: font, color: T.text, outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
+          ) : (
+            <h1
+              onClick={() => setNameEditing(true)}
+              title="Click to edit name"
+              style={{
+                fontSize: isMobile ? 22 : 32, fontWeight: 800, letterSpacing: "-0.03em",
+                margin: "0 0 6px", cursor: "text",
+                display: "flex", alignItems: "center", gap: 8,
+              }}
+            >
+              {a.name || "Untitled Activity"}
+              {nameSaving && <span style={{ fontSize: 12, color: T.textDim, fontWeight: 400 }}>Saving...</span>}
+            </h1>
+          )}
           <p style={{ fontSize: 14, color: T.textDim, margin: 0 }}>{formattedDate} at {formattedTime}</p>
           {a.description && <p style={{ fontSize: 14, color: T.textSoft, margin: "8px 0 0", lineHeight: 1.5 }}>{a.description}</p>}
           <TagPills tags={a.activity_tags} />
@@ -1286,6 +1346,9 @@ export default function ActivityDetail() {
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1.5fr 1fr" : "1fr 1fr", gap: isMobile ? 24 : isTablet ? 24 : 32 }}>
           {/* Left column: Metrics */}
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {/* Session notes & annotations — up top */}
+            <SessionNotes activity={a} activityId={id} />
+
             {/* Primary metrics */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
               <MetricCard icon={<Clock size={16} />} label="Duration" value={formatDuration(a.duration_seconds)} />
@@ -1357,9 +1420,6 @@ export default function ActivityDetail() {
 
             {/* Power curve */}
             <PowerCurveDisplay curve={a.power_curve} />
-
-            {/* Session notes & annotations */}
-            <SessionNotes activity={a} activityId={id} />
           </div>
 
           {/* Right column: AI Analysis */}

@@ -11,6 +11,7 @@ import { backfillUserMetrics } from "../../_lib/backfill.js";
 import { buildLapsPayload } from "../../_lib/intervals.js";
 import { detectAllTags, persistTags } from "../../_lib/tags.js";
 import { fetchActivityWeather, extractLocationFromActivity } from "../../_lib/weather-enrich.js";
+import { resolveActivityTimezone, parseStravaTimezone } from "../../_lib/timezone.js";
 
 /**
  * Sync a single Strava activity by ID.
@@ -49,11 +50,21 @@ export async function syncStravaActivity(userId, stravaActivityId, options = {})
   // Get user profile for FTP
   const { data: profile } = await supabaseAdmin
     .from("profiles")
-    .select("ftp_watts, weight_kg")
+    .select("ftp_watts, weight_kg, timezone")
     .eq("id", userId)
     .single();
 
   const ftp = profile?.ftp_watts || null;
+
+  // Resolve timezone — Strava provides start_latlng and timezone directly
+  const stravaLat = activity.start_latlng?.[0] ?? null;
+  const stravaLng = activity.start_latlng?.[1] ?? null;
+  const stravaIanaTz = parseStravaTimezone(activity.timezone);
+  const tz = resolveActivityTimezone(
+    activity.start_date, stravaLat, stravaLng,
+    stravaIanaTz || profile?.timezone || "America/Los_Angeles"
+  );
+  const startTimeLocal = activity.start_date_local || tz.start_time_local;
 
   // Compute metrics from streams
   const metrics = streams.watts
@@ -103,6 +114,10 @@ export async function syncStravaActivity(userId, stravaActivityId, options = {})
     zone_distribution: metrics.zone_distribution ?? null,
     power_curve: metrics.power_curve ?? null,
     laps: lapsPayload,
+    start_lat: stravaLat,
+    start_lng: stravaLng,
+    timezone_iana: tz.timezone_iana,
+    start_time_local: startTimeLocal,
     source_data: activity,
   };
 

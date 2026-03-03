@@ -33,7 +33,7 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 ### Frontend (`/src/`)
 - `App.jsx` — route definitions; protected routes wrap with `ProtectedRoute`
 - `context/AuthContext.jsx` — user auth state, profile management, Supabase auth listeners
-- `pages/` — 18 route-level pages (Dashboard, Sleep, ActivityDetail, HealthLab, Boosters, ConnectApps, Settings, Onboarding, AcceptTerms, Auth, ResetPassword, Landing, Contact, 5 legal pages)
+- `pages/` — 19 route-level pages (Dashboard, Sleep, ActivityDetail, HealthLab, Boosters, ConnectApps, Settings, WorkoutDatabase, Onboarding, AcceptTerms, Auth, ResetPassword, Landing, Contact, 5 legal pages)
 - `components/` — reusable: `TrainingPeaksImport`, `BloodPanelUpload` (multi-file drag-and-drop), `DexaScanUpload` (single-file drag-and-drop with body composition extraction), `ActivityBrowser` (popover with time filters/search/pagination), `ProtectedRoute` (auth + consent gate), `NeuralBackground`, `SEO` (React 19 native metadata: title, description, OG, Twitter cards, canonical URL)
 - `components/dashboard/` — modular dashboard components: `ReadinessCard` (SVG ring + 4 metric pills), `AIPanel` (3-tab AI analysis/summary/chat), `LastRideCard` (8-metric grid), `TrainingWeekChart` (7-day TSS bars), `FitnessChart` (CTL/ATL/TSB SVG), `WorkingGoals` (expandable goal cards with 3 tabs), `NutritionLogger` (5-stage conversational modal with Claude parsing)
 - `hooks/useDashboardData.js` — parallel Supabase queries (7 concurrent) using `Promise.allSettled`
@@ -74,7 +74,7 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 - `integrations/import/` — file-based imports (TrainingPeaks ZIP/CSV, ZIP optional for CSV-only enrichment)
 - `cron/sync-eightsleep.js` — hourly Vercel Cron syncs last 2 days of Eight Sleep data; skips users synced in last 6 hours
 - `webhooks/` — inbound webhooks (strava activity events, wahoo workout summaries)
-- `activities/` — list, detail (includes activity_tags + planned_vs_actual data), annotate, analyze, search (tag-based), backfill-intervals, backfill-metrics endpoints
+- `activities/` — list, detail (includes activity_tags + planned_vs_actual data), annotate, analyze, search (tag-based), query (advanced tag/filter/grouping search), smart-chips (AI-suggested query chips), backfill-intervals, backfill-metrics endpoints
 - `tags/` — tag dictionary endpoint
 - `health/` — blood panel upload (Claude AI extraction from PDF/image), DEXA scan upload (Claude AI extraction of body composition/regional data), and panel management
 - `sleep/summary.js` — Claude-powered morning readiness assessment
@@ -363,6 +363,7 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 - **Structured Workouts Engine (Phase 1+2)** — Interval extraction from FIT laps + power stream detection, per-interval metrics (NP, IF, HR, cadence, zones, work kJ), execution quality scoring (smoothness CV, fade score, cadence drift, HR rise slope, execution labels), canonical tagging engine (22 workout + 14 interval tags with confidence + evidence), per-activity weather enrichment (Open-Meteo historical API), tag-based search endpoint, intervals table + tag pills + weather card on ActivityDetail, migration 008 (activity_tags table, activity_weather/annotation columns)
 - **Structured Workouts Engine (Phase 3)** — Interval execution coaching: deterministic interval insights (fade/cadence/HR/pacing), planned vs actual comparison with execution scoring (0-100), AI context enrichment with Category 16 (Interval Execution Coaching), PlannedVsActual UI component on ActivityDetail
 - **Structured Workouts Engine (Phase 4)** — Conditional performance models: heat penalty (temp→EF/HR drift), sleep→execution quality, HRV readiness thresholds (red/yellow/green), fueling→durability, kJ/kg durability model; AI system prompt Categories 17-22 (Durability, Fueling Causality, Readiness-to-Response, Workout Type Progression, Anomaly Detection, Race-Specific Analysis); performance models integrated into dashboard intelligence
+- **Structured Workouts Engine (Phase 5)** — Searchable workout database: advanced query endpoint with tag filters/date range/grouping/aggregation, smart chips API (tag co-occurrence analysis, suggested queries), WorkoutDatabase page at `/workout-db` with smart query chips, tag filter panel, aggregation bar, grouped comparison tables, sortable results grid; route added to App.jsx
 
 ### Remaining — Prioritized Feature Backlog
 
@@ -401,7 +402,7 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 22. **Twilio toll-free verification** — update opt-in proof URL to `https://aimfitness.ai` when approved
 23. ~~**Structured Workouts Phase 3**~~ — ✅ DONE (interval execution coaching, planned vs actual, execution scoring, AI context)
 24. ~~**Structured Workouts Phase 4**~~ — ✅ DONE (conditional performance models: heat penalty, sleep→EF, HRV→readiness, fueling→durability, kJ/kg durability)
-25. **Structured Workouts Phase 5** — Searchable workout database: tag-based queries, smart chips, trend charts, comparison view
+25. ~~**Structured Workouts Phase 5**~~ — ✅ DONE (searchable workout database: advanced query endpoint, smart chips API, WorkoutDatabase page)
 23. **Apple OAuth** — configure in Apple Developer + Supabase when ready
 24. **Weekly digest emails** — automated weekly training summary via Resend
 25. **Community benchmarks** — anonymous percentile rankings against similar athletes

@@ -16,9 +16,15 @@ export default async function handler(req, res) {
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: "Missing activity id" });
 
-  const { user_notes, user_rating, user_rpe, user_tags } = req.body;
+  const { name, user_notes, user_rating, user_rpe, user_tags } = req.body;
 
   // Validate inputs
+  if (name !== undefined && name !== null) {
+    if (typeof name !== "string" || name.length > 200) {
+      return res.status(400).json({ error: "Name must be a string under 200 characters" });
+    }
+  }
+
   if (user_notes !== undefined && user_notes !== null) {
     if (typeof user_notes !== "string" || user_notes.length > 5000) {
       return res.status(400).json({ error: "Notes must be a string under 5000 characters" });
@@ -44,6 +50,7 @@ export default async function handler(req, res) {
   }
 
   const update = { updated_at: new Date().toISOString() };
+  if (name !== undefined) update.name = name;
   if (user_notes !== undefined) update.user_notes = user_notes;
   if (user_rating !== undefined) update.user_rating = user_rating;
   if (user_rpe !== undefined) update.user_rpe = user_rpe;
