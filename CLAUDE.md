@@ -264,40 +264,32 @@ See `docs/build-status.md` for the full detailed log. Summary of what's built:
 1. **Critical Power (CP) & W' Modeling** — replace FTP with 3D power model (CP/W'/Pmax), auto-updated from best efforts, cross-referenced with recovery/sleep/body comp. *[Task 40 in technical-architecture.md]*
 2. **Adaptive Training Zones** — dynamic zones from CP model that auto-adjust as fitness evolves + readiness-adjusted zone targets on red recovery days. *[Task 41]*
 3. **Durability & Fatigue Resistance Tracking** — peak power at progressive fatigue levels (kJ/kg buckets), durability score, trends over time, race-specific predictions. *[Task 42]*
-4. ~~**Automatic Interval Detection & Classification**~~ — ✅ DONE (Phase 1 of Structured Workouts Engine)
 
 #### P1 — Enhanced Analysis (high-value features that build on P0)
-5. ~~**Automatic Session Classification**~~ — ✅ DONE (Phase 2 canonical tagging: 22 workout + 14 interval tags)
-6. ~~**AI Session Summaries with Interval Breakdown**~~ — ✅ DONE (Phase 3: interval execution coaching, planned vs actual comparison, execution scoring, AI context enrichment)
-7. **W' Balance Tracking** — real-time anaerobic reserve depletion/recovery throughout rides, "empty tank" flagging, race analysis. Requires CP model (P0). *[Task 49]*
-8. **Similar Session Finder & Comparison** — auto-find comparable past rides, side-by-side metrics, AI explains what changed using cross-domain data. *[Task 47]*
-9. ~~**Cross-domain AI insights**~~ — ✅ DONE (Phase 4: conditional performance models — heat, sleep, HRV, fueling, durability; Categories 17-22)
-10. **Training prescription engine** — workout recommendations from power profile gaps and CP/W' weaknesses
+4. **W' Balance Tracking** — real-time anaerobic reserve depletion/recovery throughout rides, "empty tank" flagging, race analysis. Requires CP model (P0). *[Task 49]*
+5. **Similar Session Finder & Comparison** — auto-find comparable past rides, side-by-side metrics, AI explains what changed using cross-domain data. *[Task 47]*
+6. **Training prescription engine** — workout recommendations from power profile gaps and CP/W' weaknesses
 
 #### P2 — Integrations & Data Sources
-11. **Garmin Connect** — sync logic (activities, body battery, stress, daily HR)
-12. **Oura / Whoop / Withings** — sync logic (OAuth connect/callback already exist)
-13. **Remaining Tier 3 integrations** — Apple Health, Supersapiens/Lingo, MyFitnessPal, Cronometer, TrainerRoad, Intervals.icu, Zwift, Hammerhead, Hexis, Noom
+7. **Garmin Connect** — sync logic (activities, body battery, stress, daily HR)
+8. **Oura / Whoop / Withings** — sync logic (OAuth connect/callback already exist)
+9. **Remaining Tier 3 integrations** — Apple Health, Supersapiens/Lingo, MyFitnessPal, Cronometer, TrainerRoad, Intervals.icu, Zwift, Hammerhead, Hexis, Noom
 
 #### P3 — Platform & Business
-14. **Stripe payments** — 3-tier subscription + feature gating; update webhook/redirect URLs to `aimfitness.ai` when configured
-15. **Coach Platform & Multi-Athlete Management** — coach dashboard, athlete invitations, granular permissions, coach-specific AI summaries. *[Task 48]*
-16. **Historical Performance Timeline (5-Year)** — long-range metrics view, season summaries, year-over-year overlays, long-term pattern detection. *[Task 50]*
-17. **Torque Analysis** — calculate from power+cadence streams, fatigue-induced torque shifts, gradient analysis. *[Task 45]*
-18. **Menstrual cycle intelligence** — Oura temperature-based phase detection, cycle-aware training recommendations
+10. **Stripe payments** — 3-tier subscription + feature gating
+11. **Coach Platform & Multi-Athlete Management** — coach dashboard, athlete invitations, granular permissions. *[Task 48]*
+12. **Historical Performance Timeline (5-Year)** — long-range metrics, season summaries, year-over-year overlays. *[Task 50]*
+13. **Torque Analysis** — calculate from power+cadence streams, fatigue-induced torque shifts. *[Task 45]*
+14. **Menstrual cycle intelligence** — Oura temperature-based phase detection, cycle-aware training recommendations
 
 #### P4 — Polish & Infrastructure
-19. **Onboarding improvements** — refine the onboarding flow for better first-time user experience, reduce friction, improve data connection guidance
-20. **Mascot design & integration** — create an AIM brand mascot, integrate into UI (loading states, empty states, onboarding, AI chat personality)
-21. ~~**Activity annotation columns migration**~~ — ✅ DONE (included in migration 008_structured_workouts.sql)
-22. **Twilio toll-free verification** — update opt-in proof URL to `https://aimfitness.ai` when approved
-23. ~~**Structured Workouts Phase 3**~~ — ✅ DONE (interval execution coaching, planned vs actual, execution scoring, AI context)
-24. ~~**Structured Workouts Phase 4**~~ — ✅ DONE (conditional performance models: heat penalty, sleep→EF, HRV→readiness, fueling→durability, kJ/kg durability)
-25. ~~**Structured Workouts Phase 5**~~ — ✅ DONE (searchable workout database: advanced query endpoint, smart chips API, WorkoutDatabase page)
-23. **Apple OAuth** — configure in Apple Developer + Supabase when ready
-24. **Weekly digest emails** — automated weekly training summary via Resend
-25. **Community benchmarks** — anonymous percentile rankings against similar athletes
-26. **Mobile app** — React Native or PWA
+15. **Onboarding improvements** — reduce friction, improve data connection guidance
+16. **Mascot design & integration** — brand mascot for UI (loading states, empty states, AI chat)
+17. **Twilio toll-free verification** — update opt-in proof URL to `https://aimfitness.ai`
+18. **Apple OAuth** — configure in Apple Developer + Supabase
+19. **Weekly digest emails** — automated weekly training summary via Resend
+20. **Community benchmarks** — anonymous percentile rankings against similar athletes
+21. **Mobile app** — React Native or PWA
 
 ## Documentation Rules
 
@@ -362,9 +354,11 @@ All AI-generated content, hardcoded text, and UI copy must follow these rules:
 ## Reference Docs
 
 Detailed specifications archived in `docs/`:
-- `docs/product-blueprint.md` — full product spec, booster library (20+ protocols with dosing/timing/evidence), menstrual cycle science (10 peer-reviewed papers), onboarding fields, community benchmarking engine, pricing tiers and feature gating, user stories
-- `docs/technical-architecture.md` — complete database schema SQL, 25-task build plan, Strava API appendix, EightSleep workarounds, environment variable reference
-- `docs/insights-catalog.md` — all 22 insight categories with detailed examples and specific numbers, insight quality checklist, system prompt integration guide, template for adding new categories
+- `docs/build-status.md` — full log of all completed features (extracted from this file for size)
+- `docs/data-flows.md` — detailed data flow pipelines (sync, import, AI, SMS, sleep, metrics)
+- `docs/product-blueprint.md` — full product spec, booster library, menstrual cycle science, onboarding fields, pricing tiers, user stories
+- `docs/technical-architecture.md` — complete database schema SQL, build plan, Strava API appendix, EightSleep workarounds, env vars
+- `docs/insights-catalog.md` — all 22 insight categories with detailed examples, quality checklist, system prompt guide
 
 Dashboard design specifications:
 - `AIM-ADAPTIVE-DASHBOARD-SPEC.md` — 3 dashboard modes (POST_RIDE/PRE_RIDE_PLANNED/DAILY_COACH), AI prompt templates, weather integration, fueling intelligence
