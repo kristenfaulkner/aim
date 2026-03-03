@@ -2,7 +2,7 @@
  * TrainingPeaks file import endpoint.
  * POST /api/integrations/import/trainingpeaks
  *
- * Receives a Supabase Storage path to a ZIP of .FIT files (and optional
+ * Receives a Supabase Storage path to a ZIP of .FIT/.TCX/.GPX files (and optional
  * base64 CSV workout summary), processes each file, computes metrics,
  * deduplicates against existing activities using source priority
  * (device > TrainingPeaks > Strava), and returns import stats.
@@ -10,6 +10,8 @@
 import AdmZip from "adm-zip";
 import { parse as csvParse } from "csv-parse/sync";
 import { parseFitFile } from "../../_lib/fit.js";
+import { parseTcxFile } from "../../_lib/tcx.js";
+import { parseGpxFile } from "../../_lib/gpx.js";
 import { computeActivityMetrics } from "../../_lib/metrics.js";
 import { updateDailyMetrics, updatePowerProfile } from "../../_lib/training-load.js";
 import { supabaseAdmin } from "../../_lib/supabase.js";
@@ -59,11 +61,13 @@ export default async function handler(req, res) {
       entries = zip.getEntries().filter(e => {
         if (e.isDirectory) return false;
         const name = e.entryName.toLowerCase();
-        return name.endsWith(".fit") || name.endsWith(".fit.gz") || name.endsWith(".gz");
+        return name.endsWith(".fit") || name.endsWith(".fit.gz") || name.endsWith(".gz")
+          || name.endsWith(".tcx") || name.endsWith(".tcx.gz")
+          || name.endsWith(".gpx") || name.endsWith(".gpx.gz");
       });
 
       if (entries.length === 0) {
-        return res.status(400).json({ error: "ZIP contains no workout files (.fit, .fit.gz, or .gz)" });
+        return res.status(400).json({ error: "ZIP contains no workout files (.fit, .tcx, .gpx)" });
       }
     }
 
@@ -112,13 +116,25 @@ export default async function handler(req, res) {
 
     for (const entry of entries) {
       try {
-        let fitBuffer = entry.getData();
-        // Decompress .fit.gz or .gz files
-        if (entry.entryName.toLowerCase().endsWith(".gz")) {
+        let fileBuffer = entry.getData();
+        let innerName = entry.entryName.toLowerCase();
+        // Decompress .gz files
+        if (innerName.endsWith(".gz")) {
           const { gunzipSync } = await import("zlib");
-          fitBuffer = gunzipSync(fitBuffer);
+          fileBuffer = gunzipSync(fileBuffer);
+          innerName = innerName.replace(/\.gz$/, "");
         }
-        const { metadata, streams, lrBalance } = parseFitFile(fitBuffer, entry.entryName);
+
+        // Dispatch to correct parser based on file extension
+        let parsed;
+        if (innerName.endsWith(".tcx")) {
+          parsed = parseTcxFile(fileBuffer, entry.entryName);
+        } else if (innerName.endsWith(".gpx")) {
+          parsed = parseGpxFile(fileBuffer, entry.entryName);
+        } else {
+          parsed = parseFitFile(fileBuffer, entry.entryName);
+        }
+        const { metadata, streams, lrBalance } = parsed;
 
         // 6a. Compute metrics from streams
         const hasWatts = streams.watts?.data?.length > 0 && streams.watts.data.some(w => w > 0);
@@ -527,9 +543,9 @@ function parseCsvDate(dateStr) {
 function cleanFilename(name) {
   return name
     .replace(/^.*[/\\]/, "")        // strip directory
-    .replace(/\.fit\.gz$/i, "")     // strip .fit.gz
+    .replace(/\.(fit|tcx|gpx)\.gz$/i, "")  // strip .fit.gz/.tcx.gz/.gpx.gz
     .replace(/\.gz$/i, "")          // strip .gz
-    .replace(/\.fit$/i, "")         // strip .fit
+    .replace(/\.(fit|tcx|gpx)$/i, "")      // strip .fit/.tcx/.gpx
     .replace(/_/g, " ")             // underscores to spaces
     .replace(/\b\w/g, c => c.toUpperCase()); // title case
 }
