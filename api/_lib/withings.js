@@ -4,6 +4,14 @@ const TOKEN_URL = "https://wbsapi.withings.net/v2/oauth2";
 const MEASURE_URL = "https://wbsapi.withings.net/measure";
 const MEASURE_V2_URL = "https://wbsapi.withings.net/v2/measure";
 const SLEEP_URL = "https://wbsapi.withings.net/v2/sleep";
+const NOTIFY_URL = "https://wbsapi.withings.net/notify";
+
+// Withings notification categories (appli values)
+const NOTIFY_APPLI = {
+  WEIGHT: 1,      // Weight & body comp
+  ACTIVITY: 16,   // Steps, distance, calories
+  SLEEP: 44,      // Sleep data
+};
 
 /**
  * Get a valid Withings access token for a user, refreshing if expired.
@@ -317,4 +325,38 @@ export function extractWithingsExtended(dayDate, withingsData) {
   }
 
   return Object.keys(extended).length > 0 ? extended : null;
+}
+
+/**
+ * Subscribe to Withings webhook notifications for a user.
+ * Must be called with the user's access token after OAuth connect.
+ * Subscribes to weight/body comp (1), activity (16), and sleep (44).
+ */
+export async function subscribeWithingsNotifications(accessToken) {
+  const baseUrl = `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL || "aimfitness.ai"}`;
+  const callbackUrl = `${baseUrl}/api/webhooks/withings`;
+
+  const results = [];
+  for (const [name, appli] of Object.entries(NOTIFY_APPLI)) {
+    try {
+      const res = await fetch(NOTIFY_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: new URLSearchParams({
+          action: "subscribe",
+          callbackurl: callbackUrl,
+          appli: String(appli),
+          comment: `AIM ${name.toLowerCase()} notifications`,
+        }),
+      });
+      const json = await res.json();
+      results.push({ appli: name, status: json.status });
+    } catch (err) {
+      results.push({ appli: name, error: err.message });
+    }
+  }
+  return results;
 }

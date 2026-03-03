@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "../../_lib/supabase.js";
 import { redis } from "../../_lib/redis.js";
 import { fullWithingsSync } from "../../integrations/sync/withings.js";
+import { subscribeWithingsNotifications } from "../../_lib/withings.js";
 
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
@@ -45,6 +46,11 @@ export default async function handler(req, res) {
     is_active: true,
     sync_status: "pending",
   }, { onConflict: "user_id,provider" });
+
+  // Subscribe to real-time notifications (weight, activity, sleep) — fire-and-forget
+  subscribeWithingsNotifications(data.access_token).catch(err =>
+    console.error(`Withings notification subscribe failed for ${userId}:`, err.message)
+  );
 
   // Auto-sync last 365 days of data (fire-and-forget)
   fullWithingsSync(userId, 365).catch(err =>

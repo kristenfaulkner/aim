@@ -83,7 +83,7 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 - `integrations/import/` — file-based imports (TrainingPeaks ZIP/CSV, ZIP optional for CSV-only enrichment)
 - `cron/sync-eightsleep.js` — hourly Vercel Cron syncs last 2 days of Eight Sleep data; skips users synced in last 6 hours
 - `cron/sync-recovery.js` — hourly Vercel Cron syncs last 2 days of Oura/Whoop/Withings data; skips users synced in last 6 hours
-- `webhooks/` — inbound webhooks (strava activity events, wahoo workout summaries)
+- `webhooks/` — inbound webhooks (strava activity events, wahoo workout summaries, whoop recovery/sleep, withings body comp/sleep)
 - `activities/` — list, detail (includes activity_tags + planned_vs_actual data), annotate (saves user_notes/rating/RPE/tags + name; auto-extracts tags from notes via keyword matching; normalizes all tags to canonical form via `TAG_ALIASES` — e.g. "S&E"→"low cadence", "TT"→"time trial"), analyze, search (tag-based), query (advanced tag/filter/grouping search), smart-chips (AI-suggested query chips), backfill-intervals, backfill-metrics, backfill-cp endpoints
 - `tags/` — tag dictionary endpoint
 - `health/` — blood panel upload (Claude AI extraction from PDF/image), DEXA scan upload (Claude AI extraction of body composition/regional data), and panel management
@@ -185,9 +185,9 @@ All plans include 14-day free trial, no credit card required.
 
 ### Tier 2 — Recovery & Body
 - **Oura Ring** ✅ — OAuth + full sync (sleep, readiness, activity, SpO2), auto 365-day backfill on first connect, hourly Vercel Cron auto-sync
-- **Whoop** ✅ — OAuth + full sync (recovery, sleep, body measurements), auto 365-day backfill on first connect, hourly Vercel Cron auto-sync
+- **Whoop** ✅ — OAuth + full sync (recovery, sleep, body measurements), webhook (recovery/sleep/workout events with HMAC signature verification), auto 365-day backfill on first connect, hourly Vercel Cron auto-sync
 - **EightSleep** ✅ — credential auth (email/password), trends API sync, sleep metrics (score, duration, stages, HRV, RHR, bed temp), extended metrics (toss/turns, room temp, HR/HRV min/max, sleep quality/routine/fitness scores), auto 365-day sync on first connect, hourly Vercel Cron auto-sync (skips if synced in last 6 hours)
-- **Withings** ✅ — OAuth + full sync (body comp/weight/fat/muscle, activity, sleep), auto 365-day backfill on first connect, hourly Vercel Cron auto-sync
+- **Withings** ✅ — OAuth + full sync (body comp/weight/fat/muscle, activity, sleep), webhook notifications (weight/activity/sleep auto-subscribed on connect), auto 365-day backfill on first connect, hourly Vercel Cron auto-sync
 
 ### Tier 3 — Advanced
 Apple Health, Supersapiens/Lingo (CGM), MyFitnessPal, Cronometer, TrainerRoad, Intervals.icu, Zwift, Hammerhead, Hexis, Noom

@@ -30,12 +30,25 @@ export default async function handler(req, res) {
 
   const data = await tokenRes.json();
 
+  // Fetch Whoop user ID for webhook matching
+  let whoopUserId = "";
+  try {
+    const profileRes = await fetch("https://api.prod.whoop.com/developer/v2/user/profile/basic", {
+      headers: { Authorization: `Bearer ${data.access_token}` },
+    });
+    if (profileRes.ok) {
+      const profile = await profileRes.json();
+      whoopUserId = String(profile.user_id || "");
+    }
+  } catch {}
+
   await supabaseAdmin.from("integrations").upsert({
     user_id: userId,
     provider: "whoop",
     access_token: data.access_token,
     refresh_token: data.refresh_token,
     token_expires_at: new Date((Math.floor(Date.now() / 1000) + data.expires_in) * 1000).toISOString(),
+    provider_user_id: whoopUserId,
     scopes: ["read:recovery", "read:sleep", "read:workout", "read:profile", "read:body_measurement"],
     is_active: true,
     sync_status: "pending",
