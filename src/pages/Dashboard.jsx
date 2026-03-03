@@ -14,6 +14,7 @@ import ReadinessCard from "../components/dashboard/ReadinessCard";
 import LastRideCard from "../components/dashboard/LastRideCard";
 import AIPanel from "../components/dashboard/AIPanel";
 import FitnessChart from "../components/dashboard/FitnessChart";
+import CPModelCard from "../components/dashboard/CPModelCard";
 import TrainingWeekChart from "../components/dashboard/TrainingWeekChart";
 import WorkingGoals from "../components/dashboard/WorkingGoals";
 import NutritionLogger from "../components/dashboard/NutritionLogger";
@@ -494,6 +495,9 @@ export default function Dashboard() {
                 ))}
               </div>
             )}
+
+            {/* Critical Power Model */}
+            <CPModelCard powerProfile={powerProfile} ftp={profile?.ftp_watts} isMobile={isMobile} />
 
             {/* PMC Summary */}
             <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: 18 }}>

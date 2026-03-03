@@ -35,7 +35,7 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 - `context/AuthContext.jsx` — user auth state, profile management, Supabase auth listeners
 - `pages/` — 19 route-level pages (Dashboard, Sleep, ActivityDetail, HealthLab, Boosters, ConnectApps, Settings, WorkoutDatabase, Onboarding, AcceptTerms, Auth, ResetPassword, Landing, Contact, 5 legal pages)
 - `components/` — reusable: `TrainingPeaksImport`, `BloodPanelUpload` (multi-file drag-and-drop), `DexaScanUpload` (single-file drag-and-drop with body composition extraction), `ActivityBrowser` (popover with time filters/search/pagination), `ProtectedRoute` (auth + consent gate), `NeuralBackground`, `SEO` (React 19 native metadata: title, description, OG, Twitter cards, canonical URL), `SessionNotes` (activity annotation: freeform notes, star rating, RPE slider 0-10, tag input with alias normalization — shared across Activities and ActivityDetail pages)
-- `components/dashboard/` — modular dashboard components: `ReadinessCard` (SVG ring + 4 metric pills), `AIPanel` (3-tab AI analysis/summary/chat), `LastRideCard` (8-metric grid), `TrainingWeekChart` (7-day TSS bars), `FitnessChart` (CTL/ATL/TSB SVG), `WorkingGoals` (expandable goal cards with 3 tabs), `NutritionLogger` (5-stage conversational modal with Claude parsing)
+- `components/dashboard/` — modular dashboard components: `ReadinessCard` (SVG ring + 4 metric pills), `AIPanel` (3-tab AI analysis/summary/chat), `LastRideCard` (8-metric grid), `TrainingWeekChart` (7-day TSS bars), `FitnessChart` (CTL/ATL/TSB SVG), `WorkingGoals` (expandable goal cards with 3 tabs), `NutritionLogger` (5-stage conversational modal with Claude parsing), `CPModelCard` (Critical Power 3-panel: CP/W'/Pmax)
 - `hooks/useDashboardData.js` — parallel Supabase queries (7 concurrent) using `Promise.allSettled`
 - `hooks/useActivities.js` — paginated activity list (legacy, replaced by useActivityBrowser on Dashboard)
 - `hooks/useSleepData.js` — sleep data from `daily_metrics` with configurable time period, computes averages
@@ -62,6 +62,7 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
   - `interval-insights.js` — deterministic interval execution insight generation (fade, cadence decay, HR creep, pacing)
   - `planned-vs-actual.js` — training plan to activity matching, interval comparison, execution scoring
   - `performance-models.js` — conditional performance models: heat penalty, sleep→execution, HRV readiness, fueling→durability, kJ/kg durability threshold
+  - `cp-model.js` — Critical Power model: hyperbolic fitting (CP/W'/Pmax), CP-based zones, AI formatting
   - `strava.js` — Strava API client with token refresh
   - `eightsleep.js` — Eight Sleep API client (credential auth, trends API, extended metrics extraction, encrypted credential decryption)
   - `twilio.js` — Twilio SMS client (send, webhook verification, TwiML response)
@@ -76,7 +77,7 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 - `integrations/import/` — file-based imports (TrainingPeaks ZIP/CSV, ZIP optional for CSV-only enrichment)
 - `cron/sync-eightsleep.js` — hourly Vercel Cron syncs last 2 days of Eight Sleep data; skips users synced in last 6 hours
 - `webhooks/` — inbound webhooks (strava activity events, wahoo workout summaries)
-- `activities/` — list, detail (includes activity_tags + planned_vs_actual data), annotate (saves user_notes/rating/RPE/tags + name; auto-extracts tags from notes via keyword matching; normalizes all tags to canonical form via `TAG_ALIASES` — e.g. "S&E"→"low cadence", "TT"→"time trial"), analyze, search (tag-based), query (advanced tag/filter/grouping search), smart-chips (AI-suggested query chips), backfill-intervals, backfill-metrics endpoints
+- `activities/` — list, detail (includes activity_tags + planned_vs_actual data), annotate (saves user_notes/rating/RPE/tags + name; auto-extracts tags from notes via keyword matching; normalizes all tags to canonical form via `TAG_ALIASES` — e.g. "S&E"→"low cadence", "TT"→"time trial"), analyze, search (tag-based), query (advanced tag/filter/grouping search), smart-chips (AI-suggested query chips), backfill-intervals, backfill-metrics, backfill-cp endpoints
 - `tags/` — tag dictionary endpoint
 - `health/` — blood panel upload (Claude AI extraction from PDF/image), DEXA scan upload (Claude AI extraction of body composition/regional data), and panel management
 - `sleep/summary.js` — Claude-powered morning readiness assessment
@@ -102,7 +103,7 @@ See `docs/data-flows.md` for detailed pipeline documentation (Strava sync, Train
 
 ### Database (Supabase)
 
-Core tables (13): `profiles`, `integrations`, `activities`, `daily_metrics`, `power_profiles`, `blood_panels`, `dexa_scans`, `user_settings`, `ai_conversations`, `ai_messages`, `training_calendar`, `working_goals`, `nutrition_logs`
+Core tables (15): `profiles`, `integrations`, `activities`, `daily_metrics`, `power_profiles`, `blood_panels`, `dexa_scans`, `user_settings`, `ai_conversations`, `ai_messages`, `training_calendar`, `working_goals`, `nutrition_logs`, `travel_events`, `cross_training_log`
 
 - All tables reference `profiles.id` (UUID from Supabase Auth) with CASCADE delete
 - RLS policies scope all client-side queries to the authenticated user
@@ -120,8 +121,14 @@ Core tables (13): `profiles`, `integrations`, `activities`, `daily_metrics`, `po
 - `activities.activity_weather` JSONB column — per-activity weather from Open-Meteo historical API
 - `activities.laps` JSONB column — structured interval data with per-interval metrics + execution quality
 - `activities.user_notes`, `user_rating`, `user_rpe`, `user_tags` — activity annotation columns
+- `activities.gi_comfort`, `mental_focus`, `perceived_recovery_pre` — subjective perception columns (1-5 scale, migration 010)
+- `daily_metrics.life_stress_score`, `motivation_score`, `muscle_soreness_score`, `mood_score` — subjective check-in columns (1-5 scale, migration 010)
+- `daily_metrics.checkin_completed_at` — timestamp when morning check-in was submitted (migration 010)
+- `daily_metrics.resting_spo2` — resting SpO2 measurement (migration 010)
+- `travel_events` — timezone/altitude travel detection (origin/dest lat/lng/timezone/altitude, distance, acclimation tracking), RLS enabled
+- `cross_training_log` — non-cycling activities (yoga, strength, etc.) with body region, perceived intensity, estimated TSS, recovery impact, RLS enabled
 - Storage buckets: `health-files` (blood panels, DEXA PDFs), `import-files` (TrainingPeaks uploads)
-- Full schema: `/supabase/migrations/001_initial_schema.sql`; storage bucket: `/supabase/migrations/004_add_import_files_bucket.sql`; consent columns: `/supabase/migrations/005_add_consent_columns.sql`; dashboard v2 tables: `/supabase/migrations/006_dashboard_v2_tables.sql`; structured workouts: `/supabase/migrations/008_structured_workouts.sql`
+- Full schema: `/supabase/migrations/001_initial_schema.sql`; storage bucket: `/supabase/migrations/004_add_import_files_bucket.sql`; consent columns: `/supabase/migrations/005_add_consent_columns.sql`; dashboard v2 tables: `/supabase/migrations/006_dashboard_v2_tables.sql`; structured workouts: `/supabase/migrations/008_structured_workouts.sql`; expansion (check-in, travel, cross-training): `/supabase/migrations/010_expansion_checkin_travel_crosstraining.sql`; CP model: `/supabase/migrations/011_cp_model.sql`
 
 ### Deployment
 
@@ -249,11 +256,12 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 
 See `docs/build-status.md` for the full detailed log. Summary of what's built:
 
-**Core**: Auth (email/password/Google SSO/magic link), onboarding, Vercel deployment, mobile-responsive, testing (141 tests), SEO, legal compliance, account management
+**Core**: Auth (email/password/Google SSO/magic link), onboarding, Vercel deployment, mobile-responsive, testing (204 tests), SEO, legal compliance, account management
 **Integrations**: Strava (full), EightSleep (full + hourly cron), Wahoo (webhook), TrainingPeaks (file import), Twilio SMS, Resend email, Oura/Whoop/Withings (OAuth only)
 **AI (9 features)**: Post-ride analysis, email summaries, SMS coach, chat coach, sleep summary, blood panel OCR, nutrition parsing, dashboard intelligence, adaptive 3-mode AI
 **Pages**: Dashboard V2, Sleep Intelligence, ActivityDetail, HealthLab, Boosters, ConnectApps, Settings, WorkoutDatabase, Landing, Legal pages
 **Structured Workouts (5 phases)**: Interval extraction, canonical tagging (22+14 tags), weather enrichment, interval execution coaching, performance models (heat/sleep/HRV/fueling/durability), searchable workout database
+**Power Analytics**: Critical Power (CP) & W' model — hyperbolic fitting from power profile bests, auto-computed on sync, CPModelCard on dashboard, AI context enrichment, backfill endpoint
 **Other**: SessionNotes + tag normalization, markdown rendering, AI voice fix, theme migration (dark→light), activity browser, working goals, nutrition logger
 
 ### Remaining — Prioritized Feature Backlog
@@ -261,7 +269,7 @@ See `docs/build-status.md` for the full detailed log. Summary of what's built:
 **This is the single source of truth for what to build next.** Detailed implementation specs (checkboxes, sub-tasks, SQL) for Vekta-inspired features (Tasks 40-50) live in `docs/technical-architecture.md` under "VEKTA-INSPIRED FEATURES" — reference that file when building any of those tasks.
 
 #### P0 — Core Analytics (ship first, biggest competitive differentiation)
-1. **Critical Power (CP) & W' Modeling** — replace FTP with 3D power model (CP/W'/Pmax), auto-updated from best efforts, cross-referenced with recovery/sleep/body comp. *[Task 40 in technical-architecture.md]*
+1. ~~**Critical Power (CP) & W' Modeling**~~ — ✅ DONE (hyperbolic fitting CP/W'/Pmax, auto-computed on sync, CPModelCard dashboard, AI context, backfill endpoint). FTP retained as primary; CP supplements it.
 2. **Adaptive Training Zones** — dynamic zones from CP model that auto-adjust as fitness evolves + readiness-adjusted zone targets on red recovery days. *[Task 41]*
 3. **Durability & Fatigue Resistance Tracking** — peak power at progressive fatigue levels (kJ/kg buckets), durability score, trends over time, race-specific predictions. *[Task 42]*
 

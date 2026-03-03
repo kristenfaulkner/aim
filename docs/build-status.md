@@ -70,3 +70,6 @@ Full log of all completed features and implementations.
 - Legal compliance: Terms acceptance, GDPR Article 9 consent, consent gate in ProtectedRoute
 - Account management: full data export (JSON), account deletion, consent withdrawal
 - **Theme migration** — dark → light theme across 37+ files
+
+## Power Analytics
+- **Critical Power (CP) & W' Model** — hyperbolic fitting (P = W'/t + CP) from power profile bests (6 durations), auto-computed on every sync via `updatePowerProfile`, CPModelCard on dashboard (3-panel: CP/W'/Pmax with R² badge), AI context enrichment (system prompt Categories 8/9 + CP interpretation guide), backfill endpoint (`/api/activities/backfill-cp`), migration 011 (cp_watts, w_prime_kj, pmax_watts, cp_model_r_squared, cp_model_data on power_profiles). FTP retained as primary model — CP supplements it.

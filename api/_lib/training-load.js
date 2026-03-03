@@ -4,6 +4,7 @@
  */
 import { supabaseAdmin } from "./supabase.js";
 import { computeTrainingLoad, findNewBests } from "./metrics.js";
+import { fitCPModel } from "./cp-model.js";
 
 /**
  * Update daily_metrics with TSS and recompute CTL/ATL/TSB.
@@ -112,5 +113,35 @@ export async function updatePowerProfile(userId, newCurve, weightKg) {
           ...bests,
         }, { onConflict: "user_id,computed_date,period_days" });
     }
+  }
+
+  // Recompute CP model from the full profile (fire-and-forget)
+  try {
+    const { data: profile } = await supabaseAdmin
+      .from("power_profiles")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("period_days", 90)
+      .order("computed_date", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (profile) {
+      const cpResult = fitCPModel(profile);
+      if (cpResult) {
+        await supabaseAdmin
+          .from("power_profiles")
+          .update({
+            cp_watts: cpResult.cp_watts,
+            w_prime_kj: cpResult.w_prime_kj,
+            pmax_watts: cpResult.pmax_watts,
+            cp_model_r_squared: cpResult.r_squared,
+            cp_model_data: cpResult.model_data,
+          })
+          .eq("id", profile.id);
+      }
+    }
+  } catch (err) {
+    console.error("CP model update failed (non-blocking):", err.message);
   }
 }

@@ -3,13 +3,14 @@ import { supabaseAdmin } from "./supabase.js";
 import { generateIntervalInsights, formatInsightsForAI } from "./interval-insights.js";
 import { getPlannedVsActual } from "./planned-vs-actual.js";
 import { matchActivitiesToContext, computeAllModels, formatModelsForAI } from "./performance-models.js";
+import { formatCPModelForAI } from "./cp-model.js";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AIM AI ANALYSIS SYSTEM PROMPT
 //
-// This prompt embeds the complete AIM Insights Catalog (all 22 categories)
+// This prompt embeds the complete AIM Insights Catalog (all 28 categories)
 // so Claude knows exactly WHAT to look for, HOW to phrase it, and what TONE
 // and SPECIFICITY we expect. Each category is a modular block — new categories
 // can be added without rewriting the whole prompt.
@@ -206,10 +207,20 @@ Look for:
 - VO2/FTP ratio (target 1.25 for balanced riders)
 - Progress to next level: watts needed and estimated timeline
 - Age-adjusted percentile ranking
+- If CP model data is present: compare CP to FTP (they often differ by 5-15W), interpret W' for race capacity, compare Pmax to sprint benchmarks
 
 Example insights:
 - "Your 5-min power classifies as Cat 3 while threshold is Cat 2. That 2-tier gap is your biggest limiter. You need +25W at 5-min to reach Cat 2 — achievable in 6-8 weeks of targeted VO2 work."
 - "Your VO2/FTP ratio is 1.19 — well below the 1.25 target. This gap is the single highest-ROI training adaptation available."
+- "Your CP is 282W while FTP is 270W — the 12W gap suggests your FTP may be slightly under-estimated. Your W' of 22kJ is moderate; athletes who respond well to race attacks typically have W' > 25kJ."
+
+### CP MODEL INTERPRETATION (use when cpModelText is present in the data)
+CP (Critical Power) is the highest power output sustainable without continuous W' depletion — similar to but more physiologically precise than FTP. W' (W-prime) is the finite anaerobic energy reserve above CP, measured in kJ. Once depleted, the athlete must reduce power below CP to recover it. Pmax is peak neuromuscular/sprint power.
+- CP > FTP suggests the athlete may be under-estimating their FTP threshold
+- CP < FTP may mean FTP was set from a test that included a significant anaerobic component
+- Two athletes with identical CP can have very different W' — higher W' means better ability to handle surges, attacks, and punchy terrain
+- Cross-reference CP/W' changes with sleep, HRV, body composition, and training load trends
+- R² indicates model fit quality — values > 0.95 are reliable; lower R² means the power-duration data may not perfectly follow the hyperbolic model
 
 ### CATEGORY 10: Menstrual Cycle Intelligence
 Required sources: Oura (temperature for auto-detection) OR manual logging. ONLY include if the athlete has opted in via uses_cycle_tracking.
@@ -382,6 +393,72 @@ For race-day or group ride activities, provide tactical analysis:
 - Comparison to similar past races
 - Example: "You spent 12 minutes above FTP in 23 surges averaging 18 seconds each. Your best races show 8-10 longer surges — today's pattern suggests too many small accelerations. Consider being more selective about which moves to follow."
 
+### CATEGORY 23: Subjective-Objective Alignment
+Required sources: Daily check-in (life stress, motivation, muscle soreness, mood) + any device data + activity data
+
+When subjective check-in data is available, cross-reference subjective state with objective metrics. Mismatches are often the most valuable insights.
+
+23A. RPE-Power Mismatch Detection:
+- When subjective effort doesn't match objective output (RPE high but NP below average, or vice versa)
+- Life stress inflates perceived effort — acknowledge this, don't dismiss the athlete's experience
+- Example: "You rated this ride 8/10 effort but your NP was 12% below your average for similar workouts. Your life stress has been elevated (avg 4.2) for 3 days — perceived effort often inflates under high stress. This doesn't mean you're losing fitness."
+
+23B. Motivation-Performance Correlation:
+- Pattern between motivation score and workout quality over time
+- If motivation is low (<2) but device readiness is green, acknowledge the disconnect — don't just push training
+- Example: "When your motivation is 4-5, your interval execution averages 94% of target. When it's 1-2, it drops to 81%. Today you're at 2 — consider a shorter session with lower targets."
+
+23C. Life Stress Impact:
+- If life stress is elevated (>3.5 avg over 5 days), proactively suggest training load reduction with specific numbers
+- Example: "Your life stress has averaged 4.1 this week (vs your normal 2.3). In past high-stress weeks, your HRV drops ~8ms by day 4. Consider reducing training load by 20% this week."
+
+23D. Soreness-Load Mismatch:
+- Soreness that doesn't match recent training load may indicate delayed onset, non-training stress, or early illness
+- Never be dismissive of subjective data. "Your body is telling you something" is valid coaching.
+
+### CATEGORY 24: Respiratory & Illness Early Warning
+Required sources: Respiratory rate (if available from wearable), HRV, RHR
+
+When respiratory rate data is available, look for illness precursor patterns:
+- Elevated respiratory rate + suppressed HRV + elevated RHR over 2-3 days is a strong early warning
+- Emphasize this is pattern-matching, NOT medical diagnosis. Recommend monitoring and rest.
+- Example: "Your respiratory rate has trended up for 3 nights (14.2 → 15.1 → 16.4 breaths/min, baseline 13.8). Combined with HRV down 15% and RHR up 4bpm — this pattern warrants attention. Consider skipping intensity today, prioritize sleep and hydration."
+
+### CATEGORY 25: GI Tolerance & Fueling Boundaries
+Required sources: Nutrition log + GI comfort rating + weather + intensity data
+
+When GI comfort data is available alongside nutrition logs:
+25A. Personal fueling ceiling: Identify the carb/hr threshold where GI issues start appearing
+25B. Heat × fueling interaction: GI tolerance often drops in heat
+25C. Race fueling risk: Flag if planned race fueling exceeds demonstrated tolerance
+- Example: "You've logged GI discomfort (3+) on 4 of 6 rides where you exceeded 80g carbs/hr. Your personal ceiling appears to be ~75g/hr."
+
+### CATEGORY 26: Perceived vs Actual Recovery
+Required sources: Pre-ride perceived recovery rating + actual performance metrics
+
+When pre-ride recovery rating is available:
+26A. Recovery perception accuracy: How well the athlete predicts their own readiness
+- Underestimators (feel terrible, perform fine) → encourage trusting the process
+- Overestimators (feel great, metrics say otherwise) → flag hidden fatigue
+- Example: "You rated yourself 2/5 recovery before this ride, but your NP, EF, and HR were all better than your 30-day average. You tend to underestimate your recovery."
+
+### CATEGORY 27: Travel & Environmental Disruption
+Required sources: GPS from activities (auto-detected), timezone data
+
+When \`travelEvents\` data is present:
+27A. Jet lag impact: Timezone shift + expected adaptation timeline (~1 day per zone)
+27B. Altitude adjustment: Power penalty estimation, acclimation day tracking, zone adjustments
+27C. Travel fatigue: Performance degradation after long-haul travel even without timezone change
+- Example: "You crossed 6 timezone zones 2 days ago. Expect elevated HR and reduced top-end power for the next 4 days. Priority: anchor your wake time to the new timezone."
+
+### CATEGORY 28: Cross-Training Impact
+Required sources: Cross-training log entries + next-day activity data
+
+When \`crossTrainingLog\` data shows recent cross-training sessions:
+28A. Strength-performance relationship: How gym sessions affect next-day cycling/running (expect 5-8% power dip 24-36hr after heavy lower body)
+28B. Optimal strength timing: Which days relative to key workouts cause least interference
+- Example: "You did a lower-body strength session yesterday (intensity 4/5). Today's average power was 6% below your 30-day mean — this is expected and productive."
+
 ## PERFORMANCE MODELS REFERENCE
 
 When \`performanceModels\` data is present, it contains pre-computed personal models with coefficients, breakpoints, and confidence levels. USE THESE — don't re-derive patterns from raw data. Reference specific model outputs like:
@@ -483,6 +560,24 @@ function trendDirection(values) {
   const threshold = avgOlder * 0.02; // 2% change threshold
   if (Math.abs(delta) < threshold) return "stable";
   return delta > 0 ? "increasing" : "declining";
+}
+
+/**
+ * Compute rolling averages for subjective check-in fields.
+ */
+function computeSubjectiveAverages(metrics) {
+  if (!metrics || metrics.length === 0) return null;
+  const avg = (field) => {
+    const vals = metrics.map((d) => d[field]).filter((v) => v != null);
+    if (vals.length === 0) return null;
+    return Math.round((vals.reduce((s, v) => s + v, 0) / vals.length) * 10) / 10;
+  };
+  return {
+    lifeStress: avg("life_stress_score"),
+    motivation: avg("motivation_score"),
+    soreness: avg("muscle_soreness_score"),
+    mood: avg("mood_score"),
+  };
 }
 
 /**
@@ -814,6 +909,8 @@ export async function buildAnalysisContext(userId, activityId) {
     settingsResult,
     tagsResult,
     nutritionResult,
+    travelResult,
+    crossTrainingResult,
   ] = await Promise.allSettled([
     // Profile
     supabaseAdmin
@@ -825,7 +922,7 @@ export async function buildAnalysisContext(userId, activityId) {
     // 90 days of activities (trimmed fields — no power_curve/zone_distribution)
     supabaseAdmin
       .from("activities")
-      .select("name, activity_type, started_at, duration_seconds, distance_meters, avg_power_watts, normalized_power_watts, tss, intensity_factor, avg_hr_bpm, max_hr_bpm, efficiency_factor, hr_drift_pct, avg_cadence_rpm, calories, temperature_celsius, lr_balance, user_notes, user_rating, user_rpe, user_tags")
+      .select("name, activity_type, started_at, duration_seconds, distance_meters, avg_power_watts, normalized_power_watts, tss, intensity_factor, avg_hr_bpm, max_hr_bpm, efficiency_factor, hr_drift_pct, avg_cadence_rpm, calories, temperature_celsius, lr_balance, user_notes, user_rating, user_rpe, user_tags, gi_comfort, mental_focus, perceived_recovery_pre")
       .eq("user_id", userId)
       .neq("id", activityId)
       .gte("started_at", new Date(Date.now() - 90 * 86400000).toISOString())
@@ -835,7 +932,7 @@ export async function buildAnalysisContext(userId, activityId) {
     // 90 days of daily metrics (used for computation, only recent 7d sent raw)
     supabaseAdmin
       .from("daily_metrics")
-      .select("date, daily_tss, ctl, atl, tsb, ramp_rate, sleep_score, total_sleep_seconds, deep_sleep_seconds, rem_sleep_seconds, hrv_ms, hrv_overnight_avg_ms, resting_hr_bpm, recovery_score, readiness_score, strain_score, weight_kg, body_fat_pct, muscle_mass_kg, hydration_pct, bone_mass_kg, cycle_day, cycle_phase, blood_oxygen_pct, skin_temperature_deviation")
+      .select("date, daily_tss, ctl, atl, tsb, ramp_rate, sleep_score, total_sleep_seconds, deep_sleep_seconds, rem_sleep_seconds, hrv_ms, hrv_overnight_avg_ms, resting_hr_bpm, recovery_score, readiness_score, strain_score, weight_kg, body_fat_pct, muscle_mass_kg, hydration_pct, bone_mass_kg, cycle_day, cycle_phase, blood_oxygen_pct, skin_temperature_deviation, life_stress_score, motivation_score, muscle_soreness_score, mood_score, checkin_completed_at, respiratory_rate, resting_spo2")
       .eq("user_id", userId)
       .gte("date", new Date(Date.now() - 90 * 86400000).toISOString().split("T")[0])
       .order("date", { ascending: false }),
@@ -893,6 +990,23 @@ export async function buildAnalysisContext(userId, activityId) {
       .select("activity_id, date, totals, per_hour")
       .eq("user_id", userId)
       .gte("date", new Date(Date.now() - 90 * 86400000).toISOString().split("T")[0]),
+
+    // Travel events (recent, for travel disruption insights)
+    supabaseAdmin
+      .from("travel_events")
+      .select("detected_at, distance_km, timezone_shift_hours, altitude_change_m, travel_type, altitude_acclimation_day, altitude_acclimation_complete, dest_timezone, dest_altitude_m")
+      .eq("user_id", userId)
+      .gte("detected_at", new Date(Date.now() - 30 * 86400000).toISOString())
+      .order("detected_at", { ascending: false })
+      .limit(5),
+
+    // Cross-training log (recent, for cross-training impact insights)
+    supabaseAdmin
+      .from("cross_training_log")
+      .select("date, activity_type, body_region, perceived_intensity, duration_minutes, estimated_tss, recovery_impact")
+      .eq("user_id", userId)
+      .gte("date", new Date(Date.now() - 14 * 86400000).toISOString().split("T")[0])
+      .order("date", { ascending: false }),
   ]);
 
   // Helper to safely extract data from Promise.allSettled results
@@ -928,6 +1042,7 @@ export async function buildAnalysisContext(userId, activityId) {
   );
   const performanceModels = computeAllModels(modelPairs);
   const performanceModelsText = formatModelsForAI(performanceModels);
+  const cpModelText = formatCPModelForAI(powerProfile, profile.ftp_watts);
 
   // ── Compute historical summaries server-side ──
   const baselines = computeBaselines(dailyMetrics);
@@ -1000,6 +1115,30 @@ export async function buildAnalysisContext(userId, activityId) {
     // Layer 5: Personal performance models (pre-computed)
     performanceModels: performanceModels || undefined,
     performanceModelsText: performanceModelsText || undefined,
+    cpModelText: cpModelText || undefined,
+
+    // Layer 6: Subjective check-in data (from daily_metrics)
+    subjectiveCheckin: dailyMetrics[0]?.life_stress_score ? {
+      lifeStress: dailyMetrics[0].life_stress_score,
+      motivation: dailyMetrics[0].motivation_score,
+      muscleSoreness: dailyMetrics[0].muscle_soreness_score,
+      mood: dailyMetrics[0].mood_score,
+      checkinTime: dailyMetrics[0].checkin_completed_at,
+      avg7day: computeSubjectiveAverages(dailyMetrics.slice(0, 7)),
+      avg30day: computeSubjectiveAverages(dailyMetrics.slice(0, 30)),
+    } : undefined,
+
+    // Layer 6: Travel events (recent)
+    travelEvents: (() => {
+      const events = getData(travelResult) || [];
+      return events.length > 0 ? events : undefined;
+    })(),
+
+    // Layer 6: Cross-training log (recent)
+    crossTrainingLog: (() => {
+      const entries = getData(crossTrainingResult) || [];
+      return entries.length > 0 ? entries : undefined;
+    })(),
 
     // Metadata
     activeBoosters: settings?.active_boosters || [],
