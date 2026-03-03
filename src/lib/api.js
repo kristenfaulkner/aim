@@ -1,3 +1,5 @@
+import { supabase } from "./supabase";
+
 const TOKEN_KEY = "aim_token";
 
 export function getToken() {
@@ -13,7 +15,14 @@ export function clearToken() {
 }
 
 export async function apiFetch(path, options = {}) {
-  const token = getToken();
+  // Get token from Supabase session (primary) or localStorage (fallback)
+  let token = null;
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    token = session?.access_token;
+  } catch { /* fall through */ }
+  if (!token) token = getToken();
+
   const headers = { "Content-Type": "application/json", ...options.headers };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
