@@ -284,6 +284,7 @@ export default function SessionNotes({
           </span>
         </div>
         <textarea
+          className="snotes-textarea"
           value={notes}
           onChange={handleNotesChange}
           placeholder={"How did this session feel? Intervals, cadence drills, conditions, nutrition...\n\nTip: specifics like \"8×1min VO2max, 60rpm low-cadence blocks\" get auto-tagged."}
@@ -398,7 +399,10 @@ export default function SessionNotes({
         )}
       </div>
 
-      <style>{`@keyframes snotes-spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes snotes-spin { to { transform: rotate(360deg); } }
+        .snotes-textarea::placeholder { color: #9ca3af; opacity: 1; }
+      `}</style>
     </div>
   );
 }
