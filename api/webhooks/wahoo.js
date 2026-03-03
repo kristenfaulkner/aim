@@ -1,3 +1,4 @@
+import { waitUntil } from "@vercel/functions";
 import { supabaseAdmin } from "../_lib/supabase.js";
 import { analyzeActivity } from "../_lib/ai.js";
 import { sendWorkoutEmail } from "../email/send.js";
@@ -10,16 +11,20 @@ export default async function handler(req, res) {
   // Verify webhook token
   const { webhook_token, event_type, user, workout_summary, workout } = req.body;
   if (webhook_token !== process.env.WAHOO_WEBHOOK_TOKEN) {
+    console.warn("[Wahoo Webhook] Invalid webhook token");
     return res.status(401).json({ error: "Invalid webhook token" });
   }
 
+  console.log(`[Wahoo Webhook] Received: event=${event_type} user=${user?.id} workout=${workout?.id}`);
+
   if (event_type !== "workout_summary" || !workout_summary) {
+    console.log(`[Wahoo Webhook] Ignoring non-workout_summary event: ${event_type}`);
     return res.status(200).json({ ok: true, skipped: true });
   }
 
   // Find user by Wahoo provider_user_id
   const wahooUserId = String(user?.id || "");
-  const { data: integration } = await supabaseAdmin
+  const { data: integration, error: lookupError } = await supabaseAdmin
     .from("integrations")
     .select("user_id")
     .eq("provider", "wahoo")
@@ -28,14 +33,14 @@ export default async function handler(req, res) {
     .single();
 
   if (!integration) {
-    // Try matching by any active wahoo integration if provider_user_id wasn't set
-    // This handles the case where we didn't capture the user ID during OAuth
-    console.warn(`No wahoo integration found for wahoo user ${wahooUserId}`);
+    console.warn(`[Wahoo Webhook] No active integration for wahoo user ${wahooUserId}${lookupError ? ` (error: ${lookupError.message})` : ""}`);
     return res.status(200).json({ ok: true, skipped: true });
   }
 
   const userId = integration.user_id;
   const ws = workout_summary;
+
+  console.log(`[Wahoo Webhook] Matched user ${userId} for wahoo user ${wahooUserId}`);
 
   // Map Wahoo workout data to our activities schema
   const durationSec = parseFloat(ws.duration_active_accum || 0);
@@ -70,30 +75,39 @@ export default async function handler(req, res) {
     },
   };
 
-  const { data: upserted } = await supabaseAdmin.from("activities").upsert(activity, {
+  const { data: upserted, error: upsertError } = await supabaseAdmin.from("activities").upsert(activity, {
     onConflict: "user_id,source,source_id",
   }).select("id").single();
 
-  // Trigger AI analysis, then email + SMS notifications (fire-and-forget)
-  if (upserted?.id) {
-    analyzeActivity(userId, upserted.id)
-      .then(() => {
-        sendWorkoutEmail(userId, upserted.id).catch(err =>
-          console.error(`Email failed for wahoo activity ${upserted.id}:`, err.message)
-        );
-        sendWorkoutSMS(userId, upserted.id).catch(err =>
-          console.error(`SMS failed for wahoo activity ${upserted.id}:`, err.message)
-        );
-      })
-      .catch(err =>
-        console.error(`AI analysis failed for wahoo activity ${upserted.id}:`, err.message)
-      );
+  if (upsertError) {
+    console.error(`[Wahoo Webhook] Upsert failed:`, upsertError.message);
   }
 
-  // Backfill derived metrics for any activities missing TSS/IF (fire-and-forget)
-  backfillUserMetrics(userId).catch(err =>
-    console.error(`Backfill after Wahoo webhook failed:`, err.message)
-  );
-
+  // Respond immediately, then run AI analysis + notifications in background
   res.status(200).json({ ok: true });
+
+  // waitUntil keeps the function alive after response is sent
+  waitUntil(
+    (async () => {
+      if (upserted?.id) {
+        try {
+          await analyzeActivity(userId, upserted.id);
+          console.log(`[Wahoo Webhook] AI analysis complete for activity ${upserted.id}`);
+          // Email and SMS fire in parallel after analysis
+          await Promise.allSettled([
+            sendWorkoutEmail(userId, upserted.id),
+            sendWorkoutSMS(userId, upserted.id),
+          ]);
+          console.log(`[Wahoo Webhook] Notifications sent for activity ${upserted.id}`);
+        } catch (err) {
+          console.error(`[Wahoo Webhook] Post-processing failed for activity ${upserted.id}:`, err.message);
+        }
+      }
+      try {
+        await backfillUserMetrics(userId);
+      } catch (err) {
+        console.error(`[Wahoo Webhook] Backfill failed:`, err.message);
+      }
+    })()
+  );
 }
