@@ -159,6 +159,7 @@ function IntervalsTable({ laps, isMobile }) {
 
   const workIntervals = laps.intervals.filter(i => i.type === "work");
   const hasExecution = workIntervals.some(i => i.execution);
+  const hasCadenceDrift = workIntervals.some(i => i.execution?.cadence_drift != null);
 
   const executionLabelColors = {
     met: T.accent,
@@ -258,12 +259,19 @@ function IntervalsTable({ laps, isMobile }) {
               {!isMobile && <th style={{ textAlign: "right", padding: "8px 6px", color: T.textDim, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>NP</th>}
               <th style={{ textAlign: "right", padding: "8px 6px", color: T.textDim, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>Avg HR</th>
               {!isMobile && <th style={{ textAlign: "right", padding: "8px 6px", color: T.textDim, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>Cadence</th>}
+              {hasCadenceDrift && !isMobile && <th style={{ textAlign: "right", padding: "8px 6px", color: T.textDim, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>Cad Drift</th>}
               {hasExecution && !isMobile && <th style={{ textAlign: "right", padding: "8px 6px", color: T.textDim, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>Execution</th>}
             </tr>
           </thead>
           <tbody>
             {laps.intervals.map((interval, i) => {
               const label = interval.execution?.execution_label;
+              const drift = interval.type === "work" ? interval.execution?.cadence_drift ?? null : null;
+              const driftColor = drift == null ? T.textDim
+                : drift < -15 ? "#ef4444"
+                : drift < -8 ? "#f59e0b"
+                : drift > 4 ? T.accent
+                : T.textSoft;
               return (
                 <tr key={i} style={{ borderBottom: `1px solid ${T.border}08` }}>
                   <td style={{ padding: "8px 6px", fontFamily: mono, color: T.textDim }}>{i + 1}</td>
@@ -293,6 +301,11 @@ function IntervalsTable({ laps, isMobile }) {
                   {!isMobile && (
                     <td style={{ padding: "8px 6px", textAlign: "right", fontFamily: mono, color: T.textSoft }}>
                       {interval.avg_cadence_rpm || "—"}
+                    </td>
+                  )}
+                  {hasCadenceDrift && !isMobile && (
+                    <td style={{ padding: "8px 6px", textAlign: "right", fontFamily: mono, fontSize: 11, color: driftColor }}>
+                      {drift != null ? `${drift > 0 ? "+" : ""}${drift}` : "—"}
                     </td>
                   )}
                   {hasExecution && !isMobile && (
@@ -328,6 +341,25 @@ function IntervalsTable({ laps, isMobile }) {
                 color: executionLabelColors[label] || T.textDim,
               }}>
                 Rep {i + 1}: {executionLabelText[label] || label}
+              </span>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Cadence drift pills for mobile */}
+      {hasCadenceDrift && isMobile && (
+        <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {workIntervals.map((interval, i) => {
+            const d = interval.execution?.cadence_drift;
+            if (d == null || Math.abs(d) < 4) return null;
+            const color = d < -15 ? "#ef4444" : d < -8 ? "#f59e0b" : d > 4 ? T.accent : T.textDim;
+            return (
+              <span key={i} style={{
+                fontSize: 10, fontWeight: 600, padding: "3px 8px",
+                borderRadius: 4, background: `${color}15`, color,
+              }}>
+                Rep {i + 1}: {d > 0 ? "+" : ""}{d} rpm
               </span>
             );
           })}

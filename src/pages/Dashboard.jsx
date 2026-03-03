@@ -17,6 +17,7 @@ import FitnessChart from "../components/dashboard/FitnessChart";
 import TrainingWeekChart from "../components/dashboard/TrainingWeekChart";
 import WorkingGoals from "../components/dashboard/WorkingGoals";
 import NutritionLogger from "../components/dashboard/NutritionLogger";
+import PerformanceModels from "../components/dashboard/PerformanceModels";
 
 // ── HELPERS ──
 
@@ -527,6 +528,9 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
+
+            {/* Performance Models */}
+            <PerformanceModels isMobile={isMobile} />
           </div>
 
           {/* RIGHT COLUMN */}
