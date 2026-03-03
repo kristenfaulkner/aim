@@ -349,6 +349,7 @@ All AI-generated content, hardcoded text, and UI copy must follow these rules:
 
 ## Conventions
 
+- **Design Bible first** — before building any new UI feature, page, or component, reference `docs/AIM-DESIGN-BIBLE.md` for design tokens, layout patterns, component library, and page-by-page specs. Match existing patterns.
 - **No TypeScript** — plain JavaScript throughout
 - **Inline styles** using design token object `T` from `src/theme/tokens.js`; no Tailwind or CSS-in-JS
 - **Fonts**: DM Sans (UI), JetBrains Mono (numbers/code)
@@ -380,8 +381,8 @@ Detailed specifications archived in `docs/`:
 - `docs/AIM-PRODUCT-ROADMAP.md` — comprehensive feature roadmap (P1-P5) with data requirements, dependencies, and implementation notes
 - `docs/AIM-EXPANSION-SPEC.md` — expansion spec: check-in, travel, cross-training, periodization, coach dashboard
 
-Design queue:
-- `docs/AIM-UI-DESIGN-QUEUE.md` — running list of UI components needing design before implementation (check-in modal, cross-training logger, travel card, etc.)
+Design bible & specifications:
+- `docs/AIM-DESIGN-BIBLE.md` — **comprehensive design reference**: brand identity, design tokens, layout patterns, component library, page-by-page specs, unbuilt feature designs, accessibility guidelines. **MUST be referenced before building any new UI feature or page.**
 
 Dashboard design specifications:
 - `AIM-ADAPTIVE-DASHBOARD-SPEC.md` — 3 dashboard modes (POST_RIDE/PRE_RIDE_PLANNED/DAILY_COACH), AI prompt templates, weather integration, fueling intelligence
