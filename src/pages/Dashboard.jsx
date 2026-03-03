@@ -19,6 +19,7 @@ import TrainingWeekChart from "../components/dashboard/TrainingWeekChart";
 import WorkingGoals from "../components/dashboard/WorkingGoals";
 import NutritionLogger from "../components/dashboard/NutritionLogger";
 import PerformanceModels from "../components/dashboard/PerformanceModels";
+import AthleteBio from "../components/dashboard/AthleteBio";
 
 // ── HELPERS ──
 
@@ -251,7 +252,7 @@ function NavBar({ profile, isMobile, menuOpen, setMenuOpen, userMenuOpen, setUse
 // ── MAIN DASHBOARD ──
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { signout } = useAuth();
+  const { signout, updateProfile } = useAuth();
   const [selectedActivityId, setSelectedActivityId] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -460,6 +461,9 @@ export default function Dashboard() {
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 380px", gap: 20, alignItems: "start" }}>
           {/* LEFT COLUMN */}
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {/* Athlete Bio */}
+            <AthleteBio profile={profile} onUpdateProfile={updateProfile} isMobile={isMobile} />
+
             {/* Readiness Card */}
             <ReadinessCard dailyMetrics={dailyMetrics} isMobile={isMobile} />
 

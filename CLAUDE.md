@@ -35,7 +35,7 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 - `context/AuthContext.jsx` — user auth state, profile management, Supabase auth listeners
 - `pages/` — 20 route-level pages (Dashboard, MyStats, Sleep, ActivityDetail, HealthLab, Boosters, ConnectApps, Settings, WorkoutDatabase, Onboarding, AcceptTerms, Auth, ResetPassword, Landing, Contact, 5 legal pages)
 - `components/` — reusable: `TrainingPeaksImport`, `BloodPanelUpload` (multi-file drag-and-drop), `DexaScanUpload` (single-file drag-and-drop with body composition extraction), `ActivityBrowser` (popover with time filters/search/pagination), `ProtectedRoute` (auth + consent gate), `NeuralBackground`, `SEO` (React 19 native metadata: title, description, OG, Twitter cards, canonical URL), `SessionNotes` (activity annotation: freeform notes, star rating, RPE slider 0-10, GI comfort/mental focus/pre-ride recovery sliders 1-5, tag input with alias normalization — shared across Activities and ActivityDetail pages)
-- `components/dashboard/` — modular dashboard components: `ReadinessCard` (SVG ring + 4 metric pills), `AIPanel` (3-tab AI analysis/summary/chat), `LastRideCard` (8-metric grid), `TrainingWeekChart` (7-day TSS bars), `FitnessChart` (CTL/ATL/TSB SVG), `WorkingGoals` (expandable goal cards with 3 tabs), `NutritionLogger` (5-stage conversational modal with Claude parsing), `CPModelCard` (Critical Power 3-panel: CP/W'/Pmax)
+- `components/dashboard/` — modular dashboard components: `AthleteBio` (AI-generated profile description with generate/confirm/edit flow), `ReadinessCard` (SVG ring + 4 metric pills), `AIPanel` (3-tab AI analysis/summary/chat), `LastRideCard` (8-metric grid), `TrainingWeekChart` (7-day TSS bars), `FitnessChart` (CTL/ATL/TSB SVG), `WorkingGoals` (expandable goal cards with 3 tabs), `NutritionLogger` (5-stage conversational modal with Claude parsing), `CPModelCard` (Critical Power 3-panel: CP/W'/Pmax)
 - `hooks/useDashboardData.js` — parallel Supabase queries (7 concurrent) using `Promise.allSettled`
 - `hooks/useActivities.js` — paginated activity list (legacy, replaced by useActivityBrowser on Dashboard)
 - `hooks/useSleepData.js` — sleep data from `daily_metrics` with configurable time period, computes averages
@@ -91,6 +91,7 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 - `chat/ask.js` — AI coach conversation endpoint with full athlete context
 - `sms/` — Twilio SMS: send workout summaries, test/preview, inbound webhook (STOP/START/HELP + conversational AI replies)
 - `email/send.js` — Resend email: post-workout AI analysis emails (Claude-formatted HTML, first-analysis-only dedup, branded dark-theme template)
+- `profile/generate-bio.js` — AI-generated athlete bio from activity history (Claude sonnet, 2-3 sentences, does NOT auto-save)
 - `user/` — profile, integrations list, disconnect, accept-terms (consent recording), delete (account deletion with cascade), export (full data export as JSON)
 - `settings.js` — notification preferences and user settings
 - `weather/current.js` — Open-Meteo API weather fetch, caches in `daily_metrics.weather_data`
@@ -125,6 +126,7 @@ Core tables (15): `profiles`, `integrations`, `activities`, `daily_metrics`, `po
 - `working_goals` — athlete goals with trend JSONB, action_plan JSONB, this_week checklist JSONB, auto-updated `updated_at`
 - `nutrition_logs` — per-activity fueling with items/totals/per_hour JSONB, linked to `activities` via `activity_id` FK
 - `profiles` location columns: `location_lat`, `location_lng` (for weather)
+- `profiles.athlete_bio` — AI-generated athlete description (TEXT, editable by user)
 - `daily_metrics.weather_data` JSONB column (cached Open-Meteo data)
 - `activity_tags` — canonical tags for cross-activity search (tag_id, scope, confidence, evidence JSONB, interval_index), RLS enabled
 - `activities.activity_weather` JSONB column — per-activity weather from Open-Meteo historical API
@@ -137,7 +139,7 @@ Core tables (15): `profiles`, `integrations`, `activities`, `daily_metrics`, `po
 - `travel_events` — timezone/altitude travel detection (origin/dest lat/lng/timezone/altitude, distance, acclimation tracking), RLS enabled
 - `cross_training_log` — non-cycling activities (yoga, strength, etc.) with body region, perceived intensity, estimated TSS, recovery impact, RLS enabled
 - Storage buckets: `health-files` (blood panels, DEXA PDFs), `import-files` (TrainingPeaks uploads)
-- Full schema: `/supabase/migrations/001_initial_schema.sql`; storage bucket: `/supabase/migrations/004_add_import_files_bucket.sql`; consent columns: `/supabase/migrations/005_add_consent_columns.sql`; dashboard v2 tables: `/supabase/migrations/006_dashboard_v2_tables.sql`; structured workouts: `/supabase/migrations/008_structured_workouts.sql`; expansion (check-in, travel, cross-training): `/supabase/migrations/010_expansion_checkin_travel_crosstraining.sql`; CP model: `/supabase/migrations/011_cp_model.sql`
+- Full schema: `/supabase/migrations/001_initial_schema.sql`; storage bucket: `/supabase/migrations/004_add_import_files_bucket.sql`; consent columns: `/supabase/migrations/005_add_consent_columns.sql`; dashboard v2 tables: `/supabase/migrations/006_dashboard_v2_tables.sql`; structured workouts: `/supabase/migrations/008_structured_workouts.sql`; expansion (check-in, travel, cross-training): `/supabase/migrations/010_expansion_checkin_travel_crosstraining.sql`; CP model: `/supabase/migrations/011_cp_model.sql`; athlete bio: `/supabase/migrations/012_athlete_bio.sql`
 
 ### Deployment
 
@@ -204,7 +206,7 @@ OAuth2 flow: connect/callback file pairs in `/api/auth/`. Credential-based for E
 ### Core Principle
 Cross-domain insights are the product. Every AI insight must connect 2+ data sources and tell the athlete something they cannot learn from any single app. "Your HRV was low" is Whoop-level. "Your HRV was 38ms, which explains why cardiac drift was 8.1% today vs 3.2% on Feb 18 when HRV was 72ms" is AIM-level.
 
-### AI-Powered Features (9 total)
+### AI-Powered Features (10 total)
 1. **Post-ride analysis** — 28-category structured insights triggered after every activity sync
 2. **Email workout analysis** — Claude-formatted HTML emails via Resend with full AI analysis, sent on first analysis only (no duplicates on re-analysis or bulk import)
 3. **SMS workout summaries** — 1500-char Claude-generated texts sent via Twilio post-sync
@@ -214,6 +216,7 @@ Cross-domain insights are the product. Every AI insight must connect 2+ data sou
 7. **Chat coach** — real-time Q&A via `/api/chat/ask` with conversation history
 8. **Nutrition parsing** — Claude-powered free-text → structured nutrition items with per-hour calculations via `/api/nutrition/parse`
 9. **Adaptive dashboard intelligence** — 3-mode AI (POST_RIDE/PRE_RIDE_PLANNED/DAILY_COACH) via `/api/dashboard/intelligence`
+10. **Athlete bio generation** — AI-generated 2-3 sentence profile description from activity history via `/api/profile/generate-bio`
 
 ### 28 Insight Categories (Active) + 6 Planned
 
@@ -267,7 +270,7 @@ See `docs/build-status.md` for the full detailed log. Summary of what's built:
 
 **Core**: Auth (email/password/Google SSO/magic link), onboarding, Vercel deployment, mobile-responsive, testing (204 tests), SEO, legal compliance, account management
 **Integrations**: Strava (full), EightSleep (full + hourly cron), Wahoo (webhook), TrainingPeaks (file import), Twilio SMS, Resend email, Oura (full + hourly cron), Whoop (full + hourly cron), Withings (full + hourly cron)
-**AI (9 features)**: Post-ride analysis, email summaries, SMS coach, chat coach, sleep summary, blood panel OCR, nutrition parsing, dashboard intelligence, adaptive 3-mode AI
+**AI (10 features)**: Post-ride analysis, email summaries, SMS coach, chat coach, sleep summary, blood panel OCR, nutrition parsing, dashboard intelligence, adaptive 3-mode AI, athlete bio generation
 **Pages**: Dashboard V2, Sleep Intelligence, ActivityDetail, HealthLab, Boosters, ConnectApps, Settings, WorkoutDatabase, Landing, Legal pages
 **Structured Workouts (5 phases)**: Interval extraction, canonical tagging (32+14 tags), weather enrichment, interval execution coaching, performance models (heat/sleep/HRV/fueling/durability), searchable workout database
 **Power Analytics**: Critical Power (CP) & W' model — hyperbolic fitting from power profile bests, auto-computed on sync, CPModelCard on dashboard, AI context enrichment, backfill endpoint
