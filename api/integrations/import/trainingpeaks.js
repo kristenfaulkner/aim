@@ -18,6 +18,7 @@ import { supabaseAdmin } from "../../_lib/supabase.js";
 import { verifySession, cors } from "../../_lib/auth.js";
 import { isHigherPriority } from "../../_lib/source-priority.js";
 import { backfillUserMetrics } from "../../_lib/backfill.js";
+import { buildLapsPayload } from "../../_lib/intervals.js";
 
 export const config = {
   maxDuration: 300, // 5 minutes for large imports
@@ -133,13 +134,23 @@ export default async function handler(req, res) {
         } else {
           parsed = parseFitFile(fileBuffer, entry.entryName);
         }
-        const { metadata, streams, lrBalance } = parsed;
+        const { metadata, streams, lrBalance, fitLaps } = parsed;
 
         // 6a. Compute metrics from streams
         const hasWatts = streams.watts?.data?.length > 0 && streams.watts.data.some(w => w > 0);
         const metrics = hasWatts
           ? computeActivityMetrics(streams, metadata.duration_seconds, ftp)
           : {};
+
+        // 6a-ii. Extract intervals (FIT laps preferred, fallback to detection)
+        let lapsPayload = null;
+        if (hasWatts && ftp) {
+          try {
+            lapsPayload = buildLapsPayload(streams, ftp, fitLaps);
+          } catch (err) {
+            console.error(`Interval extraction failed for ${entry.entryName}:`, err.message);
+          }
+        }
 
         // 6b. Check for duplicate
         const duplicate = findDuplicate(existing, metadata.started_at, metadata.duration_seconds, metadata.source_id);
@@ -315,6 +326,7 @@ export default async function handler(req, res) {
           zone_distribution: metrics.zone_distribution ?? null,
           power_curve: metrics.power_curve ?? null,
           lr_balance: lrBalance ?? null,
+          laps: lapsPayload,
           source_data: {
             trainingpeaks: {
               rpe: csvMatch?.rpe,

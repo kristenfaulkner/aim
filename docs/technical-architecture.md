@@ -1182,3 +1182,211 @@ Conversation history reuses existing `ai_conversations` + `ai_messages` tables.
 - Compliance text displayed: "By enabling SMS, you agree to receive automated text messages..."
 - STOP/HELP handled automatically by Twilio
 - All outbound messages sent only to opted-in users with verified phone numbers
+
+---
+
+## STRUCTURED WORKOUTS & AI INSIGHTS ENGINE
+
+_Full spec: `docs/AIM-STRUCTURED-WORKOUTS-AND-INSIGHTS-SPEC.md`_
+
+### Database Changes
+
+```sql
+-- Activity tags table for cross-activity search (migration 008)
+CREATE TABLE activity_tags (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  activity_id UUID NOT NULL REFERENCES activities(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  tag_id TEXT NOT NULL,          -- canonical tag from TAG_DICTIONARY (e.g. 'vo2_session')
+  scope TEXT NOT NULL DEFAULT 'workout',  -- 'workout' | 'interval'
+  confidence NUMERIC DEFAULT 1.0,         -- 0.0 to 1.0
+  evidence JSONB,                         -- signals + thresholds that triggered this tag
+  interval_index INTEGER,                 -- NULL for workout-level, 0-based for interval-level
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX idx_activity_tags_user ON activity_tags(user_id, tag_id);
+CREATE INDEX idx_activity_tags_activity ON activity_tags(activity_id);
+CREATE UNIQUE INDEX idx_activity_tags_unique ON activity_tags(activity_id, tag_id, COALESCE(interval_index, -1));
+
+-- Per-activity weather enrichment
+ALTER TABLE activities ADD COLUMN IF NOT EXISTS activity_weather JSONB;
+-- Structure: { temp_c, humidity_pct, dew_point_c, wind_speed_mps, wind_direction_deg,
+--              precip_mm, apparent_temp_c, source: 'device'|'open_meteo' }
+
+-- Activity annotations (user input)
+ALTER TABLE activities ADD COLUMN IF NOT EXISTS user_notes TEXT;
+ALTER TABLE activities ADD COLUMN IF NOT EXISTS user_rating INTEGER CHECK (user_rating BETWEEN 1 AND 5);
+ALTER TABLE activities ADD COLUMN IF NOT EXISTS user_rpe INTEGER CHECK (user_rpe BETWEEN 1 AND 10);
+ALTER TABLE activities ADD COLUMN IF NOT EXISTS user_tags TEXT[] DEFAULT '{}';
+```
+
+### `activities.laps` JSONB Structure
+
+The `laps` column already exists (migration 001) but is currently unpopulated. Structure:
+
+```json
+{
+  "source": "fit_laps | detected | manual",
+  "intervals": [
+    {
+      "index": 0,
+      "type": "warmup | work | rest | cooldown | unknown",
+      "start_time": "2026-03-02T10:05:00Z",
+      "end_time": "2026-03-02T10:08:00Z",
+      "duration_s": 180,
+      "distance_m": 1200,
+      "avg_power_w": 320,
+      "normalized_power_w": 325,
+      "max_power_w": 345,
+      "avg_hr_bpm": 168,
+      "max_hr_bpm": 175,
+      "avg_cadence_rpm": 92,
+      "avg_speed_mps": 10.5,
+      "work_kj": 58,
+      "intensity_factor": 1.08,
+      "grade_avg_pct": 2.1,
+      "zone_distribution": { "z1": 0, "z2": 0, "z3": 5, "z4": 30, "z5": 120, "z6": 25, "z7": 0 },
+      "execution": {
+        "target_power_w": 315,
+        "smoothness_cv": 0.06,
+        "time_in_band_pct": { "2pct": 0.45, "5pct": 0.72, "10pct": 0.91 },
+        "fade_score": -0.03,
+        "end_strength": 0.97,
+        "cadence_drift": -2.1,
+        "hr_rise_slope": 1.8,
+        "execution_label": "met"
+      },
+      "recovery_after_s": 120
+    }
+  ],
+  "set_metrics": {
+    "num_work_intervals": 5,
+    "avg_work_power_w": 318,
+    "power_consistency_cv": 0.04,
+    "total_work_kj": 290,
+    "avg_recovery_s": 120,
+    "durability_index": 0.96,
+    "overall_execution_label": "strong_finish"
+  }
+}
+```
+
+### Canonical Tag Dictionary (Cycling — Starter Set)
+
+#### Workout-Level Tags (22)
+
+| tag_id | Detection Rules | Signals |
+|--------|----------------|---------|
+| `race_day` | User tag OR calendar event OR race power archetype | high VI, surge pattern |
+| `group_ride` | User tag OR variable power with social stops | high VI, many stops |
+| `indoor_trainer` | No GPS OR trainer flag in source | gps_quality: missing |
+| `endurance_steady` | VI < 1.05, IF 0.55-0.75 | steady power, low variability |
+| `tempo_ride` | Majority time in Z3 (76-90% FTP) | zone_distribution |
+| `sweet_spot_session` | >20 min in 88-94% FTP | zone_distribution, power stream |
+| `threshold_session` | >15 min in 95-105% FTP | zone_distribution, laps |
+| `vo2_session` | >5 min cumulative in Z5+ (106-120% FTP) | zone_distribution, laps |
+| `anaerobic_session` | >2 min cumulative in Z6 (121-150% FTP) | zone_distribution |
+| `neuromuscular_session` | Sprint efforts >150% FTP, <30s each | power spikes |
+| `low_cadence_session` | Avg cadence < 75 rpm in work intervals | cadence stream |
+| `high_cadence_session` | Avg cadence > 100 rpm in work intervals | cadence stream |
+| `climbing_focus` | >1000m elevation OR >50% time on grade >3% | elevation, grade |
+| `rolling_surge_ride` | High VI (>1.15) + many power spikes >120% FTP | power variability |
+| `hot_conditions` | Temp > 30°C OR apparent temp > 33°C | activity_weather |
+| `cold_conditions` | Temp < 5°C | activity_weather |
+| `high_wind_conditions` | Wind > 25 km/h | activity_weather |
+| `high_drift` | HR drift > 5% or decoupling > 5% | hr_drift_pct, decoupling_pct |
+| `low_hrv_day` | Morning HRV in bottom 25% of 30-day baseline | daily_metrics.hrv |
+| `poor_sleep_day` | Sleep < 6 hrs OR sleep score < 60 | daily_metrics |
+| `underfueled` | Nutrition < 40 g/hr carbs on ride > 90 min | nutrition_logs |
+| `data_quality_issue` | >10% power dropout OR GPS spikes | quality flags |
+
+#### Interval-Level Tags (16)
+
+| tag_id | Detection Rules |
+|--------|----------------|
+| `vo2_interval` | Avg power 106-120% FTP, duration 2-8 min |
+| `threshold_interval` | Avg power 95-105% FTP, duration 5-30 min |
+| `sweet_spot_interval` | Avg power 88-94% FTP, duration 8-30 min |
+| `anaerobic_interval` | Avg power 121-150% FTP, duration 30s-3 min |
+| `sprint_interval` | Avg power >150% FTP, duration <30s |
+| `low_cadence_interval` | Avg cadence < 70 rpm |
+| `high_cadence_interval` | Avg cadence > 105 rpm |
+| `climb_interval` | Avg grade > 4% |
+| `overcooked_start` | First 20% of interval > target + 8% |
+| `power_fade` | Fade score < -0.08 (last third significantly below first) |
+| `strong_finish` | Last 20% > first 20% by > 3% |
+| `inconsistent_power` | CV > 0.10 within interval |
+| `cadence_decay` | Cadence drops > 8 rpm across interval |
+| `cadence_collapse` | Cadence drops > 15 rpm with associated power drop |
+| `hr_lag_slow` | HR takes > 60s to reach 90% of peak |
+| `hr_recovery_fast` | HR drops > 30 bpm in first 60s of recovery |
+
+### Interval Metrics Computation Pipeline
+
+```
+FIT file / Strava streams
+  → parseFitFile() returns fitData.laps (Phase 1: modify fit.js)
+  → extractLapsFromFit(fitData) OR detectIntervalsFromStreams(streams, ftp)
+  → computeIntervalMetrics(streams, startIdx, endIdx, ftp)  // NP, IF, HR, zones per interval
+  → inferTargetPower(workIntervals)                          // cluster to find target
+  → computeExecutionMetrics(streams, startIdx, endIdx, target) // smoothness, fade, cadence
+  → classifyLapType(lapMetrics, activityMetrics, ftp)        // warmup/work/rest/cooldown
+  → buildLapsPayload()                                        // assemble JSONB
+  → UPDATE activities SET laps = payload WHERE id = activityId
+```
+
+### Per-Activity Weather Enrichment
+
+```
+Activity with start_time + GPS location
+  → extractLocationFromActivity(source_data)  // lat/lng from Strava/FIT
+  → fetchActivityWeather(startedAt, lat, lng)  // Open-Meteo Historical API
+  → { temp_c, humidity_pct, dew_point_c, wind_speed_mps, wind_direction_deg,
+      precip_mm, apparent_temp_c, source: 'open_meteo' }
+  → UPDATE activities SET activity_weather = payload WHERE id = activityId
+```
+
+Open-Meteo Historical Weather API (free, no key): `https://archive-api.open-meteo.com/v1/archive`
+
+### Performance Model State Design (Phase 4)
+
+Following `sleep-correlations.js` pattern (Pearson r, quartile analysis, confounder stratification):
+
+```
+api/_lib/performance-models.js
+
+Models computed on-demand from paired data:
+
+1. Heat Model: activity pairs (temp, EF, hr_drift, decoupling)
+   → breakpoint_temp, penalty_per_degree, confidence, n_activities
+
+2. Sleep Model: extends sleep-correlations with interval execution quality
+   → sleep_hours → EF deviation, execution_score, fade_risk
+
+3. HRV Readiness Model: (hrv, EF, execution_score, rpe_power_ratio)
+   → hrv_threshold_low, performance_decline_below_threshold
+
+4. Fueling Model: (carb_g_per_hr, durability_index, late_ride_fade)
+   → optimal_carb_rate, fueling_impact_on_durability
+
+5. Durability Model: (kj_per_kg, power_quality_decay_rate)
+   → durability_curve, comparison_fresh_vs_fatigued
+```
+
+### New Files (by Phase)
+
+| Phase | File | Purpose |
+|-------|------|---------|
+| 1 | `api/_lib/intervals.js` | Interval extraction + per-interval metrics computation |
+| 1 | `api/activities/backfill-intervals.js` | POST endpoint to reprocess existing activities |
+| 2 | `api/_lib/tags.js` | Canonical tag dictionary + detection engine |
+| 2 | `api/_lib/weather-enrich.js` | Per-activity weather via Open-Meteo historical API |
+| 2 | `api/activities/search.js` | Tag-based search endpoint |
+| 2 | `api/tags/dictionary.js` | Returns tag dictionary for frontend |
+| 3 | `api/_lib/planned-vs-actual.js` | Match training_calendar to completed activities |
+| 3 | `api/_lib/interval-insights.js` | Deterministic insight generation for intervals |
+| 4 | `api/_lib/performance-models.js` | Conditional performance models (heat, sleep, HRV, fuel) |
+| 4 | `api/models/summary.js` | GET endpoint returning all model summaries |
+| 5 | `api/activities/query.js` | Advanced tag-based search with grouping |
+| 5 | `api/activities/smart-chips.js` | AI-suggested query chips from tag co-occurrences |
+| 5 | `src/pages/WorkoutDatabase.jsx` | Searchable workout database page |

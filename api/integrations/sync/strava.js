@@ -8,6 +8,9 @@ import { sendWorkoutSMS } from "../../sms/send.js";
 import { sendWorkoutEmail } from "../../email/send.js";
 import { isHigherPriority, findCrossSourceDuplicate } from "../../_lib/source-priority.js";
 import { backfillUserMetrics } from "../../_lib/backfill.js";
+import { buildLapsPayload } from "../../_lib/intervals.js";
+import { detectAllTags, persistTags } from "../../_lib/tags.js";
+import { fetchActivityWeather, extractLocationFromActivity } from "../../_lib/weather-enrich.js";
 
 /**
  * Sync a single Strava activity by ID.
@@ -57,6 +60,16 @@ export async function syncStravaActivity(userId, stravaActivityId, options = {})
     ? computeActivityMetrics(streams, activity.elapsed_time, ftp)
     : {};
 
+  // Extract intervals from power streams (Strava doesn't provide FIT laps)
+  let lapsPayload = null;
+  if (streams.watts && ftp) {
+    try {
+      lapsPayload = buildLapsPayload(streams, ftp);
+    } catch (err) {
+      console.error(`Interval extraction failed for Strava ${stravaActivityId}:`, err.message);
+    }
+  }
+
   // Build activity record
   const record = {
     user_id: userId,
@@ -89,6 +102,7 @@ export async function syncStravaActivity(userId, stravaActivityId, options = {})
     temperature_celsius: activity.average_temp ?? null,
     zone_distribution: metrics.zone_distribution ?? null,
     power_curve: metrics.power_curve ?? null,
+    laps: lapsPayload,
     source_data: activity,
   };
 
@@ -143,6 +157,32 @@ export async function syncStravaActivity(userId, stravaActivityId, options = {})
   // Check for power profile personal bests
   if (metrics.power_curve) {
     await updatePowerProfile(userId, metrics.power_curve, profile?.weight_kg);
+  }
+
+  // Weather enrichment + tagging (fire-and-forget, non-blocking)
+  if (upserted?.id) {
+    (async () => {
+      try {
+        // Enrich with weather
+        const location = extractLocationFromActivity(record);
+        if (location) {
+          const weather = await fetchActivityWeather(record.started_at, location.lat, location.lng);
+          if (weather) {
+            await supabaseAdmin.from("activities").update({ activity_weather: weather }).eq("id", upserted.id);
+            record.activity_weather = weather;
+          }
+        }
+
+        // Detect and persist tags
+        const activityWithLaps = { ...record, id: upserted.id };
+        const tags = detectAllTags(activityWithLaps, null, record.activity_weather, ftp);
+        if (tags.length > 0) {
+          await persistTags(supabaseAdmin, upserted.id, userId, tags);
+        }
+      } catch (err) {
+        console.error(`Weather/tag enrichment failed for ${upserted.id}:`, err.message);
+      }
+    })();
   }
 
   // For real-time events (webhook): analyze + notify immediately

@@ -7,7 +7,7 @@ This is the living catalog of every AI-powered feature in AIM. It documents both
 ### Document Structure
 
 1. **Part 1: Active AI Prompts** — Every system prompt currently deployed, organized by feature
-2. **Part 2: Insight Categories** — The 15-category catalog of cross-domain insight patterns
+2. **Part 2: Insight Categories** — The 22-category catalog of cross-domain insight patterns (15 original + 7 structured workout categories)
 3. **Part 3: Quality Standards** — Rules, confidence levels, and the no-medical-advice policy
 
 ---
@@ -944,6 +944,208 @@ The 15-category catalog below defines what patterns AIM looks for in athlete dat
 ### 15A. ACWR Monitoring (flag if > 1.5)
 ### 15B. Rapid Load Increases After Rest
 ### 15C. Biomechanical Warning Signs
+
+---
+
+## CATEGORY 16: Interval Execution Coaching
+
+**Required sources:** Power streams with lap/interval structure + FTP
+**When to run:** Post-activity (any session with detected intervals)
+**Phase:** Phase 1+3 of Structured Workouts Engine
+
+### 16A. Per-Rep Execution Quality
+**What to look for:** Smoothness (coefficient of variation), time-in-band (% within ±2/5/10% of target), micro-surges
+**Example insights:**
+- "Your 5×3m VO2 set was inconsistent early (CV 9%), then stabilized (CV 4%). Strong finish."
+- "You held 92–97% of target on reps 2–4. Rep 1 was +6% overcooked — you paid for it on rep 5."
+
+### 16B. Fade Detection
+**What to look for:** Power/pace slope across interval thirds, end_strength (last 20% vs first 20%)
+**Example insights:**
+- "Power faded 4.2% across reps — cadence decayed by 12 rpm even though you tried to hold power, suggesting muscular fatigue."
+
+### 16C. Cadence Decay Under Fatigue
+**What to look for:** Cadence drift within and across intervals, cadence collapse detection
+**Example insights:**
+- "Cadence dropped from 95→83 rpm across 6 reps while power held — this often precedes a fade. Consider gearing down."
+
+### 16D. HR Response & Coupling
+**What to look for:** HR rise slope per interval, peak HR trends, HR-power coupling across set
+**Example insights:**
+- "HR took 45s to reach steady state in rep 1 but only 20s by rep 3 — normal warmup effect. Recovery HR between reps was consistent."
+
+### 16E. Pacing Recommendations
+**What to look for:** First-rep overcooking, negative splits, consistency patterns
+**Recommended actions:** Pacing target adjustment, gearing, cadence target, recovery length, fueling timing
+
+**Confidence:** High (deterministic metrics from power/HR streams)
+
+---
+
+## CATEGORY 17: Durability / Fatigue Resistance
+
+**Required sources:** Power streams + kJ accumulation + optionally nutrition logs
+**When to run:** Post-activity (rides > 90 min or > 1500 kJ)
+**Phase:** Phase 4 of Structured Workouts Engine
+
+### 17A. Power After Work Threshold
+**What to look for:** 5-min and 20-min power quality after X kJ/kg of accumulated work
+**Example insights:**
+- "Your 5-min power after 25 kJ/kg is 90% of fresh. This improves to 95% when carbs ≥80 g/hr."
+
+### 17B. Durability Index
+**What to look for:** Last-third power / first-third power at matched RPE or HR
+**Example insights:**
+- "You're durable in cool temps (durability index 0.94) but fade earlier in heat (0.82 above 30°C)."
+
+### 17C. Fueling × Durability Interaction
+**What to look for:** Late-ride power quality correlated with fueling rate
+**Example insights:**
+- "Rides with >70g/hr carbs show 8% better late-ride power. Consider experiment: 90g/hr for 3 sessions."
+
+**Confidence:** Medium-High (requires 10+ long rides to build model)
+
+---
+
+## CATEGORY 18: Fueling Causality
+
+**Required sources:** Nutrition logs + power streams + HR drift
+**When to run:** Post-activity + weekly summary
+**Phase:** Phase 4 of Structured Workouts Engine
+
+### 18A. Carb Timing → Decoupling
+**What to look for:** When fueling starts relative to ride start vs late-ride HR drift
+**Example insights:**
+- "When carbs start after 40 min, late-ride decoupling spikes by 3.2% on average."
+
+### 18B. Under-Fueling Detection
+**What to look for:** Cadence collapse, perceived effort divergence, power fade correlated with low intake
+**Example insights:**
+- "Under-fueled sessions (<40 g/hr) correlate with cadence collapse after 2 hours and higher perceived effort."
+
+### 18C. Fueling Experiments
+**Recommended actions:** "Try 90 g/hr for 3 sessions and re-check your durability model."
+
+**Confidence:** Medium (correlation ≠ causation — always flag this to athlete)
+
+---
+
+## CATEGORY 19: Readiness-to-Response
+
+**Required sources:** HRV/RHR (Oura/Whoop/Eight Sleep) + power/HR streams + sleep data
+**When to run:** Post-activity + daily coaching
+**Phase:** Phase 4 of Structured Workouts Engine
+
+### 19A. Physiology Cost Analysis
+**What to look for:** EF (efficiency factor) deviation from baseline at matched power
+**Example insights:**
+- "Today your physiology cost was higher than normal: EF down 6% vs baseline at same power. Likely related to 38ms HRV (bottom quartile) and 5.8 hrs sleep."
+
+### 19B. Recovery State × Performance
+**What to look for:** Tie performance deviations to sleep debt, HRV suppression, stress, travel, heat
+**Example insights:**
+- "Your last 3 rides with HRV <45ms showed EF 8% below baseline. On high-HRV days (>65ms), your threshold execution consistency is 12% better."
+
+**Confidence:** Medium-High (improves with data density; requires 30+ rides paired with HRV/sleep)
+
+---
+
+## CATEGORY 20: Workout Type Progression
+
+**Required sources:** Tagged activities over 6+ weeks + interval metrics
+**When to run:** Weekly summary, block review
+**Phase:** Phase 4 of Structured Workouts Engine
+
+### 20A. Interval Quality Trends
+**What to look for:** Smoothness and repeatability trends within a workout type over weeks
+**Example insights:**
+- "Last 6 weeks: VO2 sessions are improving in smoothness (CV 8.2% → 5.1%) and repeatability."
+
+### 20B. Volume & Drift Trends
+**What to look for:** Increasing duration of specific workout types vs drift/fade trends
+**Example insights:**
+- "Low-cadence work is trending up in duration (+15 min/week) but HR drift is increasing — may need deload."
+
+### 20C. Block-Level Summary
+**What to look for:** Aggregate stats per training block (base, build, peak, taper)
+**Example insights:**
+- "This 4-week build block: 14 interval sessions, avg execution score 78/100 (up from 71 in prior block)."
+
+**Confidence:** High (deterministic trend analysis from tagged data)
+
+---
+
+## CATEGORY 21: Anomaly Detection
+
+**Required sources:** 30+ days of activities + daily context (weather, sleep, HRV)
+**When to run:** Post-activity (trigger when session is "weird" vs similar sessions)
+**Phase:** Phase 4 of Structured Workouts Engine
+
+### 21A. Unexplained Performance Shifts
+**What to look for:** Sessions where output matches history but physiological cost diverges
+**Example insights:**
+- "Same Z2 power as last week but HR +8 bpm. Likely heat (+6°C warmer) + poor sleep (5.2 hrs vs 7.1 avg)."
+
+### 21B. Comparable Session Analysis
+**What to look for:** Find 3-5 most similar sessions and highlight what's different
+**Example insights:**
+- "Compared to your 4 similar threshold sessions: today's HR was 5 bpm higher, but cadence and power were normal. Temperature was 8°C warmer."
+
+### 21C. Positive Anomalies
+**What to look for:** Unusually good sessions — what conditions enabled them
+**Example insights:**
+- "This was your best threshold execution in 8 weeks. Shared conditions with your top 3: HRV >60, sleep >7hrs, temp 15-20°C."
+
+**Confidence:** Medium (requires sufficient comparable data; always show evidence)
+
+---
+
+## CATEGORY 22: Race-Specific Analysis
+
+**Required sources:** Power/HR/GPS streams from race-tagged activities
+**When to run:** Post-race (when activity_type = race)
+**Phase:** Phase 3 of Structured Workouts Engine
+
+### 22A. Race Power Profile
+**What to look for:** Time above FTP, surge count and distribution, fatigue moments, decision points
+**Example insights:**
+- "Road race: 47 surges above 120% FTP, averaging 12s each. You spent 8:20 above threshold. Longest sustained effort: 3:40 at 108% FTP on the final climb."
+
+### 22B. Pacing Strategy Analysis
+**What to look for:** For TT: pacing consistency, split analysis. For road race: surge distribution and recovery.
+**Example insights:**
+- "TT pacing: first quarter was 4% above target, costing ~8W in the final quarter. Negative-split strategy would save ~12s."
+
+### 22C. Tactical Decision Points
+**What to look for:** Key moments where power spikes, matched with grade/location context
+**Example insights:**
+- "The decisive move came at 82 min (2.1 km from summit). You held 340W for 90s while the field faded — this was your race-winning surge."
+
+**Confidence:** High (deterministic analysis of race file data)
+
+---
+
+## Enhanced Insight Output Format (v2)
+
+For all insights starting with Phase 3+, AI should return this enriched format:
+
+```json
+{
+  "headline": "Short, punchy finding",
+  "why_it_matters": "What this means for the athlete's training/racing",
+  "evidence": {
+    "numbers": ["NP 285W", "HR drift 8.1%", "temp 32°C"],
+    "comparisons": ["vs 3.2% drift at 22°C last Tuesday"],
+    "similar_sessions": ["activity_id_1", "activity_id_2"]
+  },
+  "confidence": 0.85,
+  "recommended_action": "Consider reducing target by 3-5% when temp exceeds 30°C",
+  "suggested_queries": [
+    "Compare my threshold sessions in heat vs cool",
+    "Show my heat penalty curve"
+  ]
+}
+```
 
 ---
 

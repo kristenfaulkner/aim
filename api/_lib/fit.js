@@ -75,6 +75,7 @@ export function parseFitFile(buffer, filename = "unknown.fit") {
   const activity = fitData.activity || {};
   const deviceInfo = fitData.device_infos?.[0] || {};
   const records = fitData.records || [];
+  const fitLaps = fitData.laps || [];
 
   if (records.length === 0) {
     throw new Error("FIT file contains no records");
@@ -228,5 +229,5 @@ export function parseFitFile(buffer, filename = "unknown.fit") {
     left_right_balance: { data: lrBalance },
   };
 
-  return { metadata, streams, lrBalance: lrBalanceSummary };
+  return { metadata, streams, lrBalance: lrBalanceSummary, fitLaps: fitLaps.length > 0 ? fitLaps : null };
 }

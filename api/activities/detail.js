@@ -28,5 +28,14 @@ export default async function handler(req, res) {
     return res.status(404).json({ error: "Activity not found", detail: error.message });
   }
 
+  // Fetch activity tags (from separate table)
+  const { data: tags } = await supabaseAdmin
+    .from("activity_tags")
+    .select("tag_id, scope, confidence, interval_index")
+    .eq("activity_id", id)
+    .eq("user_id", session.userId);
+
+  data.activity_tags = tags || [];
+
   return res.status(200).json(data);
 }

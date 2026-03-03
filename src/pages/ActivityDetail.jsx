@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { T, font, mono } from "../theme/tokens";
 import { btn, inputStyle } from "../theme/styles";
-import { ArrowLeft, Clock, Zap, Heart, Mountain, Gauge, Activity, TrendingUp, Flame, RefreshCw, Brain, ChevronRight, Star, X, Check, Send, Menu, Settings, User, LogOut } from "lucide-react";
+import { ArrowLeft, Clock, Zap, Heart, Mountain, Gauge, Activity, TrendingUp, Flame, RefreshCw, Brain, ChevronRight, Star, X, Check, Send, Menu, Settings, User, LogOut, Wind, Thermometer, Droplets, Tag } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 import { useResponsive } from "../hooks/useResponsive";
@@ -63,6 +63,274 @@ function ZoneBar({ zones, ftp, isMobile }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// Tag label lookup (matches api/_lib/tags.js)
+const TAG_LABELS = {
+  race_day: "Race Day", group_ride: "Group Ride", indoor_trainer: "Indoor",
+  endurance_steady: "Endurance", tempo_ride: "Tempo", sweet_spot_session: "Sweet Spot",
+  threshold_session: "Threshold", vo2_session: "VO2max", anaerobic_session: "Anaerobic",
+  neuromuscular_session: "Neuromuscular", climbing_focus: "Climbing", rolling_surge_ride: "Rolling/Surges",
+  hot_conditions: "Hot", cold_conditions: "Cold", high_wind_conditions: "Windy",
+  high_drift: "High Drift", low_hrv_day: "Low HRV", poor_sleep_day: "Poor Sleep",
+  data_quality_issue: "Data Quality", low_cadence_interval: "Low Cadence", high_cadence_interval: "High Cadence",
+  vo2_interval: "VO2", threshold_interval: "Threshold", sweet_spot_interval: "Sweet Spot",
+  anaerobic_interval: "Anaerobic", sprint_interval: "Sprint", overcooked_start: "Overcooked",
+  power_fade: "Faded", strong_finish: "Strong Finish", inconsistent_power: "Inconsistent",
+  cadence_decay: "Cadence Decay", cadence_collapse: "Cadence Collapse", hr_lag_slow: "Slow HR Rise",
+};
+
+const TAG_CATEGORY_COLORS = {
+  type: "#3b82f6", energy_system: T.accent, terrain: "#8b5cf6",
+  environment: "#f59e0b", physiology: "#ef4444", readiness: "#f97316", meta: T.textDim,
+};
+
+function TagPills({ tags }) {
+  if (!tags || tags.length === 0) return null;
+  // Only show workout-level tags
+  const workoutTags = tags.filter(t => t.scope === "workout");
+  if (workoutTags.length === 0) return null;
+
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
+      {workoutTags.map((tag, i) => {
+        const label = TAG_LABELS[tag.tag_id] || tag.tag_id.replace(/_/g, " ");
+        return (
+          <span key={i} style={{
+            fontSize: 10, fontWeight: 600, padding: "3px 10px",
+            borderRadius: 20, background: `${T.accent}12`, color: T.accent,
+            border: `1px solid ${T.accent}25`, letterSpacing: "0.02em",
+          }}>
+            {label}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+function WeatherCard({ weather }) {
+  if (!weather) return null;
+
+  return (
+    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "16px 20px" }}>
+      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+        <Thermometer size={14} style={{ color: "#f59e0b" }} /> Conditions
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
+        {weather.temp_c != null && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <Thermometer size={13} style={{ color: T.textDim }} />
+            <span style={{ fontFamily: mono, fontSize: 14, fontWeight: 700 }}>{Math.round(weather.temp_c)}°C</span>
+            {weather.apparent_temp_c != null && weather.apparent_temp_c !== weather.temp_c && (
+              <span style={{ fontSize: 11, color: T.textDim }}>(feels {Math.round(weather.apparent_temp_c)}°)</span>
+            )}
+          </div>
+        )}
+        {weather.humidity_pct != null && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <Droplets size={13} style={{ color: "#3b82f6" }} />
+            <span style={{ fontFamily: mono, fontSize: 14, fontWeight: 600 }}>{Math.round(weather.humidity_pct)}%</span>
+          </div>
+        )}
+        {weather.wind_speed_mps != null && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <Wind size={13} style={{ color: T.textDim }} />
+            <span style={{ fontFamily: mono, fontSize: 14, fontWeight: 600 }}>{Math.round(weather.wind_speed_mps * 3.6)} km/h</span>
+          </div>
+        )}
+        {weather.dew_point_c != null && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 11, color: T.textDim }}>Dew pt</span>
+            <span style={{ fontFamily: mono, fontSize: 14, fontWeight: 600 }}>{Math.round(weather.dew_point_c)}°C</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function IntervalsTable({ laps, isMobile }) {
+  if (!laps?.intervals?.length) return null;
+
+  const workIntervals = laps.intervals.filter(i => i.type === "work");
+  const hasExecution = workIntervals.some(i => i.execution);
+
+  const executionLabelColors = {
+    met: T.accent,
+    strong_finish: "#22c55e",
+    negative_split: "#22c55e",
+    slightly_high: "#eab308",
+    slightly_low: "#eab308",
+    faded: "#f97316",
+    overcooked: "#ef4444",
+    inconsistent: "#f97316",
+    unknown: T.textDim,
+  };
+
+  const executionLabelText = {
+    met: "Met Target",
+    strong_finish: "Strong Finish",
+    negative_split: "Neg Split",
+    slightly_high: "Slightly High",
+    slightly_low: "Slightly Low",
+    faded: "Faded",
+    overcooked: "Overcooked",
+    inconsistent: "Inconsistent",
+    unknown: "—",
+  };
+
+  const typeColors = {
+    warmup: "#3b82f6",
+    work: T.accent,
+    rest: T.textDim,
+    cooldown: "#8b5cf6",
+    unknown: T.textDim,
+  };
+
+  return (
+    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <div style={{ fontSize: 13, fontWeight: 700 }}>Intervals</div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <span style={{ fontSize: 11, color: T.textDim }}>
+            {workIntervals.length} work interval{workIntervals.length !== 1 ? "s" : ""}
+          </span>
+          <span style={{
+            fontSize: 10, fontWeight: 600, padding: "2px 8px",
+            borderRadius: 6, background: `${T.accent}15`, color: T.accent
+          }}>
+            {laps.source === "fit_laps" ? "FIT Laps" : "Auto-detected"}
+          </span>
+        </div>
+      </div>
+
+      {/* Set-level summary */}
+      {laps.set_metrics && (
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)",
+          gap: 10, marginBottom: 16, padding: "12px 14px",
+          background: T.surface, borderRadius: 10
+        }}>
+          {laps.set_metrics.avg_work_power_w && (
+            <div>
+              <div style={{ fontSize: 10, color: T.textDim, fontWeight: 600, textTransform: "uppercase" }}>Avg Power</div>
+              <div style={{ fontFamily: mono, fontSize: 16, fontWeight: 700, color: T.accent }}>{laps.set_metrics.avg_work_power_w}W</div>
+            </div>
+          )}
+          {laps.set_metrics.power_consistency_cv != null && (
+            <div>
+              <div style={{ fontSize: 10, color: T.textDim, fontWeight: 600, textTransform: "uppercase" }}>Consistency</div>
+              <div style={{ fontFamily: mono, fontSize: 16, fontWeight: 700 }}>CV {(laps.set_metrics.power_consistency_cv * 100).toFixed(1)}%</div>
+            </div>
+          )}
+          {laps.set_metrics.durability_index != null && (
+            <div>
+              <div style={{ fontSize: 10, color: T.textDim, fontWeight: 600, textTransform: "uppercase" }}>Durability</div>
+              <div style={{ fontFamily: mono, fontSize: 16, fontWeight: 700, color: laps.set_metrics.durability_index >= 0.95 ? T.accent : T.warn }}>
+                {(laps.set_metrics.durability_index * 100).toFixed(0)}%
+              </div>
+            </div>
+          )}
+          {laps.set_metrics.total_work_kj > 0 && (
+            <div>
+              <div style={{ fontSize: 10, color: T.textDim, fontWeight: 600, textTransform: "uppercase" }}>Total Work</div>
+              <div style={{ fontFamily: mono, fontSize: 16, fontWeight: 700 }}>{laps.set_metrics.total_work_kj} kJ</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Intervals table */}
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <thead>
+            <tr style={{ borderBottom: `1px solid ${T.border}` }}>
+              <th style={{ textAlign: "left", padding: "8px 6px", color: T.textDim, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>#</th>
+              <th style={{ textAlign: "left", padding: "8px 6px", color: T.textDim, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>Type</th>
+              <th style={{ textAlign: "right", padding: "8px 6px", color: T.textDim, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>Duration</th>
+              <th style={{ textAlign: "right", padding: "8px 6px", color: T.textDim, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>Avg W</th>
+              {!isMobile && <th style={{ textAlign: "right", padding: "8px 6px", color: T.textDim, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>NP</th>}
+              <th style={{ textAlign: "right", padding: "8px 6px", color: T.textDim, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>Avg HR</th>
+              {!isMobile && <th style={{ textAlign: "right", padding: "8px 6px", color: T.textDim, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>Cadence</th>}
+              {hasExecution && !isMobile && <th style={{ textAlign: "right", padding: "8px 6px", color: T.textDim, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>Execution</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {laps.intervals.map((interval, i) => {
+              const label = interval.execution?.execution_label;
+              return (
+                <tr key={i} style={{ borderBottom: `1px solid ${T.border}08` }}>
+                  <td style={{ padding: "8px 6px", fontFamily: mono, color: T.textDim }}>{i + 1}</td>
+                  <td style={{ padding: "8px 6px" }}>
+                    <span style={{
+                      fontSize: 10, fontWeight: 600, padding: "2px 6px",
+                      borderRadius: 4, background: `${typeColors[interval.type] || T.textDim}15`,
+                      color: typeColors[interval.type] || T.textDim, textTransform: "capitalize"
+                    }}>
+                      {interval.type}
+                    </span>
+                  </td>
+                  <td style={{ padding: "8px 6px", textAlign: "right", fontFamily: mono }}>
+                    {formatDuration(interval.duration_s)}
+                  </td>
+                  <td style={{ padding: "8px 6px", textAlign: "right", fontFamily: mono, fontWeight: 600, color: interval.type === "work" ? T.accent : T.textSoft }}>
+                    {interval.avg_power_w || "—"}
+                  </td>
+                  {!isMobile && (
+                    <td style={{ padding: "8px 6px", textAlign: "right", fontFamily: mono, color: T.textSoft }}>
+                      {interval.normalized_power_w || "—"}
+                    </td>
+                  )}
+                  <td style={{ padding: "8px 6px", textAlign: "right", fontFamily: mono, color: interval.avg_hr_bpm ? T.danger : T.textDim }}>
+                    {interval.avg_hr_bpm || "—"}
+                  </td>
+                  {!isMobile && (
+                    <td style={{ padding: "8px 6px", textAlign: "right", fontFamily: mono, color: T.textSoft }}>
+                      {interval.avg_cadence_rpm || "—"}
+                    </td>
+                  )}
+                  {hasExecution && !isMobile && (
+                    <td style={{ padding: "8px 6px", textAlign: "right" }}>
+                      {label ? (
+                        <span style={{
+                          fontSize: 10, fontWeight: 600, padding: "2px 8px",
+                          borderRadius: 4, background: `${executionLabelColors[label] || T.textDim}15`,
+                          color: executionLabelColors[label] || T.textDim,
+                        }}>
+                          {executionLabelText[label] || label}
+                        </span>
+                      ) : "—"}
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Execution detail for mobile (below table) */}
+      {hasExecution && isMobile && (
+        <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {workIntervals.map((interval, i) => {
+            const label = interval.execution?.execution_label;
+            if (!label) return null;
+            return (
+              <span key={i} style={{
+                fontSize: 10, fontWeight: 600, padding: "3px 8px",
+                borderRadius: 4, background: `${executionLabelColors[label] || T.textDim}15`,
+                color: executionLabelColors[label] || T.textDim,
+              }}>
+                Rep {i + 1}: {executionLabelText[label] || label}
+              </span>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -835,6 +1103,7 @@ export default function ActivityDetail() {
           <h1 style={{ fontSize: isMobile ? 22 : 32, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 6px" }}>{a.name || "Untitled Activity"}</h1>
           <p style={{ fontSize: 14, color: T.textDim, margin: 0 }}>{formattedDate} at {formattedTime}</p>
           {a.description && <p style={{ fontSize: 14, color: T.textSoft, margin: "8px 0 0", lineHeight: 1.5 }}>{a.description}</p>}
+          <TagPills tags={a.activity_tags} />
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1.5fr 1fr" : "1fr 1fr", gap: isMobile ? 24 : isTablet ? 24 : 32 }}>
@@ -896,6 +1165,12 @@ export default function ActivityDetail() {
               {a.calories && <MetricCard icon={<Flame size={14} />} label="Calories" value={a.calories} unit="kcal" />}
               {a.hr_drift_pct != null && <MetricCard icon={<TrendingUp size={14} />} label="HR Drift" value={`${a.hr_drift_pct}%`} color={Math.abs(a.hr_drift_pct) > 5 ? T.warn : T.accent} />}
             </div>
+
+            {/* Weather conditions */}
+            <WeatherCard weather={a.activity_weather} />
+
+            {/* Intervals */}
+            <IntervalsTable laps={a.laps} isMobile={isMobile} />
 
             {/* Zone distribution */}
             <ZoneBar zones={a.zone_distribution} isMobile={isMobile} />

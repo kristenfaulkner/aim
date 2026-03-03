@@ -53,7 +53,10 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
   - `metrics.js` — Coggan power/HR metrics computation
   - `training-load.js` — CTL/ATL/TSB calculation and power profile updates
   - `source-priority.js` — cross-source deduplication (device > TrainingPeaks > Strava)
-  - `fit.js` — FIT binary file parser for Garmin/Wahoo workout files
+  - `fit.js` — FIT binary file parser for Garmin/Wahoo workout files (returns fitLaps for interval extraction)
+  - `intervals.js` — Interval extraction from FIT laps + power stream detection, per-interval metrics + execution quality scoring
+  - `tags.js` — Canonical tag dictionary (22 workout + 14 interval tags) + detection engine, cross-activity search
+  - `weather-enrich.js` — Per-activity weather enrichment via Open-Meteo historical API
   - `strava.js` — Strava API client with token refresh
   - `eightsleep.js` — Eight Sleep API client (credential auth, trends API, extended metrics extraction, encrypted credential decryption)
   - `twilio.js` — Twilio SMS client (send, webhook verification, TwiML response)
@@ -68,7 +71,8 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 - `integrations/import/` — file-based imports (TrainingPeaks ZIP/CSV, ZIP optional for CSV-only enrichment)
 - `cron/sync-eightsleep.js` — hourly Vercel Cron syncs last 2 days of Eight Sleep data; skips users synced in last 6 hours
 - `webhooks/` — inbound webhooks (strava activity events, wahoo workout summaries)
-- `activities/` — list, detail, annotate, analyze endpoints
+- `activities/` — list, detail (includes activity_tags), annotate, analyze, search (tag-based), backfill-intervals, backfill-metrics endpoints
+- `tags/` — tag dictionary endpoint
 - `health/` — blood panel upload (Claude AI extraction from PDF/image), DEXA scan upload (Claude AI extraction of body composition/regional data), and panel management
 - `sleep/summary.js` — Claude-powered morning readiness assessment
 - `chat/ask.js` — AI coach conversation endpoint with full athlete context
@@ -159,8 +163,12 @@ Core tables (13): `profiles`, `integrations`, `activities`, `daily_metrics`, `po
 - `nutrition_logs` — per-activity fueling with items/totals/per_hour JSONB, linked to `activities` via `activity_id` FK
 - `profiles` location columns: `location_lat`, `location_lng` (for weather)
 - `daily_metrics.weather_data` JSONB column (cached Open-Meteo data)
+- `activity_tags` — canonical tags for cross-activity search (tag_id, scope, confidence, evidence JSONB, interval_index), RLS enabled
+- `activities.activity_weather` JSONB column — per-activity weather from Open-Meteo historical API
+- `activities.laps` JSONB column — structured interval data with per-interval metrics + execution quality
+- `activities.user_notes`, `user_rating`, `user_rpe`, `user_tags` — activity annotation columns
 - Storage buckets: `health-files` (blood panels, DEXA PDFs), `import-files` (TrainingPeaks uploads)
-- Full schema: `/supabase/migrations/001_initial_schema.sql`; storage bucket: `/supabase/migrations/004_add_import_files_bucket.sql`; consent columns: `/supabase/migrations/005_add_consent_columns.sql`; dashboard v2 tables: `/supabase/migrations/006_dashboard_v2_tables.sql`
+- Full schema: `/supabase/migrations/001_initial_schema.sql`; storage bucket: `/supabase/migrations/004_add_import_files_bucket.sql`; consent columns: `/supabase/migrations/005_add_consent_columns.sql`; dashboard v2 tables: `/supabase/migrations/006_dashboard_v2_tables.sql`; structured workouts: `/supabase/migrations/008_structured_workouts.sql`
 
 ### Deployment
 
@@ -339,6 +347,7 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 - **Nutrition Logger** — 5-stage conversational modal (input → followup → summary → confirmed), Claude-powered free-text parsing (`/api/nutrition/parse`), per-hour carbs badge, confirmation save to `nutrition_logs` table, triggered from ActionItems
 - **Training Calendar API** — planned workout CRUD (`/api/calendar/*`) for `training_calendar` table
 - **Adaptive Dashboard Intelligence** — 3-mode AI endpoint (`/api/dashboard/intelligence`): POST_RIDE, PRE_RIDE_PLANNED, DAILY_COACH modes with structured action items
+- **Structured Workouts Engine (Phase 1+2)** — Interval extraction from FIT laps + power stream detection, per-interval metrics (NP, IF, HR, cadence, zones, work kJ), execution quality scoring (smoothness CV, fade score, cadence drift, HR rise slope, execution labels), canonical tagging engine (22 workout + 14 interval tags with confidence + evidence), per-activity weather enrichment (Open-Meteo historical API), tag-based search endpoint, intervals table + tag pills + weather card on ActivityDetail, migration 008 (activity_tags table, activity_weather/annotation columns)
 
 ### Remaining — Prioritized Feature Backlog
 
@@ -348,14 +357,14 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 1. **Critical Power (CP) & W' Modeling** — replace FTP with 3D power model (CP/W'/Pmax), auto-updated from best efforts, cross-referenced with recovery/sleep/body comp. *[Task 40 in technical-architecture.md]*
 2. **Adaptive Training Zones** — dynamic zones from CP model that auto-adjust as fitness evolves + readiness-adjusted zone targets on red recovery days. *[Task 41]*
 3. **Durability & Fatigue Resistance Tracking** — peak power at progressive fatigue levels (kJ/kg buckets), durability score, trends over time, race-specific predictions. *[Task 42]*
-4. **Automatic Interval Detection & Classification** — auto-detect intervals from power stream, classify by intensity type (VO2max/threshold/tempo/etc.), per-interval metrics. *[Task 43]*
+4. ~~**Automatic Interval Detection & Classification**~~ — ✅ DONE (Phase 1 of Structured Workouts Engine)
 
 #### P1 — Enhanced Analysis (high-value features that build on P0)
-5. **Automatic Session Classification** — auto-tag rides as race/endurance/threshold/VO2max/etc. from power patterns, training type distribution charts. *[Task 44]*
-6. **AI Session Summaries with Interval Breakdown** — enhance post-ride AI with structured interval intelligence + cross-domain context (sleep/recovery impact on interval quality). *[Task 46]*
+5. ~~**Automatic Session Classification**~~ — ✅ DONE (Phase 2 canonical tagging: 22 workout + 14 interval tags)
+6. **AI Session Summaries with Interval Breakdown** — enhance post-ride AI with structured interval intelligence + cross-domain context (sleep/recovery impact on interval quality). *[Phase 3 of Structured Workouts Engine]*
 7. **W' Balance Tracking** — real-time anaerobic reserve depletion/recovery throughout rides, "empty tank" flagging, race analysis. Requires CP model (P0). *[Task 49]*
 8. **Similar Session Finder & Comparison** — auto-find comparable past rides, side-by-side metrics, AI explains what changed using cross-domain data. *[Task 47]*
-9. **Cross-domain AI insights** — multi-source pattern detection beyond single-activity analysis
+9. **Cross-domain AI insights** — conditional performance models (heat, sleep, HRV, fueling). *[Phase 4 of Structured Workouts Engine]*
 10. **Training prescription engine** — workout recommendations from power profile gaps and CP/W' weaknesses
 
 #### P2 — Integrations & Data Sources
@@ -373,8 +382,11 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 #### P4 — Polish & Infrastructure
 19. **Onboarding improvements** — refine the onboarding flow for better first-time user experience, reduce friction, improve data connection guidance
 20. **Mascot design & integration** — create an AIM brand mascot, integrate into UI (loading states, empty states, onboarding, AI chat personality)
-21. **Activity annotation columns migration** — user_notes, user_rating, user_rpe, user_tags (SQL exists at `/sql/add_activity_annotations.sql`, not yet applied to production)
+21. ~~**Activity annotation columns migration**~~ — ✅ DONE (included in migration 008_structured_workouts.sql)
 22. **Twilio toll-free verification** — update opt-in proof URL to `https://aimfitness.ai` when approved
+23. **Structured Workouts Phase 3** — Interval execution coaching: planned vs actual comparison, per-interval AI insights
+24. **Structured Workouts Phase 4** — Conditional performance models: heat penalty, sleep→EF, HRV→readiness, fueling→durability
+25. **Structured Workouts Phase 5** — Searchable workout database: tag-based queries, smart chips, trend charts, comparison view
 23. **Apple OAuth** — configure in Apple Developer + Supabase when ready
 24. **Weekly digest emails** — automated weekly training summary via Resend
 25. **Community benchmarks** — anonymous percentile rankings against similar athletes
