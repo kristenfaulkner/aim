@@ -66,8 +66,8 @@ export default function SleepAIPanel({
     return null;
   }, [analysis]);
 
-  const insights = parsedAnalysis?.insights || null;
-  const summary = parsedAnalysis?.summary || null;
+  const insights = parsedAnalysis?.insights?.length ? parsedAnalysis.insights : null;
+  const summary = parsedAnalysis?.summary && parsedAnalysis.summary !== "undefined" ? parsedAnalysis.summary : null;
   const dataGaps = parsedAnalysis?.dataGaps || [];
   const insufficientData = parsedAnalysis?.insufficientData || false;
 

@@ -219,10 +219,12 @@ export default function Sleep() {
         const cached = localStorage.getItem("aim_sleep_analysis");
         if (cached) {
           const { analysis, timestamp } = JSON.parse(cached);
-          if (Date.now() - timestamp < 24 * 60 * 60 * 1000) {
+          if (analysis && analysis.summary !== "undefined" && Date.now() - timestamp < 24 * 60 * 60 * 1000) {
             setSleepAnalysis(analysis);
             setSleepAnalysisCachedAt(timestamp);
             return;
+          } else {
+            localStorage.removeItem("aim_sleep_analysis");
           }
         }
       } catch { /* ignore cache errors */ }
