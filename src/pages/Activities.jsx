@@ -441,7 +441,7 @@ export default function Workouts() {
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
         {/* Two-Column Layout */}
-        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 380px", gap: 20, alignItems: "start" }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 20, alignItems: "start" }}>
           {/* LEFT: Activity List */}
           <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: isMobile ? "none" : "calc(100vh - 140px)" }}>
             {/* Filters header */}
@@ -536,7 +536,7 @@ export default function Workouts() {
                       key={a.id}
                       activity={a}
                       isSelected={a.id === selectedActivityId}
-                      onSelect={setSelectedActivityId}
+                      onSelect={(id) => navigate(`/activity/${id}`)}
                       units={units}
                     />
                   ))}
@@ -592,33 +592,6 @@ export default function Workouts() {
             ? { display: "flex", flexDirection: "column", gap: 16 }
             : { position: "sticky", top: 72, display: "flex", flexDirection: "column", gap: 16, maxHeight: "calc(100vh - 92px)", overflow: "auto" }
           }>
-            {/* Selected activity header */}
-            {activity && (
-              <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: "14px 18px" }}>
-                <div style={{ fontSize: 10, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>
-                  {new Date(activity.started_at).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
-                </div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 6 }}>
-                  {activity.name || "Untitled Ride"}
-                </div>
-                <div style={{ display: "flex", gap: 12, fontSize: 11, color: T.textSoft, fontFamily: mono, flexWrap: "wrap" }}>
-                  {activity.duration_seconds > 0 && <span>{formatDuration(activity.duration_seconds)}</span>}
-                  {activity.distance_meters > 0 && <span>{formatDistance(activity.distance_meters, units)}</span>}
-                  {activity.avg_power_watts > 0 && <span>{Math.round(activity.avg_power_watts)}W avg</span>}
-                  {activity.tss > 0 && <span>{Math.round(activity.tss)} TSS</span>}
-                </div>
-                <button
-                  onClick={() => navigate(`/activity/${activity.id}`)}
-                  style={{
-                    background: "none", border: "none", padding: 0, marginTop: 8,
-                    fontSize: 11, fontWeight: 600, color: T.accent, cursor: "pointer", fontFamily: font,
-                  }}
-                >
-                  View Full Details {"\u2192"}
-                </button>
-              </div>
-            )}
-
             {/* AI Panel or empty state */}
             {activity ? (
               <AIPanel

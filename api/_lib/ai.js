@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { supabaseAdmin } from "./supabase.js";
 import { generateIntervalInsights, formatInsightsForAI } from "./interval-insights.js";
 import { getPlannedVsActual } from "./planned-vs-actual.js";
+import { matchActivitiesToContext, computeAllModels, formatModelsForAI } from "./performance-models.js";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -323,6 +324,71 @@ Example insights:
 
 When a planned workout exists:
 - "Planned: 4×8min at 95% FTP (285W). Actual: 4 reps averaging 291W (+2.1%). Execution score: 87/100 — slightly above target but consistent. Great session."
+
+### CATEGORY 17: Durability & Fatigue Resistance
+Required sources: Power data + duration + weight (for kJ/kg)
+
+When \`performanceModels.durability\` is present, reference the athlete's personal durability threshold and kJ/kg breakpoint. Look for:
+- The kJ/kg threshold where EF starts declining — warn if today's ride exceeds it
+- Compare today's durability index to their model's predicted value
+- Cross-reference with fueling: did under-fueling accelerate the fade?
+- Example: "At 25 kJ/kg today, you exceeded your personal durability threshold of 22 kJ/kg. Your model predicts EF drops 3% beyond this point — actual drop was 4.1%. Better fueling may help extend your ceiling."
+
+### CATEGORY 18: Fueling Causality
+Required sources: Nutrition logs + activity data
+
+When \`performanceModels.fueling\` is present, connect fueling choices to performance outcomes:
+- Compare today's carbs/hr to the model's optimal range
+- Flag under-fueling on long rides (>90 min with <40g/hr carbs)
+- Connect fueling to fade score, HR drift, and durability index
+- Example: "You averaged 32g/hr carbs today — your model shows rides with >60g/hr have 6% higher EF and 40% less power fade. Consider targeting 60-80g/hr on 3+ hour rides."
+
+### CATEGORY 19: Readiness-to-Response
+Required sources: HRV/sleep + activity EF data
+
+When \`performanceModels.hrvReadiness\` is present, compare today's readiness signals to the model's predictions:
+- Reference the athlete's personal HRV thresholds (red/yellow/green)
+- Compare actual EF to what the model predicted given today's HRV
+- Explain discrepancies (better or worse than predicted)
+- Example: "Your HRV was 42ms (your red zone: <48ms), but EF was actually normal. Your model predicts 6% lower EF in the red zone — you may have extra resilience at low HRV, or conditions were favorable (cool weather, well-rested legs with TSB +8)."
+
+### CATEGORY 20: Workout Type Progression
+Required sources: Activity tags + 30+ days of data
+
+When activity tags are available across multiple sessions, look for block-level progression:
+- Compare execution quality across tagged workout types over time (e.g., VO2 sessions getting more consistent)
+- Track interval power progression within a training block
+- Identify which workout types show the most improvement
+- Example: "Your last 4 VO2 sessions show improving consistency: CV went from 8.2% → 6.1% → 4.8% → 3.9%. Your threshold sessions are also trending up in power (+3% over 6 weeks)."
+
+### CATEGORY 21: Anomaly Detection
+Required sources: 30+ days of data for baselines
+
+When current activity metrics deviate significantly from personal baselines, investigate why:
+- Same power but HR +8bpm → check sleep, HRV, temp, hydration, altitude
+- Unusually high EF → tailwind? downhill? fresh legs? perfect conditions?
+- Power significantly below recent average → fatigue accumulation? illness? equipment?
+- Cross-reference with weather, sleep, HRV, training load to explain
+- Example: "Today's HR at 250W was 156bpm — 8bpm higher than your average at this power. Your heat model shows +3bpm from the 31°C temp, and your HRV was in the red zone, accounting for another ~4bpm. The remaining 1bpm is within normal variation."
+
+### CATEGORY 22: Race-Specific Analysis
+Required sources: Activity tagged as race_day or group_ride
+
+For race-day or group ride activities, provide tactical analysis:
+- Surge distribution (time above FTP, number and duration of surges)
+- Pacing strategy assessment (even, negative split, overcook-and-fade)
+- Critical moment identification (decisive moves, positioning errors)
+- Comparison to similar past races
+- Example: "You spent 12 minutes above FTP in 23 surges averaging 18 seconds each. Your best races show 8-10 longer surges — today's pattern suggests too many small accelerations. Consider being more selective about which moves to follow."
+
+## PERFORMANCE MODELS REFERENCE
+
+When \`performanceModels\` data is present, it contains pre-computed personal models with coefficients, breakpoints, and confidence levels. USE THESE — don't re-derive patterns from raw data. Reference specific model outputs like:
+- "Your heat model predicts 3.2% EF decline at 32°C; actual was 2.8%"
+- "Your personal durability threshold is 22 kJ/kg based on 45 rides"
+- "Your HRV readiness model shows green days have 8% higher EF than red days"
+
+These models gain accuracy with more data. When a model has "low" confidence, note this and suggest what data would improve it.
 
 ## DATA GAP AWARENESS
 
@@ -728,7 +794,7 @@ export async function buildAnalysisContext(userId, activityId) {
     integrationsResult,
     settingsResult,
     tagsResult,
-    plannedVsActualResult,
+    nutritionResult,
   ] = await Promise.allSettled([
     // Profile
     supabaseAdmin
@@ -802,8 +868,12 @@ export async function buildAnalysisContext(userId, activityId) {
       .select("tag_id, scope, confidence")
       .eq("activity_id", activityId),
 
-    // Placeholder — planned vs actual fetched after profile resolves
-    Promise.resolve({ data: null }),
+    // Nutrition logs (for fueling model)
+    supabaseAdmin
+      .from("nutrition_logs")
+      .select("activity_id, date, totals, per_hour")
+      .eq("user_id", userId)
+      .gte("date", new Date(Date.now() - 90 * 86400000).toISOString().split("T")[0]),
   ]);
 
   // Helper to safely extract data from Promise.allSettled results
@@ -831,6 +901,14 @@ export async function buildAnalysisContext(userId, activityId) {
   // Generate interval execution insights (deterministic, not AI)
   const intervalInsights = generateIntervalInsights(activity.laps, profile.ftp_watts);
   const intervalInsightsText = formatInsightsForAI(intervalInsights);
+
+  // Compute personal performance models from 90-day history
+  const nutritionLogs = getData(nutritionResult) || [];
+  const modelPairs = matchActivitiesToContext(
+    [activity, ...allActivities], dailyMetrics, nutritionLogs, profile.weight_kg
+  );
+  const performanceModels = computeAllModels(modelPairs);
+  const performanceModelsText = formatModelsForAI(performanceModels);
 
   // ── Compute historical summaries server-side ──
   const baselines = computeBaselines(dailyMetrics);
@@ -899,6 +977,10 @@ export async function buildAnalysisContext(userId, activityId) {
     intervalInsightsText: intervalInsightsText || undefined,
     plannedVsActual: plannedVsActual || undefined,
     activityWeather: activity.activity_weather || undefined,
+
+    // Layer 5: Personal performance models (pre-computed)
+    performanceModels: performanceModels || undefined,
+    performanceModelsText: performanceModelsText || undefined,
 
     // Metadata
     activeBoosters: settings?.active_boosters || [],

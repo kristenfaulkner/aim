@@ -1,6 +1,7 @@
 import { verifySession, cors } from "../_lib/auth.js";
 import { supabaseAdmin } from "../_lib/supabase.js";
 import Anthropic from "@anthropic-ai/sdk";
+import { matchActivitiesToContext, computeAllModels, formatModelsForAI } from "../_lib/performance-models.js";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -31,6 +32,7 @@ Rules:
 - actionItems timeframes: "right_now" (recovery window), "this_week" (training adjustments), "big_picture" (periodization/goals)
 - 3-5 insights, each connecting 2+ data points
 - Be encouraging but honest
+- When performanceModels data is present, reference specific model predictions (e.g., "Your heat model predicts..." or "Your HRV readiness threshold...")
 - Return ONLY valid JSON, no markdown or explanation`;
 
 const PRE_RIDE_PLANNED_PROMPT = `You are the AI coach inside AIM, a performance intelligence platform for endurance athletes built by Kristen Faulkner (2x Olympic Gold Medalist, Paris 2024).
@@ -63,6 +65,7 @@ Rules:
 - Action items should be things to do in the next 1-3 hours before the ride
 - Tips should reference their actual FTP, zones, and power targets for the planned workout
 - Be specific: "Target 265-280W for the intervals" not "ride at threshold"
+- When performanceModels data is present, use model predictions in readiness assessment and fueling plan (e.g., "Your HRV is in green zone — your model predicts strong execution today")
 - Return ONLY valid JSON, no markdown or explanation`;
 
 const DAILY_COACH_PROMPT = `You are the AI coach inside AIM, a performance intelligence platform for endurance athletes built by Kristen Faulkner (2x Olympic Gold Medalist, Paris 2024).
@@ -99,6 +102,7 @@ Rules:
 - 1-3 workout recommendations appropriate for their current fatigue/fitness balance
 - If TSB is very negative, emphasize rest; if positive, suggest productive training
 - NEVER give direct medical/supplement advice — use "Research suggests..." language
+- When performanceModels data is present, reference model insights in workout recommendations (e.g., "Your durability model shows best performance below 22 kJ/kg — today's easy ride keeps you well under")
 - Return ONLY valid JSON, no markdown or explanation`;
 
 /**
@@ -133,12 +137,15 @@ export default async function handler(req, res) {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
     // Fetch all context in parallel
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 86400000).toISOString();
     const [
       profileResult,
       todayActivityResult,
       todayPlannedResult,
       dailyMetricsResult,
       recentActivitiesResult,
+      allActivitiesResult,
+      nutritionResult,
     ] = await Promise.allSettled([
       supabaseAdmin
         .from("profiles")
@@ -162,7 +169,7 @@ export default async function handler(req, res) {
         .maybeSingle(),
       supabaseAdmin
         .from("daily_metrics")
-        .select("date, ctl, atl, tsb, hrv_ms, resting_hr, sleep_score, recovery_score, weight_kg")
+        .select("date, ctl, atl, tsb, hrv_ms, hrv_overnight_avg_ms, resting_hr_bpm, resting_hr, sleep_score, recovery_score, weight_kg, total_sleep_seconds, deep_sleep_seconds, rem_sleep_seconds")
         .eq("user_id", session.userId)
         .gte("date", sevenDaysAgo)
         .order("date", { ascending: false }),
@@ -172,6 +179,17 @@ export default async function handler(req, res) {
         .eq("user_id", session.userId)
         .order("start_date", { ascending: false })
         .limit(5),
+      supabaseAdmin
+        .from("activities")
+        .select("id, name, activity_type, started_at, duration_seconds, avg_power_watts, normalized_power_watts, tss, intensity_factor, efficiency_factor, hr_drift_pct, variability_index, avg_hr_bpm, max_hr_bpm, calories, work_kj, temperature_celsius, activity_weather, laps")
+        .eq("user_id", session.userId)
+        .gte("started_at", ninetyDaysAgo)
+        .order("started_at", { ascending: false }),
+      supabaseAdmin
+        .from("nutrition_logs")
+        .select("activity_id, date, totals, per_hour")
+        .eq("user_id", session.userId)
+        .gte("date", new Date(Date.now() - 90 * 86400000).toISOString().split("T")[0]),
     ]);
 
     const getData = (r) => r.status === "fulfilled" ? r.value.data : null;
@@ -182,16 +200,28 @@ export default async function handler(req, res) {
     const dailyMetrics = getData(dailyMetricsResult) || [];
     const recentActivities = getData(recentActivitiesResult) || [];
 
+    // Compute performance models from 90-day history
+    const allActivities90d = getData(allActivitiesResult) || [];
+    const nutritionLogs = getData(nutritionResult) || [];
+    let performanceModels = null;
+    if (allActivities90d.length >= 5) {
+      const dailyMetrics90d = getData(dailyMetricsResult) || [];
+      const pairs = matchActivitiesToContext(allActivities90d, dailyMetrics90d, nutritionLogs, profile?.weight_kg);
+      performanceModels = computeAllModels(pairs);
+    }
+
     // Determine mode
     const mode = requestedMode || detectMode(todayActivity, todayPlannedWorkout);
 
     // Build context for Claude
     const firstName = profile?.full_name?.split(" ")[0] || "Athlete";
     const profileSafe = profile ? { ...profile, first_name: firstName } : { first_name: "Athlete" };
+    const modelsText = performanceModels ? formatModelsForAI(performanceModels) : "";
     const context = {
       athlete: profileSafe,
       dailyMetrics,
       recentActivities,
+      performanceModels: modelsText || undefined,
     };
 
     // Add mode-specific context
