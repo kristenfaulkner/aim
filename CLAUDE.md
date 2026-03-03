@@ -380,6 +380,9 @@ Detailed specifications archived in `docs/`:
 - `docs/AIM-PRODUCT-ROADMAP.md` — comprehensive feature roadmap (P1-P5) with data requirements, dependencies, and implementation notes
 - `docs/AIM-EXPANSION-SPEC.md` — expansion spec: check-in, travel, cross-training, periodization, coach dashboard
 
+Design queue:
+- `docs/AIM-UI-DESIGN-QUEUE.md` — running list of UI components needing design before implementation (check-in modal, cross-training logger, travel card, etc.)
+
 Dashboard design specifications:
 - `AIM-ADAPTIVE-DASHBOARD-SPEC.md` — 3 dashboard modes (POST_RIDE/PRE_RIDE_PLANNED/DAILY_COACH), AI prompt templates, weather integration, fueling intelligence
 - `AIM-SITE-MAP.md` — navigation structure, URL routes, mobile layout patterns
