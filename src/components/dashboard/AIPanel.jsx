@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { T, font, mono } from "../../theme/tokens";
 import { supabase } from "../../lib/supabase";
-import { FormattedText } from "../../lib/formatText.jsx";
+import { FormattedText, cleanText } from "../../lib/formatText.jsx";
 import { formatActivityDate } from "../../lib/formatTime";
 
 // ── CATEGORY DEFINITIONS ──
@@ -249,7 +249,7 @@ export default function AIPanel({
                               {insight.title}
                             </div>
                             <div style={{ fontSize: 11, color: T.textSoft, lineHeight: 1.5 }}>
-                              {insight.body?.length > 120 ? insight.body.slice(0, 120) + "..." : insight.body}
+                              {(() => { const b = cleanText(insight.body) || ""; return b.length > 120 ? b.slice(0, 120) + "..." : b; })()}
                             </div>
                           </div>
                         </div>

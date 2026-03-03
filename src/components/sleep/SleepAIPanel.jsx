@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { T, font, mono } from "../../theme/tokens";
 import { supabase } from "../../lib/supabase";
+import { FormattedText } from "../../lib/formatText.jsx";
 
 // ── SLEEP CATEGORY DEFINITIONS ──
 const allCategories = [
@@ -236,7 +237,7 @@ export default function SleepAIPanel({
                     padding: "10px 14px", background: T.bg, borderRadius: 10,
                     borderLeft: `3px solid ${T.purple}`,
                   }}>
-                    {summary}
+                    <FormattedText text={summary} />
                   </div>
                 )}
 
@@ -298,7 +299,7 @@ export default function SleepAIPanel({
                       )}
                     </div>
                     <div style={{ fontSize: 11, lineHeight: 1.6, color: T.textSoft }}>
-                      {insight.body}
+                      <FormattedText text={insight.body} />
                     </div>
                   </div>
                 ))}
@@ -459,7 +460,7 @@ function EmptyState({ analysisError, onRequestAnalysis, insufficientData, summar
       <div style={{ textAlign: "center", padding: "30px 16px" }}>
         <div style={{ fontSize: 28, marginBottom: 10 }}>{"\uD83C\uDF19"}</div>
         <div style={{ fontSize: 12, color: T.textSoft, lineHeight: 1.6, marginBottom: 16 }}>
-          {summary}
+          <FormattedText text={summary} />
         </div>
       </div>
     );

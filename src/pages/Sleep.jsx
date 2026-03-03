@@ -9,6 +9,7 @@ import { AreaChart, Area, LineChart, Line, ResponsiveContainer, Tooltip, XAxis, 
 import { LogOut, Settings, Menu, X, Moon, ChevronDown, ChevronUp, User } from "lucide-react";
 import SEO from "../components/SEO";
 import SleepAIPanel from "../components/sleep/SleepAIPanel";
+import { FormattedText } from "../lib/formatText.jsx";
 
 // ── Helpers ──
 
@@ -548,11 +549,13 @@ export default function Sleep() {
                       </div>
                     )}
                     {sleepSummary.summary && (
-                      <div style={{ fontSize: 12, color: T.textSoft, lineHeight: 1.7, marginBottom: 8 }}>{sleepSummary.summary}</div>
+                      <div style={{ fontSize: 12, color: T.textSoft, lineHeight: 1.7, marginBottom: 8 }}>
+                        <FormattedText text={sleepSummary.summary} />
+                      </div>
                     )}
                     {sleepSummary.recommendation && (
                       <div style={{ fontSize: 12, color: sleepSummary.recovery_rating === "red" ? T.danger : sleepSummary.recovery_rating === "yellow" ? T.amber : T.accent, fontWeight: 600, lineHeight: 1.6 }}>
-                        {sleepSummary.recommendation}
+                        <FormattedText text={sleepSummary.recommendation} />
                       </div>
                     )}
                   </>
