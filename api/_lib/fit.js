@@ -74,8 +74,19 @@ export function parseFitFile(buffer, filename = "unknown.fit") {
   const session = fitData.sessions?.[0] || {};
   const activity = fitData.activity || {};
   const deviceInfo = fitData.device_infos?.[0] || {};
-  const records = fitData.records || [];
-  const fitLaps = fitData.laps || [];
+  let records = fitData.records || [];
+  let fitLaps = fitData.laps || [];
+
+  // In cascade mode, records are nested under sessions[].laps[].records[]
+  // instead of at the top level. Flatten them if needed.
+  if (records.length === 0 && fitData.activity?.sessions?.length) {
+    for (const sess of fitData.activity.sessions) {
+      for (const lap of sess.laps || []) {
+        if (lap.records?.length) records.push(...lap.records);
+      }
+      if (!fitLaps.length && sess.laps?.length) fitLaps = sess.laps;
+    }
+  }
 
   if (records.length === 0) {
     throw new Error("FIT file contains no records");

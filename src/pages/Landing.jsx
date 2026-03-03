@@ -429,51 +429,31 @@ export default function Landing() {
             <h2 style={{ fontSize: isMobile ? 28 : isTablet ? 34 : 42, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 16px" }}>All your data, <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>one platform</span></h2>
             <p style={{ fontSize: isMobile ? 15 : 17, color: T.textSoft, maxWidth: 560, margin: "0 auto" }}>Connect the tools you already use. AIM pulls everything together so you don't have to.</p>
           </div>
-          {[
-            { heading: "Coming Soon", apps: [
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : isTablet ? "repeat(4, 1fr)" : "repeat(5, 1fr)", gap: 12 }}>
+            {[
               { name: "Strava", desc: "Ride & run data", logo: "/images/integrations/strava.svg" },
-              { name: "Whoop", desc: "Recovery & strain", logo: "/images/integrations/whoop.svg" },
-              { name: "Oura", desc: "Sleep & readiness", logo: "/images/integrations/oura.svg" },
-              { name: "TrainingPeaks", desc: "Training plans", logo: "/images/integrations/trainingpeaks.svg" },
-              { name: "Withings", desc: "Weight & body comp", logo: "/images/integrations/withings.svg" },
-              { name: "Garmin", desc: "Device data", logo: "/images/integrations/garmin.svg" },
               { name: "Wahoo", desc: "Power & cycling", logo: "/images/integrations/wahoo.svg" },
-              { name: "EightSleep", desc: "Sleep tracking", logo: "/images/integrations/eightsleep.svg" },
-              { name: "Apple Health", desc: "Health data hub", logo: "/images/integrations/apple-health.svg" },
-              { name: "Hammerhead", desc: "Ride analytics", logo: "/images/integrations/hammerhead.svg" },
-              { name: "Hexis", desc: "Nutrition timing", logo: "/images/integrations/hexis.svg" },
-              { name: "MyFitnessPal", desc: "Calorie tracking", logo: "/images/integrations/myfitnesspal.svg" },
-              { name: "Cronometer", desc: "Micronutrients", logo: "/images/integrations/cronometer.svg" },
+              { name: "Eight Sleep", desc: "Sleep tracking", logo: "/images/integrations/eightsleep.svg" },
+              { name: "Whoop", desc: "Recovery & strain", logo: "/images/integrations/whoop.svg" },
+              { name: "Withings", desc: "Weight & body comp", logo: "/images/integrations/withings.svg" },
               { name: "Blood Work", desc: "Lab panels" },
               { name: "DEXA Scans", desc: "Body composition" },
-              { name: "Polar", desc: "HR & training" },
-              { name: "INSCYD", desc: "Metabolic profiling" },
-            ]},
-          ].map((group) => (
-            <div key={group.heading} style={{ marginBottom: 48 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: T.warn, letterSpacing: "0.06em", textTransform: "uppercase" }}>{group.heading}</span>
-                <div style={{ flex: 1, height: 1, background: T.border }} />
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : isTablet ? "repeat(4, 1fr)" : "repeat(6, 1fr)", gap: 12 }}>
-                {group.apps.map((app) => (
-                  <div key={app.name} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px 12px", textAlign: "center", transition: "all 0.3s", cursor: "default" }}
-                    onMouseOver={e => { e.currentTarget.style.borderColor = T.borderHover; e.currentTarget.style.transform = "translateY(-3px)"; }}
-                    onMouseOut={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.transform = "translateY(0)"; }}>
-                    {app.logo ? (
-                      <img src={app.logo} alt={`${app.name} logo`} style={{ width: 44, height: 44, borderRadius: 12, margin: "0 auto 10px", objectFit: "contain" }} />
-                    ) : (
-                      <div style={{ width: 44, height: 44, borderRadius: 12, background: T.accentDim, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 10px", fontSize: 20, fontWeight: 700, color: T.accent }}>
-                        {app.name.charAt(0)}
-                      </div>
-                    )}
-                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>{app.name}</div>
-                    <div style={{ fontSize: 11, color: T.textDim }}>{app.desc}</div>
+            ].map((app) => (
+              <div key={app.name} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px 12px", textAlign: "center", transition: "all 0.3s", cursor: "default" }}
+                onMouseOver={e => { e.currentTarget.style.borderColor = T.borderHover; e.currentTarget.style.transform = "translateY(-3px)"; }}
+                onMouseOut={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.transform = "translateY(0)"; }}>
+                {app.logo ? (
+                  <img src={app.logo} alt={`${app.name} logo`} style={{ width: 44, height: 44, borderRadius: 12, margin: "0 auto 10px", objectFit: "contain" }} />
+                ) : (
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: T.accentDim, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 10px", fontSize: 20, fontWeight: 700, color: T.accent }}>
+                    {app.name.charAt(0)}
                   </div>
-                ))}
+                )}
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>{app.name}</div>
+                <div style={{ fontSize: 11, color: T.textDim }}>{app.desc}</div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
 
