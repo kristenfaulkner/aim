@@ -11,6 +11,7 @@ import AIPanel from "../components/dashboard/AIPanel";
 import SEO from "../components/SEO";
 import { LogOut, Settings, Menu, X, Search, Calendar, ChevronDown, User, Sparkles } from "lucide-react";
 import { apiFetch } from "../lib/api";
+import { formatActivityDate } from "../lib/formatTime";
 
 // ── Constants ──
 
@@ -99,9 +100,7 @@ function ActivityRow({ activity, isSelected, onSelect, units }) {
           {activity.name || "Untitled Ride"}
         </div>
         <div style={{ fontSize: 10, color: T.textDim, marginTop: 2 }}>
-          {new Date(activity.started_at).toLocaleDateString("en-US", {
-            weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
-          })}
+          {formatActivityDate(activity, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
         </div>
       </div>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2, flexShrink: 0, marginLeft: 12 }}>

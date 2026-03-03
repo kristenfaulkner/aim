@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Search, X, ChevronDown, Calendar } from "lucide-react";
 import { T } from "../theme/tokens";
 import { useActivityBrowser } from "../hooks/useActivityBrowser";
+import { formatActivityDate } from "../lib/formatTime";
 
 const font = "'Outfit', sans-serif";
 const mono = "'JetBrains Mono', monospace";
@@ -115,13 +116,7 @@ function ActivityRow({ activity, isSelected, onSelect }) {
           {activity.name || "Untitled Ride"}
         </div>
         <div style={{ fontSize: 10, color: T.textDim, marginTop: 2 }}>
-          {new Date(activity.started_at).toLocaleDateString("en-US", {
-            weekday: "short",
-            month: "short",
-            day: "numeric",
-            hour: "numeric",
-            minute: "2-digit",
-          })}
+          {formatActivityDate(activity, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
         </div>
       </div>
       <div

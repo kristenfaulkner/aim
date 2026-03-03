@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { T, font, mono } from "../../theme/tokens";
 import { supabase } from "../../lib/supabase";
 import { FormattedText } from "../../lib/formatText.jsx";
+import { formatActivityDate } from "../../lib/formatTime";
 
 // ── CATEGORY DEFINITIONS ──
 const allCategories = [
@@ -206,7 +207,7 @@ export default function AIPanel({
                   <span>
                     Workout Summary{" "}
                     {activity?.started_at
-                      ? `\u00B7 ${new Date(activity.started_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+                      ? `\u00B7 ${formatActivityDate(activity, { month: "short", day: "numeric" })}`
                       : ""}
                   </span>
                   <RegenerateButton
@@ -294,7 +295,7 @@ export default function AIPanel({
                   <span>
                     Post-Ride Analysis{" "}
                     {activity?.started_at
-                      ? `\u00B7 ${new Date(activity.started_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+                      ? `\u00B7 ${formatActivityDate(activity, { month: "short", day: "numeric" })}`
                       : ""}
                   </span>
                   <RegenerateButton

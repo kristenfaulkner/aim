@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { usePreferences } from "../context/PreferencesContext";
 import { formatDistance, formatSpeed, formatElevation, elevationUnit, formatWeight, weightUnit } from "../lib/units";
 import { supabase } from "../lib/supabase";
+import { formatActivityDate } from "../lib/formatTime";
 import { LogOut, Settings, Menu, X, User } from "lucide-react";
 import { useResponsive } from "../hooks/useResponsive";
 import ActivityBrowser, { ActivityBrowserTrigger } from "../components/ActivityBrowser";
@@ -435,8 +436,7 @@ export default function Dashboard() {
   }
 
   // ── RENDER: Main Dashboard (Two-Column Layout) ──
-  const rideDate = new Date(activity.started_at);
-  const rideDateStr = rideDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+  const rideDateStr = formatActivityDate(activity, { weekday: "long", month: "long", day: "numeric" });
 
   return (
     <div style={{ minHeight: "100vh", background: T.bg, color: T.text, fontFamily: font }}>

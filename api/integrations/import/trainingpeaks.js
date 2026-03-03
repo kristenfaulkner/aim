@@ -20,6 +20,8 @@ import { isHigherPriority } from "../../_lib/source-priority.js";
 import { backfillUserMetrics } from "../../_lib/backfill.js";
 import { buildLapsPayload } from "../../_lib/intervals.js";
 import { resolveActivityTimezone } from "../../_lib/timezone.js";
+import { detectAllTags, persistTags } from "../../_lib/tags.js";
+import { fetchActivityWeather, extractLocationFromActivity } from "../../_lib/weather-enrich.js";
 
 export const config = {
   maxDuration: 300, // 5 minutes for large imports
@@ -376,6 +378,33 @@ export default async function handler(req, res) {
         }
 
         results.imported++;
+
+        // Fire-and-forget: tag detection + weather enrichment
+        if (upserted?.id && record.avg_power_watts) {
+          (async () => {
+            try {
+              // Weather enrichment
+              const location = extractLocationFromActivity(record);
+              if (location && record.started_at) {
+                try {
+                  const weather = await fetchActivityWeather(record.started_at, location.lat, location.lng);
+                  if (weather) {
+                    await supabaseAdmin.from("activities").update({ activity_weather: weather }).eq("id", upserted.id);
+                    record.activity_weather = weather;
+                  }
+                } catch { /* weather fetch failed — not critical */ }
+              }
+
+              // Detect and persist tags
+              const tags = detectAllTags(record, null, record.activity_weather, ftp);
+              if (tags.length > 0) {
+                await persistTags(supabaseAdmin, upserted.id, session.userId, tags);
+              }
+            } catch (err) {
+              console.error(`Tag/weather enrichment failed for TP import ${upserted.id}:`, err.message);
+            }
+          })();
+        }
       } catch (err) {
         results.failed++;
         results.errors.push({ file: entry.entryName, error: err.message });

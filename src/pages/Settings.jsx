@@ -6,7 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { usePreferences } from "../context/PreferencesContext";
 import { useResponsive } from "../hooks/useResponsive";
 import { supabase } from "../lib/supabase";
-import { User, Bell, Ruler, Palette, LogOut, MessageSquare, Check, Loader, Shield, Download, Trash2, AlertTriangle, Menu, X, Mail, Lock, Settings as SettingsIcon, Globe } from "lucide-react";
+import { User, Bell, Ruler, Palette, LogOut, MessageSquare, Check, Loader, Shield, Download, Trash2, AlertTriangle, Menu, X, Mail, Lock, Settings as SettingsIcon, Globe, RefreshCw } from "lucide-react";
 import { apiFetch } from "../lib/api";
 
 const COMMON_TIMEZONES = [
@@ -68,6 +68,10 @@ export default function Settings() {
   const [deleting, setDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+
+  // Reprocess state
+  const [reprocessing, setReprocessing] = useState(false);
+  const [reprocessResult, setReprocessResult] = useState(null);
 
   const [smsPrefs, setSmsPrefs] = useState({
     sms_workout_summary: true,
@@ -593,6 +597,54 @@ export default function Settings() {
                 }} disabled={exporting} style={{ ...btn(true), fontSize: 13, padding: "10px 24px", opacity: exporting ? 0.6 : 1 }}>
                   {exporting ? <Loader size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Download size={14} />}
                   {exporting ? "Exporting..." : "Download My Data"}
+                </button>
+              </div>
+
+              <div style={{ padding: 24, background: T.card, borderRadius: 16, border: `1px solid ${T.border}`, marginBottom: 24 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                  <RefreshCw size={18} color={T.accent} />
+                  <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Reprocess Activities</h3>
+                </div>
+                <p style={{ fontSize: 13, color: T.textSoft, margin: "0 0 16px", lineHeight: 1.5 }}>
+                  Re-analyze all your activities to detect workout tags (VO2, Threshold, Endurance, etc.), extract intervals, and enrich with weather data. This powers the Workout Database and smart tag filtering.
+                </p>
+                {reprocessResult && (
+                  <div style={{ padding: "10px 14px", marginBottom: 14, background: T.accentDim, border: `1px solid ${T.accentMid}`, borderRadius: 10, fontSize: 13, color: T.accent }}>
+                    {reprocessResult}
+                  </div>
+                )}
+                <button onClick={async () => {
+                  setReprocessing(true);
+                  setReprocessResult(null);
+                  let totalIntervals = 0, totalTags = 0, totalWeather = 0, totalFailed = 0, rounds = 0;
+                  try {
+                    while (rounds < 20) {
+                      rounds++;
+                      const res = await apiFetch("/api/activities/backfill-intervals", { method: "POST", body: { mode: "all" } });
+                      totalIntervals += res.intervals || 0;
+                      totalTags += res.tags || 0;
+                      totalWeather += res.weather || 0;
+                      totalFailed += res.failed || 0;
+                      if ((res.intervals || 0) + (res.tags || 0) === 0) break;
+                    }
+                    const parts = [];
+                    if (totalTags > 0) parts.push(`${totalTags} tagged`);
+                    if (totalIntervals > 0) parts.push(`${totalIntervals} intervals extracted`);
+                    if (totalWeather > 0) parts.push(`${totalWeather} weather enriched`);
+                    setReprocessResult(parts.length > 0
+                      ? `Done! ${parts.join(", ")}${totalFailed > 0 ? ` (${totalFailed} failed)` : ""}`
+                      : "All activities are already up to date.");
+                  } catch (err) {
+                    setReprocessResult(`Error: ${err.message}`);
+                  } finally {
+                    setReprocessing(false);
+                  }
+                }} disabled={reprocessing} style={{
+                  ...btn(true), fontSize: 13, padding: "10px 24px",
+                  opacity: reprocessing ? 0.6 : 1,
+                }}>
+                  {reprocessing ? <Loader size={14} style={{ animation: "spin 1s linear infinite" }} /> : <RefreshCw size={14} />}
+                  {reprocessing ? "Processing..." : "Reprocess All Activities"}
                 </button>
               </div>
 
