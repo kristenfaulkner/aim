@@ -22,9 +22,11 @@ import MyStats from "./pages/MyStats";
 import ResetPassword from "./pages/ResetPassword";
 import AcceptTerms from "./pages/AcceptTerms";
 import ProtectedRoute from "./components/ProtectedRoute";
+import Footer from "./components/Footer";
 
 export default function App() {
   return (
+    <>
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/signup" element={<Auth mode="signup" />} />
@@ -50,5 +52,7 @@ export default function App() {
       <Route path="/data-processing" element={<DataProcessing />} />
       <Route path="/gdpr" element={<GDPR />} />
     </Routes>
+    <Footer />
+    </>
   );
 }
