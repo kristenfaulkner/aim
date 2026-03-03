@@ -235,6 +235,25 @@ export default function UniversalUpload({ compact = false }) {
     } finally {
       setProcessing(false);
       setCurrentIndex(-1);
+
+      // Auto-trigger sequential AI analysis for any uploaded workouts (fire-and-forget)
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          (async () => {
+            let remaining = Infinity;
+            while (remaining > 0) {
+              const res = await fetch("/api/activities/backfill-analysis?limit=5&maxAge=365", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${session.access_token}` },
+              });
+              const data = await res.json();
+              remaining = data.remaining ?? 0;
+              if ((data.processed || 0) === 0 || data.error) break;
+            }
+          })();
+        }
+      } catch { /* silent */ }
     }
   }
 

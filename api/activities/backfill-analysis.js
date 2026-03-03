@@ -5,10 +5,12 @@ import { supabaseAdmin } from "../_lib/supabase.js";
 export const config = { maxDuration: 300 };
 
 /**
- * POST /api/activities/backfill-analysis
+ * POST /api/activities/backfill-analysis?limit=5&maxAge=365
  * Generates AI analysis for activities that don't have one yet.
- * Processes up to `limit` activities (default 5) per call.
- * Returns count of processed/failed/remaining so the frontend can call again.
+ * - limit: activities per batch (default 5, max 20)
+ * - maxAge: only analyze activities within this many days (default 365)
+ * Activities are capped at 100 total (most recent first).
+ * Returns count of processed/failed/remaining so the frontend can loop.
  */
 export default async function handler(req, res) {
   cors(res);
@@ -23,14 +25,17 @@ export default async function handler(req, res) {
   }
 
   const limit = Math.min(parseInt(req.query.limit) || 5, 20);
+  const maxAgeDays = parseInt(req.query.maxAge) || 365;
+  const cutoffDate = new Date(Date.now() - maxAgeDays * 86400000).toISOString();
 
   try {
-    // Find activities without AI analysis, newest first
+    // Find activities without AI analysis, newest first, within maxAge, capped at 100
     const { data: activities, error: fetchErr } = await supabaseAdmin
       .from("activities")
       .select("id, name, started_at")
       .eq("user_id", session.userId)
       .is("ai_analysis", null)
+      .gte("started_at", cutoffDate)
       .order("started_at", { ascending: false })
       .limit(limit);
 
@@ -39,12 +44,15 @@ export default async function handler(req, res) {
       return res.status(200).json({ processed: 0, failed: 0, remaining: 0 });
     }
 
-    // Count total remaining
+    // Count total remaining (within maxAge, capped at 100)
     const { count } = await supabaseAdmin
       .from("activities")
       .select("id", { count: "exact", head: true })
       .eq("user_id", session.userId)
-      .is("ai_analysis", null);
+      .is("ai_analysis", null)
+      .gte("started_at", cutoffDate);
+
+    const totalRemaining = Math.min(count || 0, 100);
 
     let processed = 0;
     let failed = 0;
@@ -71,14 +79,14 @@ export default async function handler(req, res) {
         error: "Anthropic API credit balance too low",
         processed,
         failed,
-        remaining: Math.max(0, (count || 0) - processed),
+        remaining: Math.max(0, totalRemaining - processed),
       });
     }
 
     return res.status(200).json({
       processed,
       failed,
-      remaining: Math.max(0, (count || 0) - processed),
+      remaining: Math.max(0, totalRemaining - processed),
     });
   } catch (err) {
     console.error("Backfill error:", err.message);

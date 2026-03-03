@@ -145,12 +145,11 @@ export async function syncStravaActivity(userId, stravaActivityId, options = {})
     await updatePowerProfile(userId, metrics.power_curve, profile?.weight_kg);
   }
 
-  // Trigger AI analysis, then email + SMS notifications (fire-and-forget — don't block the sync)
-  if (upserted?.id) {
+  // For real-time events (webhook): analyze + notify immediately
+  // For backfill: skip — analysis runs as a batch after backfill completes
+  if (upserted?.id && notify) {
     analyzeActivity(userId, upserted.id)
       .then(() => {
-        if (!notify) return;
-        // Email and SMS fire in parallel after analysis completes
         sendWorkoutEmail(userId, upserted.id).catch(err =>
           console.error(`Email failed for activity ${upserted.id}:`, err.message)
         );
@@ -295,6 +294,30 @@ export async function backfillStravaSync(userId, days = 90) {
   backfillUserMetrics(userId).catch(err =>
     console.error(`Backfill after Strava backfill sync failed:`, err.message)
   );
+
+  // Sequential AI analysis for recent activities (up to 100, last year) — fire-and-forget
+  (async () => {
+    const oneYearAgo = new Date(Date.now() - 365 * 86400000).toISOString();
+    const { data: unanalyzed } = await supabaseAdmin
+      .from("activities")
+      .select("id")
+      .eq("user_id", userId)
+      .is("ai_analysis", null)
+      .gte("started_at", oneYearAgo)
+      .order("started_at", { ascending: false })
+      .limit(100);
+
+    if (unanalyzed?.length) {
+      for (const act of unanalyzed) {
+        try {
+          await analyzeActivity(userId, act.id);
+        } catch (err) {
+          console.error(`Post-backfill analysis failed for ${act.id}:`, err.message);
+          if (err.message?.includes("credit balance")) break;
+        }
+      }
+    }
+  })().catch(err => console.error(`Post-backfill analysis error:`, err.message));
 
   return { results, errors };
 }

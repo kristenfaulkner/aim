@@ -110,6 +110,24 @@ export default function TrainingPeaksImport({ onClose, onComplete }) {
       setResult(data);
       setStep("complete");
       if (onComplete) onComplete(data);
+
+      // Auto-trigger sequential AI analysis for imported activities (fire-and-forget)
+      if (data.analysisQueued) {
+        (async () => {
+          try {
+            let remaining = Infinity;
+            while (remaining > 0) {
+              const bRes = await fetch("/api/activities/backfill-analysis?limit=5&maxAge=365", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${session.access_token}` },
+              });
+              const bData = await bRes.json();
+              remaining = bData.remaining ?? 0;
+              if ((bData.processed || 0) === 0 || bData.error) break;
+            }
+          } catch { /* silent — analysis will be available on next view */ }
+        })();
+      }
     } catch (err) {
       setError(err.message);
       setStep("instructions");

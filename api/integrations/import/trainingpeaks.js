@@ -16,7 +16,6 @@ import { computeActivityMetrics } from "../../_lib/metrics.js";
 import { updateDailyMetrics, updatePowerProfile } from "../../_lib/training-load.js";
 import { supabaseAdmin } from "../../_lib/supabase.js";
 import { verifySession, cors } from "../../_lib/auth.js";
-import { analyzeActivity } from "../../_lib/ai.js";
 import { isHigherPriority } from "../../_lib/source-priority.js";
 import { backfillUserMetrics } from "../../_lib/backfill.js";
 
@@ -353,13 +352,6 @@ export default async function handler(req, res) {
           await updatePowerProfile(session.userId, metrics.power_curve, weightKg);
         }
 
-        // 6h. Fire-and-forget AI analysis
-        if (upserted?.id) {
-          analyzeActivity(session.userId, upserted.id).catch(err =>
-            console.error(`AI analysis failed for TP activity ${upserted.id}:`, err.message)
-          );
-        }
-
         results.imported++;
       } catch (err) {
         results.failed++;
@@ -446,7 +438,7 @@ export default async function handler(req, res) {
       console.error(`Backfill after TP import failed:`, err.message)
     );
 
-    return res.status(200).json(results);
+    return res.status(200).json({ ...results, analysisQueued: results.imported > 0 });
   } catch (err) {
     console.error("TrainingPeaks import error:", err);
     return res.status(500).json({ error: err.message });
