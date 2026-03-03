@@ -5,6 +5,8 @@ import { supabaseAdmin } from "../_lib/supabase.js";
 import { verifySession, cors } from "../_lib/auth.js";
 import { analyzeActivity } from "../_lib/ai.js";
 import { isHigherPriority } from "../_lib/source-priority.js";
+import { sendWorkoutEmail } from "../email/send.js";
+import { sendWorkoutSMS } from "../sms/send.js";
 
 export const config = {
   api: { bodyParser: { sizeLimit: "10mb" } },
@@ -190,11 +192,20 @@ export default async function handler(req, res) {
       await updatePowerProfile(session.userId, metrics.power_curve, weightKg);
     }
 
-    // 10. Fire-and-forget AI analysis
+    // 10. Fire-and-forget AI analysis → then email + SMS notifications
     if (upserted?.id) {
-      analyzeActivity(session.userId, upserted.id).catch(err =>
-        console.error(`AI analysis failed for FIT upload ${upserted.id}:`, err.message)
-      );
+      analyzeActivity(session.userId, upserted.id)
+        .then(() => {
+          sendWorkoutEmail(session.userId, upserted.id).catch(err =>
+            console.error(`Email failed for FIT upload ${upserted.id}:`, err.message)
+          );
+          sendWorkoutSMS(session.userId, upserted.id).catch(err =>
+            console.error(`SMS failed for FIT upload ${upserted.id}:`, err.message)
+          );
+        })
+        .catch(err =>
+          console.error(`AI analysis failed for FIT upload ${upserted.id}:`, err.message)
+        );
     }
 
     return res.status(200).json({
