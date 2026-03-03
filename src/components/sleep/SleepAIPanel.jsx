@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { T, font, mono } from "../../theme/tokens";
 import { supabase } from "../../lib/supabase";
 import { FormattedText } from "../../lib/formatText.jsx";
+import InsightFeedback from "../InsightFeedback";
 
 // ── SLEEP CATEGORY DEFINITIONS ──
 const allCategories = [
@@ -277,32 +278,41 @@ export default function SleepAIPanel({
                 )}
 
                 {/* Insight cards */}
-                {filteredInsights.map((insight, i) => (
-                  <div key={i} style={{
-                    background: T.bg, borderRadius: 11, padding: "12px 14px",
-                    borderLeft: `3px solid ${insightBorderColor(insight.type)}`,
-                  }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 5 }}>
-                      <span style={{ fontSize: 13 }}>{insight.icon}</span>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: T.text, flex: 1 }}>
-                        {insight.title}
-                      </span>
-                      {insight.confidence && (
-                        <span style={{
-                          fontSize: 8, padding: "2px 5px", borderRadius: 4,
-                          background: insight.confidence === "high" ? T.accentDim : `${T.warn}20`,
-                          color: insight.confidence === "high" ? T.accent : T.warn,
-                          textTransform: "uppercase", letterSpacing: "0.05em",
-                        }}>
-                          {insight.confidence}
+                {filteredInsights.map((insight, i) => {
+                  const originalIndex = insights.indexOf(insight);
+                  return (
+                    <div key={i} style={{
+                      background: T.bg, borderRadius: 11, padding: "12px 14px",
+                      borderLeft: `3px solid ${insightBorderColor(insight.type)}`,
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 5 }}>
+                        <span style={{ fontSize: 13 }}>{insight.icon}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: T.text, flex: 1 }}>
+                          {insight.title}
                         </span>
-                      )}
+                        {insight.confidence && (
+                          <span style={{
+                            fontSize: 8, padding: "2px 5px", borderRadius: 4,
+                            background: insight.confidence === "high" ? T.accentDim : `${T.warn}20`,
+                            color: insight.confidence === "high" ? T.accent : T.warn,
+                            textTransform: "uppercase", letterSpacing: "0.05em",
+                          }}>
+                            {insight.confidence}
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 11, lineHeight: 1.6, color: T.textSoft }}>
+                        <FormattedText text={insight.body} />
+                      </div>
+                      <InsightFeedback
+                        activityId={null}
+                        source="sleep_summary"
+                        insightIndex={originalIndex}
+                        insight={insight}
+                      />
                     </div>
-                    <div style={{ fontSize: 11, lineHeight: 1.6, color: T.textSoft }}>
-                      <FormattedText text={insight.body} />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 {/* Unlock More Insights */}
                 {dataGaps.length > 0 && insightFilter === "all" && (

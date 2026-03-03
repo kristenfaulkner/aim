@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "../../_lib/supabase.js";
 import { redis } from "../../_lib/redis.js";
+import { backfillWahooSync } from "../../integrations/sync/wahoo.js";
 
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
@@ -53,6 +54,11 @@ export default async function handler(req, res) {
     is_active: true,
     sync_status: "pending",
   }, { onConflict: "user_id,provider" });
+
+  // Auto-sync last 365 days of workouts (fire-and-forget)
+  backfillWahooSync(userId, 365).catch(err =>
+    console.error(`Wahoo auto-backfill failed for ${userId}:`, err.message)
+  );
 
   res.redirect(302, "/connect?connected=wahoo");
 }

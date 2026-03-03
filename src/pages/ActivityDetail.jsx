@@ -9,6 +9,7 @@ import { useResponsive } from "../hooks/useResponsive";
 import { usePreferences } from "../context/PreferencesContext";
 import { formatDistance, formatSpeed, formatElevation, elevationUnit, formatWeight, weightUnit } from "../lib/units";
 import { FormattedText } from "../lib/formatText.jsx";
+import InsightFeedback from "../components/InsightFeedback";
 import { formatActivityDate, formatActivityTime, getActivityTimezoneAbbrev } from "../lib/formatTime";
 import SessionNotes from "../components/SessionNotes.jsx";
 
@@ -764,18 +765,27 @@ function AIAnalysis({ analysis, loading, onRegenerate, activityId }) {
                   </div>
                 )}
 
-                {filteredInsights.map((insight, i) => (
-                  <div key={i} style={{ background: T.bg, borderRadius: 11, padding: "12px 14px", borderLeft: `3px solid ${insight.type === "positive" ? T.accent : insight.type === "warning" ? T.warn : insight.type === "action" ? T.purple : T.blue}` }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 5 }}>
-                      <span style={{ fontSize: 13 }}>{insight.icon}</span>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: T.text, flex: 1 }}>{insight.title}</span>
-                      {insight.confidence && (
-                        <span style={{ fontSize: 8, padding: "2px 5px", borderRadius: 4, background: insight.confidence === "high" ? T.accentDim : `${T.warn}20`, color: insight.confidence === "high" ? T.accent : T.warn, textTransform: "uppercase", letterSpacing: "0.05em" }}>{insight.confidence}</span>
-                      )}
+                {filteredInsights.map((insight, i) => {
+                  const originalIndex = analysisInsights.indexOf(insight);
+                  return (
+                    <div key={i} style={{ background: T.bg, borderRadius: 11, padding: "12px 14px", borderLeft: `3px solid ${insight.type === "positive" ? T.accent : insight.type === "warning" ? T.warn : insight.type === "action" ? T.purple : T.blue}` }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 5 }}>
+                        <span style={{ fontSize: 13 }}>{insight.icon}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: T.text, flex: 1 }}>{insight.title}</span>
+                        {insight.confidence && (
+                          <span style={{ fontSize: 8, padding: "2px 5px", borderRadius: 4, background: insight.confidence === "high" ? T.accentDim : `${T.warn}20`, color: insight.confidence === "high" ? T.accent : T.warn, textTransform: "uppercase", letterSpacing: "0.05em" }}>{insight.confidence}</span>
+                        )}
+                      </div>
+                      <FormattedText text={insight.body} style={{ fontSize: 11, lineHeight: 1.6, color: T.textSoft }} />
+                      <InsightFeedback
+                        activityId={activity?.id}
+                        source="activity_analysis"
+                        insightIndex={originalIndex}
+                        insight={insight}
+                      />
                     </div>
-                    <FormattedText text={insight.body} style={{ fontSize: 11, lineHeight: 1.6, color: T.textSoft }} />
-                  </div>
-                ))}
+                  );
+                })}
 
                 {dataGaps.length > 0 && insightFilter === "all" && (
                   <div style={{ marginTop: 4 }}>

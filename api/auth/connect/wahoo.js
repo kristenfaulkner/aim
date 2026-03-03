@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     client_id: process.env.WAHOO_CLIENT_ID,
     redirect_uri: `${baseUrl}/api/auth/callback/wahoo`,
     response_type: "code",
-    scope: "user_read workouts_read power_zones_read offline_data",
+    scope: "user_read workouts_read workouts_write power_zones_write plans_read plans_write routes_read routes_write offline_data",
     state,
   });
 

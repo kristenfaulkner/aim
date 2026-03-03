@@ -565,6 +565,41 @@ function trendDirection(values) {
 }
 
 /**
+ * Compute a short text directive from the user's insight feedback history.
+ * Returns null if insufficient data (<5 votes).
+ */
+function computeFeedbackPreferences(feedbackRows) {
+  if (!feedbackRows || feedbackRows.length < 5) return null;
+
+  const cats = {};
+  for (const row of feedbackRows) {
+    const cat = row.insight_category || "unknown";
+    if (!cats[cat]) cats[cat] = { up: 0, down: 0 };
+    if (row.feedback === 1) cats[cat].up++;
+    else if (row.feedback === -1) cats[cat].down++;
+  }
+
+  const sorted = Object.entries(cats)
+    .map(([cat, c]) => ({ cat, net: c.up - c.down, total: c.up + c.down }))
+    .filter(c => c.total >= 2) // need at least 2 votes to be meaningful
+    .sort((a, b) => b.net - a.net);
+
+  const liked = sorted.filter(c => c.net > 0).slice(0, 3).map(c => c.cat);
+  const disliked = sorted.filter(c => c.net < 0).slice(0, 3).map(c => c.cat);
+
+  if (liked.length === 0 && disliked.length === 0) return null;
+
+  const parts = [];
+  if (liked.length > 0) {
+    parts.push(`This athlete finds ${liked.join(", ")} insights most valuable — prioritize these categories.`);
+  }
+  if (disliked.length > 0) {
+    parts.push(`They have downvoted ${disliked.join(", ")} insights — de-emphasize or skip these categories unless the data is highly significant.`);
+  }
+  return parts.join(" ");
+}
+
+/**
  * Compute rolling averages for subjective check-in fields.
  */
 function computeSubjectiveAverages(metrics) {
@@ -913,6 +948,7 @@ export async function buildAnalysisContext(userId, activityId) {
     nutritionResult,
     travelResult,
     crossTrainingResult,
+    feedbackResult,
   ] = await Promise.allSettled([
     // Profile
     supabaseAdmin
@@ -1009,6 +1045,12 @@ export async function buildAnalysisContext(userId, activityId) {
       .eq("user_id", userId)
       .gte("date", new Date(Date.now() - 14 * 86400000).toISOString().split("T")[0])
       .order("date", { ascending: false }),
+
+    // AI feedback preferences (aggregate thumbs up/down by category)
+    supabaseAdmin
+      .from("ai_feedback")
+      .select("insight_category, feedback")
+      .eq("user_id", userId),
   ]);
 
   // Helper to safely extract data from Promise.allSettled results
@@ -1026,6 +1068,9 @@ export async function buildAnalysisContext(userId, activityId) {
   // Strip source_data from the activity to keep the payload manageable
   const { source_data, power_curve, ...activityClean } = activity;
   const activityTags = getData(tagsResult) || [];
+
+  // Compute insight preference text from user feedback history
+  const feedbackPreferenceText = computeFeedbackPreferences(getData(feedbackResult) || []);
 
   // Fetch planned vs actual now that we have profile FTP
   let plannedVsActual = null;
@@ -1169,6 +1214,9 @@ export async function buildAnalysisContext(userId, activityId) {
     cycleDay: dailyMetrics[0]?.cycle_day || null,
     usesCycleTracking: profile.uses_cycle_tracking || false,
     raceCalendar: settings?.race_calendar || null,
+
+    // Layer 7: Athlete feedback preferences
+    feedbackPreferenceText: feedbackPreferenceText || undefined,
   };
 }
 
@@ -1176,10 +1224,16 @@ export async function buildAnalysisContext(userId, activityId) {
  * Generate AI analysis for an activity using Claude.
  */
 export async function generateAnalysis(context) {
+  // Append personalized feedback preferences to system prompt if available
+  let systemPrompt = ANALYSIS_SYSTEM_PROMPT;
+  if (context.feedbackPreferenceText) {
+    systemPrompt += `\n\n## ATHLETE FEEDBACK PREFERENCES\n${context.feedbackPreferenceText}`;
+  }
+
   const response = await anthropic.messages.create({
     model: "claude-sonnet-4-6",
     max_tokens: 4000,
-    system: ANALYSIS_SYSTEM_PROMPT,
+    system: systemPrompt,
     messages: [{ role: "user", content: JSON.stringify(context) }],
   });
 

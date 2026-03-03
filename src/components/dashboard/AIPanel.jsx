@@ -3,6 +3,7 @@ import { T, font, mono } from "../../theme/tokens";
 import { supabase } from "../../lib/supabase";
 import { FormattedText, cleanText } from "../../lib/formatText.jsx";
 import { formatActivityDate } from "../../lib/formatTime";
+import InsightFeedback from "../InsightFeedback";
 
 // ── CATEGORY DEFINITIONS ──
 const allCategories = [
@@ -384,33 +385,43 @@ export default function AIPanel({
                 )}
 
                 {/* Insight cards */}
-                {filteredInsights.map((insight, i) => (
-                  <div key={i} style={{
-                    background: T.bg, borderRadius: 11, padding: "12px 14px",
-                    borderLeft: `3px solid ${insightBorderColor(insight.type)}`,
-                  }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 5 }}>
-                      <span style={{ fontSize: 13 }}>{insight.icon}</span>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: T.text, flex: 1 }}>
-                        {insight.title}
-                      </span>
-                      {insight.confidence && (
-                        <span style={{
-                          fontSize: 8, padding: "2px 5px", borderRadius: 4,
-                          background: insight.confidence === "high" ? T.accentDim : `${T.warn}20`,
-                          color: insight.confidence === "high" ? T.accent : T.warn,
-                          textTransform: "uppercase", letterSpacing: "0.05em",
-                        }}>
-                          {insight.confidence}
+                {filteredInsights.map((insight, i) => {
+                  // Find the original index in the full insights array (for stable feedback key)
+                  const originalIndex = analysisInsights.indexOf(insight);
+                  return (
+                    <div key={i} style={{
+                      background: T.bg, borderRadius: 11, padding: "12px 14px",
+                      borderLeft: `3px solid ${insightBorderColor(insight.type)}`,
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 5 }}>
+                        <span style={{ fontSize: 13 }}>{insight.icon}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: T.text, flex: 1 }}>
+                          {insight.title}
                         </span>
-                      )}
+                        {insight.confidence && (
+                          <span style={{
+                            fontSize: 8, padding: "2px 5px", borderRadius: 4,
+                            background: insight.confidence === "high" ? T.accentDim : `${T.warn}20`,
+                            color: insight.confidence === "high" ? T.accent : T.warn,
+                            textTransform: "uppercase", letterSpacing: "0.05em",
+                          }}>
+                            {insight.confidence}
+                          </span>
+                        )}
+                      </div>
+                      <FormattedText
+                        text={insight.body}
+                        style={{ fontSize: 11, lineHeight: 1.6, color: T.textSoft }}
+                      />
+                      <InsightFeedback
+                        activityId={activity?.id}
+                        source="activity_analysis"
+                        insightIndex={originalIndex}
+                        insight={insight}
+                      />
                     </div>
-                    <FormattedText
-                      text={insight.body}
-                      style={{ fontSize: 11, lineHeight: 1.6, color: T.textSoft }}
-                    />
-                  </div>
-                ))}
+                  );
+                })}
 
                 {/* Unlock More Insights — data gaps */}
                 {dataGaps.length > 0 && insightFilter === "all" && (
