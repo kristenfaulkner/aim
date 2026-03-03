@@ -359,15 +359,23 @@ export default function Workouts() {
     let remaining = Infinity;
     try {
       while (remaining > 0) {
-        const data = await apiFetch("/api/activities/backfill-analysis?limit=5", { method: "POST" });
-        totalProcessed += data.processed;
-        remaining = data.remaining;
+        const res = await fetch("/api/activities/backfill-analysis?limit=5", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${(await supabase.auth.getSession()).data.session.access_token}` },
+        });
+        const data = await res.json();
+        totalProcessed += data.processed || 0;
+        remaining = data.remaining ?? 0;
         setBackfillProgress({ processed: totalProcessed, remaining });
-        if (data.processed === 0 && data.failed === 0) break;
+        if (data.error) {
+          setBackfillProgress({ processed: totalProcessed, remaining, error: data.error });
+          break;
+        }
+        if ((data.processed || 0) === 0 && (data.failed || 0) === 0) break;
       }
-      setBackfillProgress({ processed: totalProcessed, remaining: 0 });
+      if (remaining === 0) setBackfillProgress({ processed: totalProcessed, remaining: 0 });
     } catch {
-      setBackfillProgress(prev => ({ ...prev, error: true }));
+      setBackfillProgress(prev => ({ ...prev, error: "Network error" }));
     } finally {
       setBackfillRunning(false);
     }
@@ -418,9 +426,15 @@ export default function Workouts() {
               {backfillProgress?.remaining != null ? `, ${backfillProgress.remaining} remaining` : ""}
             </div>
           )}
-          {!backfillRunning && backfillProgress?.remaining === 0 && (
+          {!backfillRunning && backfillProgress?.remaining === 0 && !backfillProgress?.error && (
             <div style={{ fontSize: 11, color: T.accent, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}>
               All activities analyzed
+            </div>
+          )}
+          {!backfillRunning && backfillProgress?.error && (
+            <div style={{ fontSize: 11, color: T.warn, fontWeight: 600 }}>
+              {backfillProgress.processed > 0 ? `${backfillProgress.processed} analyzed — ` : ""}
+              {typeof backfillProgress.error === "string" ? backfillProgress.error : "Analysis error — try again later"}
             </div>
           )}
         </div>

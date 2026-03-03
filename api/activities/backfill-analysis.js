@@ -50,6 +50,7 @@ export default async function handler(req, res) {
     let failed = 0;
 
     // Process sequentially to avoid rate limits
+    let creditError = false;
     for (const act of activities) {
       try {
         await analyzeActivity(session.userId, act.id);
@@ -57,7 +58,21 @@ export default async function handler(req, res) {
       } catch (err) {
         console.error(`Backfill analysis failed for ${act.id}:`, err.message);
         failed++;
+        // Stop early on credit/auth errors
+        if (err.message?.includes("credit balance") || err.message?.includes("authentication")) {
+          creditError = true;
+          break;
+        }
       }
+    }
+
+    if (creditError) {
+      return res.status(402).json({
+        error: "Anthropic API credit balance too low",
+        processed,
+        failed,
+        remaining: Math.max(0, (count || 0) - processed),
+      });
     }
 
     return res.status(200).json({

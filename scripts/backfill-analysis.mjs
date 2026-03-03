@@ -53,6 +53,11 @@ for (const act of activities) {
   } catch (err) {
     failed++;
     console.log(` ✗ ${err.message}`);
+    // Stop early on credit/auth errors — no point retrying
+    if (err.message?.includes("credit balance") || err.message?.includes("authentication")) {
+      console.log("\nStopping: API credit or auth error. Top up at console.anthropic.com");
+      break;
+    }
   }
 }
 
