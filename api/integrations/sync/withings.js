@@ -1,6 +1,6 @@
 import { verifySession, cors } from "../../_lib/auth.js";
 import { supabaseAdmin } from "../../_lib/supabase.js";
-import { getWithingsToken, fetchWithingsData, mapWithingsToMetrics, extractWithingsExtended } from "../../_lib/withings.js";
+import { getWithingsToken, fetchWithingsData, mapWithingsToMetrics, extractWithingsExtended, updateProfileWeight } from "../../_lib/withings.js";
 
 /**
  * Sync a single day of Withings data into daily_metrics.
@@ -90,6 +90,12 @@ export async function fullWithingsSync(userId, days = 7) {
       } catch (err) {
         errors.push({ date, error: err.message });
       }
+    }
+
+    // Update profile weight with the most recent weigh-in
+    const latestWeight = [...results].reverse().find(r => r.weight_kg != null);
+    if (latestWeight) {
+      await updateProfileWeight(userId, latestWeight.weight_kg);
     }
 
     // Update sync metadata

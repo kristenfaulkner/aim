@@ -360,3 +360,15 @@ export async function subscribeWithingsNotifications(accessToken) {
   }
   return results;
 }
+
+/**
+ * Update the user's profile weight with the latest Withings measurement.
+ * Keeps W/kg, FTP/kg, and body-comp AI insights current automatically.
+ */
+export async function updateProfileWeight(userId, weightKg) {
+  if (weightKg == null) return;
+  await supabaseAdmin
+    .from("profiles")
+    .update({ weight_kg: weightKg })
+    .eq("id", userId);
+}

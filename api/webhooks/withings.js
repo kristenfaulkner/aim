@@ -5,6 +5,7 @@ import {
   fetchWithingsSleep,
   mapWithingsToMetrics,
   extractWithingsExtended,
+  updateProfileWeight,
 } from "../_lib/withings.js";
 
 /**
@@ -76,6 +77,11 @@ async function syncFromNotification(userId, appli, startdate, enddate) {
       await supabaseAdmin
         .from("daily_metrics")
         .insert({ user_id: userId, date, ...metrics, source_data: sourceData });
+    }
+
+    // Auto-update profile weight with latest weigh-in
+    if (metrics.weight_kg != null) {
+      await updateProfileWeight(userId, metrics.weight_kg);
     }
 
     console.log(`[Withings Webhook] Synced appli=${appli} for user ${userId} on ${date}`);

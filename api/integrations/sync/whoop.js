@@ -89,6 +89,14 @@ export async function fullWhoopSync(userId, days = 7) {
       }
     }
 
+    // Update profile weight if Whoop has body measurement data
+    if (whoopData.body?.weight_kilogram != null) {
+      await supabaseAdmin
+        .from("profiles")
+        .update({ weight_kg: whoopData.body.weight_kilogram })
+        .eq("id", userId);
+    }
+
     // Update sync metadata
     await supabaseAdmin
       .from("integrations")
