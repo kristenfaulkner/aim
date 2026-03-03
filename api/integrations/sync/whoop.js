@@ -89,12 +89,20 @@ export async function fullWhoopSync(userId, days = 7) {
       }
     }
 
-    // Update profile weight if Whoop has body measurement data
+    // Update profile weight from Whoop only if no weight exists yet
+    // (Withings and manual input take priority over Whoop)
     if (whoopData.body?.weight_kilogram != null) {
-      await supabaseAdmin
+      const { data: profile } = await supabaseAdmin
         .from("profiles")
-        .update({ weight_kg: whoopData.body.weight_kilogram })
-        .eq("id", userId);
+        .select("weight_kg")
+        .eq("id", userId)
+        .single();
+      if (!profile?.weight_kg) {
+        await supabaseAdmin
+          .from("profiles")
+          .update({ weight_kg: whoopData.body.weight_kilogram })
+          .eq("id", userId);
+      }
     }
 
     // Update sync metadata
