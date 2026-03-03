@@ -24,8 +24,10 @@ Return valid JSON:
 }
 
 Rules:
+- ALWAYS address the athlete by their first name (from athlete.first_name in the data). NEVER say "Athlete" — use their actual name.
 - Reference specific watts, HR, TSS, IF, and zone data from the ride
 - Connect ride data to recent trends (CTL/ATL/TSB, HRV, sleep)
+- Sleep and recovery data is from LAST NIGHT, not tonight. Always say "last night" when referring to the most recent sleep data.
 - actionItems timeframes: "right_now" (recovery window), "this_week" (training adjustments), "big_picture" (periodization/goals)
 - 3-5 insights, each connecting 2+ data points
 - Be encouraging but honest
@@ -54,7 +56,9 @@ Return valid JSON:
 }
 
 Rules:
+- ALWAYS address the athlete by their first name (from athlete.first_name in the data). NEVER say "Athlete" — use their actual name.
 - Assess readiness using TSB, HRV trend, sleep quality, and recent training stress
+- Sleep and recovery data is from LAST NIGHT, not tonight. Always say "last night" when referring to the most recent sleep data.
 - Fueling plan should scale to workout duration and intensity
 - Action items should be things to do in the next 1-3 hours before the ride
 - Tips should reference their actual FTP, zones, and power targets for the planned workout
@@ -88,7 +92,9 @@ Return valid JSON:
 }
 
 Rules:
+- ALWAYS address the athlete by their first name (from athlete.first_name in the data). NEVER say "Athlete" — use their actual name.
 - Reference their actual CTL, ATL, TSB, and recent trends
+- Sleep and recovery data is from LAST NIGHT, not tonight. Always say "last night" when referring to the most recent sleep data.
 - Workout recommendations should use their real FTP for power targets
 - 1-3 workout recommendations appropriate for their current fatigue/fitness balance
 - If TSB is very negative, emphasize rest; if positive, suggest productive training
@@ -180,7 +186,8 @@ export default async function handler(req, res) {
     const mode = requestedMode || detectMode(todayActivity, todayPlannedWorkout);
 
     // Build context for Claude
-    const profileSafe = profile ? { ...profile, full_name: profile.full_name || "Athlete" } : { full_name: "Athlete" };
+    const firstName = profile?.full_name?.split(" ")[0] || "Athlete";
+    const profileSafe = profile ? { ...profile, first_name: firstName } : { first_name: "Athlete" };
     const context = {
       athlete: profileSafe,
       dailyMetrics,

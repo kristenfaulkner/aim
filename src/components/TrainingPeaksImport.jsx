@@ -143,13 +143,15 @@ export default function TrainingPeaksImport({ onClose, onComplete }) {
             <Check size={28} color={T.accent} />
           </div>
           <div style={{ fontSize: 20, fontWeight: 800, color: T.text, marginBottom: 4 }}>Import Complete</div>
-          <div style={{ fontSize: 13, color: T.textSoft, marginBottom: 24 }}>Your TrainingPeaks data has been imported into AIM.</div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
-            <StatCard label="Imported" value={result.imported} color={T.accent} />
-            <StatCard label="Merged with Strava" value={result.merged} color={T.blue} />
-            <StatCard label="Already imported" value={result.skipped} color={T.textDim} />
-            <StatCard label="Failed" value={result.failed} color={result.failed > 0 ? T.danger : T.textDim} />
+          <div style={{ fontSize: 14, color: T.text, marginBottom: 6 }}>
+            <strong>{result.total || (result.imported + result.merged + result.skipped + result.failed)}</strong> files processed — <strong style={{ color: T.accent }}>{result.imported}</strong> imported
+          </div>
+          <div style={{ fontSize: 13, color: T.textSoft, marginBottom: 24 }}>
+            {[
+              result.merged > 0 && `${result.merged} merged with existing`,
+              result.skipped > 0 && `${result.skipped} already imported`,
+              result.failed > 0 && `${result.failed} failed`,
+            ].filter(Boolean).join(", ") || "All files were new."}
           </div>
 
           {result.failed > 0 && result.errors?.length > 0 && (
