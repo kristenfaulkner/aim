@@ -69,17 +69,8 @@ export default async function handler(req, res) {
     }
 
     if (aspect_type === "delete") {
-      console.log(`[Strava Webhook] Deleting activity ${object_id} for user ${integration.user_id}`);
-      const { error: deleteError } = await supabaseAdmin
-        .from("activities")
-        .delete()
-        .eq("user_id", integration.user_id)
-        .eq("source", "strava")
-        .eq("source_id", String(object_id));
-
-      if (deleteError) {
-        console.error(`[Strava Webhook] Delete failed for activity ${object_id}:`, deleteError.message);
-      }
+      // Activities are kept in AIM even if deleted from Strava
+      console.log(`[Strava Webhook] Ignoring delete for activity ${object_id} — AIM retains all synced activities`);
     }
 
     return res.status(200).json({ ok: true });
