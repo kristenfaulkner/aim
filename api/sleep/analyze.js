@@ -209,7 +209,7 @@ export default async function handler(req, res) {
     // Send to Claude
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 2000,
+      max_tokens: 4000,
       system: SLEEP_PERFORMANCE_PROMPT,
       messages: [{ role: "user", content: JSON.stringify(context) }],
     });
@@ -240,10 +240,17 @@ export default async function handler(req, res) {
           }
         }
       }
-      // Final fallback: wrap raw text as a summary
+      // Final fallback: wrap raw text as a summary, stripping JSON/markdown artifacts
       if (!analysis) {
+        let cleanText = text
+          .replace(/```json\s*/g, "")
+          .replace(/```\s*/g, "")
+          .replace(/^\s*\{\s*"summary"\s*:\s*"?/i, "")
+          .replace(/"\s*,?\s*"insights"\s*:[\s\S]*/i, "")
+          .replace(/"\s*$/g, "")
+          .trim();
         analysis = {
-          summary: text.substring(0, 500),
+          summary: cleanText.substring(0, 500) || "Sleep analysis is temporarily unavailable. Please try again.",
           insights: [],
           dataGaps: [],
         };
