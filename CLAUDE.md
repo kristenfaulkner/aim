@@ -340,18 +340,45 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 - **Training Calendar API** — planned workout CRUD (`/api/calendar/*`) for `training_calendar` table
 - **Adaptive Dashboard Intelligence** — 3-mode AI endpoint (`/api/dashboard/intelligence`): POST_RIDE, PRE_RIDE_PLANNED, DAILY_COACH modes with structured action items
 
-### Remaining
-- Garmin Connect sync logic
-- Oura / Whoop / Withings sync logic
-- Cross-domain AI insights (multi-source pattern detection beyond single-activity analysis)
-- Training prescription engine (workout recommendations from power profile gaps)
-- Menstrual cycle intelligence (Oura temperature-based phase detection)
-- Stripe payments (3-tier subscription + feature gating) — update webhook/redirect URLs to `aimfitness.ai` when configured
-- Remaining Tier 3 integrations
-- Activity annotation columns migration (user_notes, user_rating, user_rpe, user_tags — SQL exists at `/sql/add_activity_annotations.sql`, not yet applied to production)
-- Twilio toll-free verification: once current verification is approved/rejected, update opt-in proof URL to `https://aimfitness.ai` if needed
-- Apple OAuth (configure in Apple Developer + Supabase when ready)
-- Coach sharing, community benchmarks, weekly digest emails, mobile app
+### Remaining — Prioritized Feature Backlog
+
+**This is the single source of truth for what to build next.** Detailed implementation specs (checkboxes, sub-tasks, SQL) for Vekta-inspired features (Tasks 40-50) live in `docs/technical-architecture.md` under "VEKTA-INSPIRED FEATURES" — reference that file when building any of those tasks.
+
+#### P0 — Core Analytics (ship first, biggest competitive differentiation)
+1. **Critical Power (CP) & W' Modeling** — replace FTP with 3D power model (CP/W'/Pmax), auto-updated from best efforts, cross-referenced with recovery/sleep/body comp. *[Task 40 in technical-architecture.md]*
+2. **Adaptive Training Zones** — dynamic zones from CP model that auto-adjust as fitness evolves + readiness-adjusted zone targets on red recovery days. *[Task 41]*
+3. **Durability & Fatigue Resistance Tracking** — peak power at progressive fatigue levels (kJ/kg buckets), durability score, trends over time, race-specific predictions. *[Task 42]*
+4. **Automatic Interval Detection & Classification** — auto-detect intervals from power stream, classify by intensity type (VO2max/threshold/tempo/etc.), per-interval metrics. *[Task 43]*
+
+#### P1 — Enhanced Analysis (high-value features that build on P0)
+5. **Automatic Session Classification** — auto-tag rides as race/endurance/threshold/VO2max/etc. from power patterns, training type distribution charts. *[Task 44]*
+6. **AI Session Summaries with Interval Breakdown** — enhance post-ride AI with structured interval intelligence + cross-domain context (sleep/recovery impact on interval quality). *[Task 46]*
+7. **W' Balance Tracking** — real-time anaerobic reserve depletion/recovery throughout rides, "empty tank" flagging, race analysis. Requires CP model (P0). *[Task 49]*
+8. **Similar Session Finder & Comparison** — auto-find comparable past rides, side-by-side metrics, AI explains what changed using cross-domain data. *[Task 47]*
+9. **Cross-domain AI insights** — multi-source pattern detection beyond single-activity analysis
+10. **Training prescription engine** — workout recommendations from power profile gaps and CP/W' weaknesses
+
+#### P2 — Integrations & Data Sources
+11. **Garmin Connect** — sync logic (activities, body battery, stress, daily HR)
+12. **Oura / Whoop / Withings** — sync logic (OAuth connect/callback already exist)
+13. **Remaining Tier 3 integrations** — Apple Health, Supersapiens/Lingo, MyFitnessPal, Cronometer, TrainerRoad, Intervals.icu, Zwift, Hammerhead, Hexis, Noom
+
+#### P3 — Platform & Business
+14. **Stripe payments** — 3-tier subscription + feature gating; update webhook/redirect URLs to `aimfitness.ai` when configured
+15. **Coach Platform & Multi-Athlete Management** — coach dashboard, athlete invitations, granular permissions, coach-specific AI summaries. *[Task 48]*
+16. **Historical Performance Timeline (5-Year)** — long-range metrics view, season summaries, year-over-year overlays, long-term pattern detection. *[Task 50]*
+17. **Torque Analysis** — calculate from power+cadence streams, fatigue-induced torque shifts, gradient analysis. *[Task 45]*
+18. **Menstrual cycle intelligence** — Oura temperature-based phase detection, cycle-aware training recommendations
+
+#### P4 — Polish & Infrastructure
+19. **Onboarding improvements** — refine the onboarding flow for better first-time user experience, reduce friction, improve data connection guidance
+20. **Mascot design & integration** — create an AIM brand mascot, integrate into UI (loading states, empty states, onboarding, AI chat personality)
+21. **Activity annotation columns migration** — user_notes, user_rating, user_rpe, user_tags (SQL exists at `/sql/add_activity_annotations.sql`, not yet applied to production)
+22. **Twilio toll-free verification** — update opt-in proof URL to `https://aimfitness.ai` when approved
+23. **Apple OAuth** — configure in Apple Developer + Supabase when ready
+24. **Weekly digest emails** — automated weekly training summary via Resend
+25. **Community benchmarks** — anonymous percentile rankings against similar athletes
+26. **Mobile app** — React Native or PWA
 
 ## Documentation Rules
 

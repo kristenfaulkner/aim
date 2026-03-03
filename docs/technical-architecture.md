@@ -736,6 +736,8 @@ A structured workout library paired with the training prescription engine, with 
 
 ## VEKTA-INSPIRED FEATURES
 
+> **Note:** The prioritized build order for all features (including these) lives in `CLAUDE.md` under "Remaining — Prioritized Feature Backlog". This section contains the detailed implementation specs — refer to `CLAUDE.md` for what to build next.
+
 *Features identified from competitive analysis of [Vekta](https://joinvekta.com/), the AI-powered coaching platform used by WorldTour teams (Lidl-Trek, Jayco AlUla, FDJ-SUEZ, etc.). Ranked by importance to AIM's differentiation and implementation difficulty.*
 
 ### Task 40: Critical Power (CP) & W' Modeling — ★★★★★ Importance / ★★★ Difficulty
