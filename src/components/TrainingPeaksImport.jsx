@@ -12,7 +12,7 @@ import { useResponsive } from "../hooks/useResponsive";
 
 const MAX_ZIP_MB = 2000; // Effectively unlimited — ZIP is extracted client-side
 const MAX_CSV_MB = 10;
-const MAX_BATCH_BYTES = 30 * 1024 * 1024; // 30MB raw per batch
+const MAX_BATCH_BYTES = 3 * 1024 * 1024; // 3MB raw per batch (~4MB base64, under Vercel's 4.5MB payload limit)
 const WORKOUT_EXTENSIONS = /\.(fit|fit\.gz|gz|tcx|tcx\.gz|gpx|gpx\.gz)$/i;
 
 export default function TrainingPeaksImport({ onClose, onComplete }) {
@@ -140,7 +140,11 @@ export default function TrainingPeaksImport({ onClose, onComplete }) {
             body: JSON.stringify({ files: batch }),
           });
 
-          const data = await res.json();
+          const text = await res.text();
+          let data;
+          try { data = JSON.parse(text); } catch {
+            throw new Error(`Server error (${res.status}): ${text.slice(0, 120)}`);
+          }
           if (!res.ok) throw new Error(data.error || `Batch ${i + 1} failed`);
 
           stats.imported += data.imported || 0;
@@ -178,7 +182,11 @@ export default function TrainingPeaksImport({ onClose, onComplete }) {
         }),
       });
 
-      const finalData = await finalRes.json();
+      const finalText = await finalRes.text();
+      let finalData;
+      try { finalData = JSON.parse(finalText); } catch {
+        throw new Error(`Finalize error (${finalRes.status}): ${finalText.slice(0, 120)}`);
+      }
       if (!finalRes.ok) throw new Error(finalData.error || "Finalize failed");
 
       const finalResult = {

@@ -1,12 +1,15 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import JSZip from "jszip";
 import { T, font, mono } from "../theme/tokens";
 import { Upload, FileText, Check, AlertCircle, Loader, Activity, Droplets, Bone, FileSpreadsheet, Archive, Clock } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
 const MAX_SIZE_MB = 10;
-const MAX_ZIP_SIZE_MB = 50;
+const MAX_ZIP_SIZE_MB = 2000; // Effectively unlimited — ZIP is extracted client-side
 const MAX_FILES = 20;
+const MAX_BATCH_BYTES = 3 * 1024 * 1024; // 3MB raw (~4MB base64, under Vercel's 4.5MB payload limit)
+const WORKOUT_EXTENSIONS = /\.(fit|fit\.gz|gz|tcx|tcx\.gz|gpx|gpx\.gz)$/i;
 
 // ── File classification ──
 
@@ -104,28 +107,74 @@ export default function UniversalUpload({ compact = false }) {
         headers: { "Content-Type": "application/json", Authorization: authHeader },
         body: JSON.stringify({ fileBase64: base64, fileName: file.name }),
       });
-      const data = await res.json();
+      const resText = await res.text();
+      let data;
+      try { data = JSON.parse(resText); } catch { throw new Error(`Server error (${res.status}): ${resText.slice(0, 120)}`); }
       if (!res.ok) throw new Error(data.error || `Upload failed (${res.status})`);
       return { destination: "dashboard", ...data };
     }
 
-    // ZIP — upload to Supabase Storage, then call TrainingPeaks endpoint
+    // ZIP — extract client-side with JSZip, send batches to API
     if (type === "zip") {
       if (file.size > MAX_ZIP_SIZE_MB * 1024 * 1024) throw new Error(`ZIP exceeds ${MAX_ZIP_SIZE_MB}MB`);
-      const filePath = `${session.user.id}/universal/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-      const { error: uploadErr } = await supabase.storage
-        .from("import-files")
-        .upload(filePath, file, { contentType: "application/zip", upsert: false });
-      if (uploadErr) throw new Error(uploadErr.message || "Storage upload failed");
 
-      const res = await fetch("/api/integrations/import/trainingpeaks", {
+      const zip = await JSZip.loadAsync(file);
+      const workoutEntries = [];
+      zip.forEach((relativePath, entry) => {
+        if (!entry.dir && WORKOUT_EXTENSIONS.test(relativePath)) {
+          workoutEntries.push({ name: relativePath, entry });
+        }
+      });
+
+      if (workoutEntries.length === 0) throw new Error("ZIP contains no workout files (.fit, .tcx, .gpx)");
+
+      // Group files into batches by size
+      const batches = [];
+      let currentBatch = [], currentSize = 0;
+      for (const { name, entry } of workoutEntries) {
+        const b64 = await entry.async("base64");
+        const rawSize = Math.ceil(b64.length * 0.75);
+        if (currentSize + rawSize > MAX_BATCH_BYTES && currentBatch.length > 0) {
+          batches.push(currentBatch);
+          currentBatch = [];
+          currentSize = 0;
+        }
+        currentBatch.push({ name, data: b64 });
+        currentSize += rawSize;
+      }
+      if (currentBatch.length > 0) batches.push(currentBatch);
+
+      // Send each batch
+      const stats = { imported: 0, merged: 0, skipped: 0, failed: 0, total: workoutEntries.length };
+      for (const batch of batches) {
+        const res = await fetch("/api/integrations/import/trainingpeaks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: authHeader },
+          body: JSON.stringify({ files: batch }),
+        });
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); } catch {
+          throw new Error(`Server error (${res.status}): ${text.slice(0, 120)}`);
+        }
+        if (!res.ok) throw new Error(data.error || `Import failed (${res.status})`);
+        stats.imported += data.imported || 0;
+        stats.merged += data.merged || 0;
+        stats.skipped += data.skipped || 0;
+        stats.failed += data.failed || 0;
+      }
+
+      // Finalize (integration record + backfill)
+      const finalRes = await fetch("/api/integrations/import/trainingpeaks", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: authHeader },
-        body: JSON.stringify({ zipPath: filePath }),
+        body: JSON.stringify({ finalize: true, stats }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `Import failed (${res.status})`);
-      return { destination: "dashboard", ...data };
+      const finalText = await finalRes.text();
+      let finalData;
+      try { finalData = JSON.parse(finalText); } catch { finalData = {}; }
+
+      return { destination: "dashboard", ...stats, analysisQueued: finalData?.analysisQueued };
     }
 
     // CSV — sniff and route
@@ -140,7 +189,9 @@ export default function UniversalUpload({ compact = false }) {
         headers: { "Content-Type": "application/json", Authorization: authHeader },
         body: JSON.stringify(body),
       });
-      const data = await res.json();
+      const csvText = await res.text();
+      let data;
+      try { data = JSON.parse(csvText); } catch { throw new Error(`Server error (${res.status}): ${csvText.slice(0, 120)}`); }
       if (!res.ok) throw new Error(data.error || `Import failed (${res.status})`);
       return { destination: "dashboard", ...data };
     }
