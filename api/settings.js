@@ -27,7 +27,15 @@ export default async function handler(req, res) {
   }
 
   if (req.method === "PUT") {
-    const { notification_preferences, preferences } = req.body;
+    const { notification_preferences, preferences, zone_preference } = req.body;
+
+    // zone_preference lives on profiles table (not user_settings)
+    if (zone_preference && ["auto", "cp", "coggan"].includes(zone_preference)) {
+      await supabaseAdmin
+        .from("profiles")
+        .update({ zone_preference })
+        .eq("id", session.userId);
+    }
 
     const updates = {};
     if (notification_preferences) updates.notification_preferences = notification_preferences;

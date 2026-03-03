@@ -114,7 +114,10 @@ function buildTiles(models) {
   if (models.durability) {
     const m = models.durability;
     let headline = null;
-    if (m.threshold != null) {
+    // Prefer aggregate durability score (from power_profiles) if available
+    if (models._durabilityScore != null) {
+      headline = `${Math.round(models._durabilityScore * 100)}% retention`;
+    } else if (m.threshold != null) {
       headline = `${m.threshold} kJ/kg threshold`;
     }
     tiles.push({
@@ -169,6 +172,7 @@ function buildTiles(models) {
 
 export default function PerformanceModels({ isMobile }) {
   const [models, setModels] = useState(null);
+  const [durabilityScore, setDurabilityScore] = useState(null);
   const [loading, setLoading] = useState(true);
   const fetched = useRef(false);
 
@@ -178,8 +182,12 @@ export default function PerformanceModels({ isMobile }) {
 
     (async () => {
       try {
-        const data = await apiFetch("/api/models/summary");
-        setModels(data.models || null);
+        const [modelsData, durData] = await Promise.all([
+          apiFetch("/api/models/summary"),
+          apiFetch("/api/durability/summary").catch(() => null),
+        ]);
+        setModels(modelsData.models || null);
+        if (durData?.score != null) setDurabilityScore(durData.score);
       } catch {
         // silently fail — card just won't show models
       } finally {
@@ -188,7 +196,9 @@ export default function PerformanceModels({ isMobile }) {
     })();
   }, []);
 
-  const tiles = buildTiles(models);
+  // Inject durability score into models for buildTiles
+  const modelsWithScore = models ? { ...models, _durabilityScore: durabilityScore } : null;
+  const tiles = buildTiles(modelsWithScore);
 
   // Don't render the card at all if loading is done and there are no models
   if (!loading && tiles.length === 0 && !models) {

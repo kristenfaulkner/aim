@@ -13,6 +13,7 @@ import { detectAllTags, persistTags } from "../../_lib/tags.js";
 import { fetchActivityWeather, extractLocationFromActivity } from "../../_lib/weather-enrich.js";
 import { resolveActivityTimezone, parseStravaTimezone } from "../../_lib/timezone.js";
 import { detectTravel } from "../../_lib/travel.js";
+import { computeDurabilityData } from "../../_lib/durability.js";
 
 /**
  * Sync a single Strava activity by ID.
@@ -82,6 +83,19 @@ export async function syncStravaActivity(userId, stravaActivityId, options = {})
     }
   }
 
+  // Compute durability data from power stream
+  let durabilityPayload = null;
+  if (streams.watts?.data && profile?.weight_kg) {
+    try {
+      const sr = streams.time?.data?.length > 1
+        ? (streams.time.data[streams.time.data.length - 1] - streams.time.data[0]) / (streams.time.data.length - 1)
+        : 1;
+      durabilityPayload = computeDurabilityData(streams.watts.data, streams.time?.data, profile.weight_kg, sr);
+    } catch (err) {
+      console.error(`Durability computation failed for Strava ${stravaActivityId}:`, err.message);
+    }
+  }
+
   // Build activity record
   const record = {
     user_id: userId,
@@ -115,6 +129,7 @@ export async function syncStravaActivity(userId, stravaActivityId, options = {})
     zone_distribution: metrics.zone_distribution ?? null,
     power_curve: metrics.power_curve ?? null,
     laps: lapsPayload,
+    durability_data: durabilityPayload,
     start_lat: stravaLat,
     start_lng: stravaLng,
     timezone_iana: tz.timezone_iana,

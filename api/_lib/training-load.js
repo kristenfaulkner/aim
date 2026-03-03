@@ -4,7 +4,9 @@
  */
 import { supabaseAdmin } from "./supabase.js";
 import { computeTrainingLoad, findNewBests } from "./metrics.js";
-import { fitCPModel } from "./cp-model.js";
+import { fitCPModel, computeCPZones } from "./cp-model.js";
+import { buildZonesSnapshot } from "./adaptive-zones.js";
+import { aggregateDurability } from "./durability.js";
 
 /**
  * Update daily_metrics with TSS and recompute CTL/ATL/TSB.
@@ -129,6 +131,12 @@ export async function updatePowerProfile(userId, newCurve, weightKg) {
     if (profile) {
       const cpResult = fitCPModel(profile);
       if (cpResult) {
+        // Auto-compute CP zones and append to zone history
+        const cpZones = computeCPZones(cpResult.cp_watts);
+        const snapshot = buildZonesSnapshot(cpResult.cp_watts, cpZones, today);
+        const existingHistory = profile.zones_history || [];
+        const updatedHistory = [...existingHistory, snapshot].slice(-52); // keep ~1 year
+
         await supabaseAdmin
           .from("power_profiles")
           .update({
@@ -137,8 +145,43 @@ export async function updatePowerProfile(userId, newCurve, weightKg) {
             pmax_watts: cpResult.pmax_watts,
             cp_model_r_squared: cpResult.r_squared,
             cp_model_data: cpResult.model_data,
+            cp_zones: cpZones,
+            zones_history: updatedHistory,
           })
           .eq("id", profile.id);
+      }
+
+      // Aggregate durability from recent activities (fire-and-forget)
+      try {
+        const { data: recentDurability } = await supabaseAdmin
+          .from("activities")
+          .select("started_at, durability_data")
+          .eq("user_id", userId)
+          .not("durability_data", "is", null)
+          .gte("started_at", new Date(Date.now() - 90 * 86400000).toISOString())
+          .order("started_at", { ascending: false })
+          .limit(50);
+
+        if (recentDurability?.length >= 3) {
+          const agg = aggregateDurability(
+            recentDurability.map((a) => ({
+              date: a.started_at.split("T")[0],
+              durability_data: a.durability_data,
+            }))
+          );
+          if (agg) {
+            await supabaseAdmin
+              .from("power_profiles")
+              .update({
+                durability_score: agg.avgScore,
+                durability_buckets: agg.bestBuckets,
+                durability_trend: agg.trend,
+              })
+              .eq("id", profile.id);
+          }
+        }
+      } catch (err) {
+        console.error("Durability aggregation failed (non-blocking):", err.message);
       }
     }
   } catch (err) {

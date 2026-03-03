@@ -5,6 +5,8 @@ import { useAuth } from "../context/AuthContext";
 import { usePreferences } from "../context/PreferencesContext";
 import { useResponsive } from "../hooks/useResponsive";
 import { useMyStats } from "../hooks/useMyStats";
+import { useAdaptiveZones } from "../hooks/useAdaptiveZones";
+import { useDurability } from "../hooks/useDurability";
 import { computePowerZones, computeHRZones, computeCPZones } from "../lib/zones";
 import { formatWeight, weightUnit } from "../lib/units";
 import { LogOut, Menu, X, User, Settings, Edit3, BarChart3 } from "lucide-react";
@@ -103,6 +105,8 @@ export default function MyStats() {
   const [zoneView, setZoneView] = useState("power"); // power | hr | cp
 
   const { profile, powerProfile, latestMetrics, latestDexa, averages, loading } = useMyStats();
+  const adaptiveZonesData = useAdaptiveZones();
+  const durabilityData = useDurability();
 
   const handleSignout = async () => { await signout(); navigate("/"); };
 
@@ -291,6 +295,16 @@ export default function MyStats() {
             </div>
           }
         >
+          {/* Readiness adjustment banner */}
+          {adaptiveZonesData.adjustmentPct != null && adaptiveZonesData.adjustmentPct !== 0 && (zoneView === "cp" || zoneView === "power") && (
+            <div style={{
+              background: adaptiveZonesData.adjustmentPct <= -5 ? "rgba(239,68,68,0.08)" : "rgba(245,158,11,0.08)",
+              border: `1px solid ${adaptiveZonesData.adjustmentPct <= -5 ? "rgba(239,68,68,0.2)" : "rgba(245,158,11,0.2)"}`,
+              borderRadius: 8, padding: "6px 10px", marginBottom: 10, fontSize: 11, color: T.textSoft,
+            }}>
+              Today adjusted <span style={{ fontWeight: 700, color: adaptiveZonesData.adjustmentPct <= -5 ? T.danger : T.warn }}>{adaptiveZonesData.adjustmentPct}%</span> — {adaptiveZonesData.adjustmentReason}
+            </div>
+          )}
           {zoneView === "power" && powerZones ? (
             powerZones.map(z => (
               <ZoneBar key={z.zone} zone={z.zone} name={z.name} min={z.min} max={z.max} color={z.color} />
@@ -305,6 +319,16 @@ export default function MyStats() {
             ))
           ) : (
             <EmptyState message={zoneView === "power" ? "Set your FTP to see power zones." : zoneView === "hr" ? "Set your Max HR to see HR zones." : "Sync activities to compute CP zones."} />
+          )}
+          {/* Zone evolution */}
+          {adaptiveZonesData.delta?.length > 0 && (zoneView === "cp") && (
+            <div style={{ marginTop: 8, fontSize: 10, color: T.textSoft }}>
+              {adaptiveZonesData.delta.filter(d => d.deltaMin !== 0).slice(0, 3).map(d => (
+                <span key={d.zone} style={{ display: "block" }}>
+                  {d.zone} floor {d.deltaMin > 0 ? "+" : ""}{d.deltaMin}W ({d.oldMin}→{d.newMin}W)
+                </span>
+              ))}
+            </div>
           )}
         </SectionCard>
 
@@ -360,7 +384,63 @@ export default function MyStats() {
           )}
         </SectionCard>
 
-        {/* ── SECTION 6: RECOVERY BASELINES ── */}
+        {/* ── SECTION 6: DURABILITY ── */}
+        <SectionCard title="Durability">
+          {durabilityData.score != null ? (
+            <>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <StatBox
+                  label="Durability Score"
+                  value={Math.round(durabilityData.score * 100)}
+                  unit="%"
+                  sub="5m power retention at 30 kJ/kg"
+                  color={durabilityData.score >= 0.9 ? T.accent : durabilityData.score >= 0.8 ? T.warn : T.danger}
+                  large
+                />
+              </div>
+              {durabilityData.buckets?.length > 0 && (
+                <div style={{ marginTop: 10 }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
+                    Best Power by Fatigue Level
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "auto repeat(4, 1fr)", gap: "2px 8px", fontSize: 11 }}>
+                    <span style={{ fontWeight: 600, color: T.textDim }}>kJ/kg</span>
+                    <span style={{ fontWeight: 600, color: T.textDim, textAlign: "right" }}>5s</span>
+                    <span style={{ fontWeight: 600, color: T.textDim, textAlign: "right" }}>1m</span>
+                    <span style={{ fontWeight: 600, color: T.textDim, textAlign: "right" }}>5m</span>
+                    <span style={{ fontWeight: 600, color: T.textDim, textAlign: "right" }}>20m</span>
+                    {durabilityData.buckets.flatMap(b => [
+                      <span key={b.range + "-l"} style={{ color: T.textSoft, fontWeight: 500 }}>{b.range}</span>,
+                      <span key={b.range + "-5s"} style={{ fontFamily: mono, textAlign: "right", color: T.text }}>{b.best_5s ?? "—"}</span>,
+                      <span key={b.range + "-1m"} style={{ fontFamily: mono, textAlign: "right", color: T.text }}>{b.best_1m ?? "—"}</span>,
+                      <span key={b.range + "-5m"} style={{ fontFamily: mono, textAlign: "right", color: T.text }}>{b.best_5m ?? "—"}</span>,
+                      <span key={b.range + "-20m"} style={{ fontFamily: mono, textAlign: "right", color: T.text }}>{b.best_20m ?? "—"}</span>,
+                    ])}
+                  </div>
+                </div>
+              )}
+              {durabilityData.predictions?.length > 0 && (
+                <div style={{ marginTop: 10 }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>
+                    Race Predictions (5m power)
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {durabilityData.predictions.map(p => (
+                      <div key={p.kj_per_kg} style={{ background: T.surface, borderRadius: 8, padding: "4px 10px", fontSize: 11 }}>
+                        <span style={{ color: T.textSoft }}>At {p.kj_per_kg} kJ/kg: </span>
+                        <span style={{ fontFamily: mono, fontWeight: 600 }}>{p.predictedWatts}W</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <EmptyState message="Sync longer rides with power data to build your durability profile." />
+          )}
+        </SectionCard>
+
+        {/* ── SECTION 7: RECOVERY BASELINES ── */}
         <SectionCard title="Recovery Baselines">
           {averages ? (
             <>

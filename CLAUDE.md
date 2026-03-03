@@ -41,6 +41,8 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 - `hooks/useSleepData.js` — sleep data from `daily_metrics` with configurable time period, computes averages
 - `hooks/useActivityBrowser.js` — cursor-based paginated activity browser with time period filtering (Week/Month/Year/All) and client-side search
 - `hooks/useMyStats.js` — parallel Supabase queries for My Stats page (power profile, daily metrics, DEXA, 30-day averages)
+- `hooks/useAdaptiveZones.js` — adaptive training zones with readiness adjustment from `/api/zones/adaptive`
+- `hooks/useDurability.js` — durability summary (score, buckets, trend, predictions) from `/api/durability/summary`
 - `hooks/useResponsive.js` — responsive breakpoint hook (`isMobile`/`isTablet`/`isDesktop`) via `matchMedia`
 - `lib/api.js` — `apiFetch()` utility adds Bearer token to all `/api` calls
 - `lib/supabase.js` — Supabase client init
@@ -64,6 +66,8 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
   - `planned-vs-actual.js` — training plan to activity matching, interval comparison, execution scoring
   - `performance-models.js` — conditional performance models: heat penalty, sleep→execution, HRV readiness, fueling→durability, kJ/kg durability threshold
   - `cp-model.js` — Critical Power model: hyperbolic fitting (CP/W'/Pmax), CP-based zones, AI formatting
+  - `adaptive-zones.js` — Adaptive training zones: readiness-adjusted zone shifts (recovery/TSB signals), zone history delta computation, AI formatting
+  - `durability.js` — Durability tracking: per-activity fatigue-bucket power curves (kJ/kg buckets), retention scoring, aggregation, race prediction interpolation
   - `travel.js` — Travel detection pure functions: haversine distance, timezone/altitude shift detection, jet lag recovery estimation, altitude power penalty
   - `cross-training.js` — Cross-training utilities: recovery impact estimation (none/minor/moderate/major), TSS approximation from intensity + duration
   - `strava.js` — Strava API client with token refresh
@@ -99,6 +103,8 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 - `nutrition/` — nutrition logging: parse (Claude-powered free-text → structured items), log (save to `nutrition_logs`), previous (last log for quick reuse)
 - `calendar/` — training calendar: list (date range query), upsert (create/update planned workouts)
 - `models/` — performance model summary endpoint
+- `zones/` — adaptive training zones endpoint (readiness-adjusted zones, preference, zone delta, history)
+- `durability/` — durability summary endpoint (aggregate score, fatigue buckets, trend, race predictions)
 - `checkin/` — daily subjective check-in: submit (POST, upserts life_stress/motivation/soreness/mood to daily_metrics), status (GET, today's check-in or null)
 - `cross-training/` — non-cycling activity logger: log (POST, computes recovery_impact + estimated_tss), list (GET, recent entries with ?days=N filter)
 - `dashboard/intelligence.js` — adaptive AI dashboard: 3 modes (POST_RIDE/PRE_RIDE_PLANNED/DAILY_COACH), returns structured action items + insights
@@ -268,12 +274,12 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 
 See `docs/build-status.md` for the full detailed log. Summary of what's built:
 
-**Core**: Auth (email/password/Google SSO/magic link), onboarding, Vercel deployment, mobile-responsive, testing (204 tests), SEO, legal compliance, account management
+**Core**: Auth (email/password/Google SSO/magic link), onboarding, Vercel deployment, mobile-responsive, testing (248 tests), SEO, legal compliance, account management
 **Integrations**: Strava (full), EightSleep (full + hourly cron), Wahoo (webhook), TrainingPeaks (file import), Twilio SMS, Resend email, Oura (full + hourly cron), Whoop (full + hourly cron), Withings (full + hourly cron)
 **AI (10 features)**: Post-ride analysis, email summaries, SMS coach, chat coach, sleep summary, blood panel OCR, nutrition parsing, dashboard intelligence, adaptive 3-mode AI, athlete bio generation
 **Pages**: Dashboard V2, Sleep Intelligence, ActivityDetail, HealthLab, Boosters, ConnectApps, Settings, WorkoutDatabase, Landing, Legal pages
 **Structured Workouts (5 phases)**: Interval extraction, canonical tagging (32+14 tags), weather enrichment, interval execution coaching, performance models (heat/sleep/HRV/fueling/durability), searchable workout database
-**Power Analytics**: Critical Power (CP) & W' model — hyperbolic fitting from power profile bests, auto-computed on sync, CPModelCard on dashboard, AI context enrichment, backfill endpoint
+**Power Analytics**: Critical Power (CP) & W' model — hyperbolic fitting from power profile bests, auto-computed on sync, CPModelCard on dashboard, AI context enrichment, backfill endpoint. Adaptive training zones (readiness-adjusted -3% to -8%, zone evolution history, preference auto/CP/Coggan). Durability & fatigue resistance (per-activity fatigue-bucket power curves, retention scoring, aggregate durability score, race predictions, backfill endpoint)
 **Expansion (P1)**: Daily subjective check-in (4 sliders: stress/motivation/soreness/mood), activity subjective fields (GI comfort, mental focus, pre-ride recovery), travel & timezone auto-detection (GPS-based, jet lag + altitude tracking), cross-training logger (strength/yoga/swimming/hiking with recovery impact + TSS estimation), 6 new AI insight categories (23-28), 10 new workout tags
 **Other**: SessionNotes + tag normalization, markdown rendering, AI voice fix, theme migration (dark→light), activity browser, working goals, nutrition logger
 
@@ -283,8 +289,8 @@ See `docs/build-status.md` for the full detailed log. Summary of what's built:
 
 #### P0 — Core Analytics (ship first, biggest competitive differentiation)
 1. ~~**Critical Power (CP) & W' Modeling**~~ — ✅ DONE (hyperbolic fitting CP/W'/Pmax, auto-computed on sync, CPModelCard dashboard, AI context, backfill endpoint). FTP retained as primary; CP supplements it.
-2. **Adaptive Training Zones** — dynamic zones from CP model that auto-adjust as fitness evolves + readiness-adjusted zone targets on red recovery days. *[Task 41]*
-3. **Durability & Fatigue Resistance Tracking** — peak power at progressive fatigue levels (kJ/kg buckets), durability score, trends over time, race-specific predictions. *[Task 42]*
+2. ~~**Adaptive Training Zones**~~ — ✅ DONE (readiness-adjusted zones shift -3% to -8% based on recovery/TSB, zone evolution history tracking, zone preference auto/CP/Coggan, AI context integration, MyStats UI)
+3. ~~**Durability & Fatigue Resistance Tracking**~~ — ✅ DONE (per-activity fatigue-bucket power curves at 0-10/10-20/20-30/30+ kJ/kg, retention scoring, aggregate durability in power_profiles, race predictions, AI context, MyStats UI, backfill endpoint)
 
 #### P1 — Enhanced Analysis (high-value features that build on P0)
 4. **W' Balance Tracking** — real-time anaerobic reserve depletion/recovery throughout rides, "empty tank" flagging, race analysis. Requires CP model (P0). *[Task 49]*

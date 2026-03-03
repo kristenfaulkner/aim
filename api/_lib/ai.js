@@ -4,6 +4,8 @@ import { generateIntervalInsights, formatInsightsForAI } from "./interval-insigh
 import { getPlannedVsActual } from "./planned-vs-actual.js";
 import { matchActivitiesToContext, computeAllModels, formatModelsForAI } from "./performance-models.js";
 import { formatCPModelForAI } from "./cp-model.js";
+import { computeAdaptiveZones, applyReadinessAdjustment, computeZoneDelta, formatAdaptiveZonesForAI } from "./adaptive-zones.js";
+import { formatDurabilityForAI } from "./durability.js";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -915,7 +917,7 @@ export async function buildAnalysisContext(userId, activityId) {
     // Profile
     supabaseAdmin
       .from("profiles")
-      .select("full_name, ftp_watts, weight_kg, height_cm, sex, date_of_birth, riding_level, weekly_hours, goals, uses_cycle_tracking, bike_weight_kg, lthr_bpm, max_hr_bpm")
+      .select("full_name, ftp_watts, weight_kg, height_cm, sex, date_of_birth, riding_level, weekly_hours, goals, uses_cycle_tracking, bike_weight_kg, lthr_bpm, max_hr_bpm, zone_preference")
       .eq("id", userId)
       .single(),
 
@@ -1044,6 +1046,24 @@ export async function buildAnalysisContext(userId, activityId) {
   const performanceModelsText = formatModelsForAI(performanceModels);
   const cpModelText = formatCPModelForAI(powerProfile, profile.ftp_watts);
 
+  // Adaptive zones + readiness adjustment
+  const adaptiveZones = computeAdaptiveZones(
+    powerProfile?.cp_watts, profile.ftp_watts, profile.zone_preference || "auto"
+  );
+  const todayMetrics = dailyMetrics[0];
+  const adjustedZones = adaptiveZones
+    ? applyReadinessAdjustment(adaptiveZones.zones, todayMetrics?.recovery_score, todayMetrics?.tsb)
+    : { zones: [], adjustmentPct: 0, reason: null };
+  const prevSnapshot = powerProfile?.zones_history?.length >= 2
+    ? powerProfile.zones_history[powerProfile.zones_history.length - 2] : null;
+  const zoneDelta = prevSnapshot ? computeZoneDelta(adaptiveZones?.zones || [], prevSnapshot.zones) : [];
+  const adaptiveZonesText = formatAdaptiveZonesForAI(adaptiveZones, adjustedZones, zoneDelta);
+
+  // Per-ride durability context
+  const durabilityText = formatDurabilityForAI(
+    activity.durability_data, powerProfile?.durability_score, powerProfile?.durability_trend
+  );
+
   // ── Compute historical summaries server-side ──
   const baselines = computeBaselines(dailyMetrics);
   const trainingLoad = computeTrainingLoadSummary(dailyMetrics);
@@ -1116,6 +1136,8 @@ export async function buildAnalysisContext(userId, activityId) {
     performanceModels: performanceModels || undefined,
     performanceModelsText: performanceModelsText || undefined,
     cpModelText: cpModelText || undefined,
+    adaptiveZonesText: adaptiveZonesText || undefined,
+    durabilityText: durabilityText || undefined,
 
     // Layer 6: Subjective check-in data (from daily_metrics)
     subjectiveCheckin: dailyMetrics[0]?.life_stress_score ? {
