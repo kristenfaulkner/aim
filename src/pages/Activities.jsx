@@ -504,7 +504,7 @@ export default function Workouts() {
                       key={a.id}
                       activity={a}
                       isSelected={a.id === selectedActivityId}
-                      onSelect={(id) => navigate(`/activity/${id}`)}
+                      onSelect={(id) => setSelectedActivityId(id)}
                       units={units}
                     />
                   ))}
@@ -560,6 +560,36 @@ export default function Workouts() {
             ? { display: "flex", flexDirection: "column", gap: 16 }
             : { position: "sticky", top: 72, display: "flex", flexDirection: "column", gap: 16, maxHeight: "calc(100vh - 92px)", overflow: "auto" }
           }>
+            {/* Activity header + full details link */}
+            {activity && (
+              <div style={{
+                background: T.card, border: `1px solid ${T.border}`, borderRadius: 12,
+                padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+              }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: T.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {activity.name || "Untitled Ride"}
+                  </div>
+                  <div style={{ fontSize: 10, color: T.textDim, marginTop: 2 }}>
+                    {formatActivityDate(activity, { weekday: "short", month: "short", day: "numeric" })}
+                  </div>
+                </div>
+                <button
+                  onClick={() => navigate(`/activity/${activity.id}`)}
+                  style={{
+                    background: "none", border: `1px solid ${T.border}`, borderRadius: 7,
+                    padding: "6px 12px", fontSize: 11, fontWeight: 600, color: T.accent,
+                    cursor: "pointer", fontFamily: font, whiteSpace: "nowrap", flexShrink: 0,
+                    transition: "border-color 0.15s",
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = T.accentMid}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = T.border}
+                >
+                  See full activity details {"\u2192"}
+                </button>
+              </div>
+            )}
+
             {/* AI Panel or empty state */}
             {activity ? (
               <AIPanel
