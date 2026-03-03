@@ -12,9 +12,45 @@ const RPE_LABELS = {
 
 const TAG_SUGGESTIONS = [
   "interval", "race", "recovery", "group ride", "solo",
-  "indoor", "outdoor", "tempo", "endurance", "hill repeats",
-  "low cadence", "high cadence", "sweet spot", "vo2max", "sprint",
+  "indoor", "outdoor", "tempo", "endurance", "time trial",
+  "hill repeats", "low cadence", "high cadence", "sweet spot", "vo2max", "sprint",
 ];
+
+// Client-side alias map — mirrors api/activities/annotate.js TAG_ALIASES.
+// Maps lowercase variant → canonical stored tag so chips render correctly
+// before the server round-trip.
+const TAG_ALIASES = {
+  "tt": "time trial",
+  "tt bike": "time trial",
+  "time trial bike": "time trial",
+  "timetrial": "time trial",
+  "time-trial": "time trial",
+  "crit": "race",
+  "criterium": "race",
+  "criterion": "race",
+  "crits": "race",
+  "zwift": "indoor",
+  "trainer": "indoor",
+  "turbo": "indoor",
+  "rouvy": "indoor",
+  "turbo trainer": "indoor",
+  "vo2 max": "vo2max",
+  "v02max": "vo2max",
+  "vo2": "vo2max",
+  "sweetspot": "sweet spot",
+  "ss": "sweet spot",
+  "ftp": "threshold",
+  "lactate threshold": "threshold",
+  "lt": "threshold",
+  "group": "group ride",
+  "hills": "hill repeats",
+  "climbs": "hill repeats",
+};
+
+function normalizeTag(tag) {
+  const lower = tag.trim().toLowerCase();
+  return TAG_ALIASES[lower] ?? lower;
+}
 
 function rpeColor(val) {
   if (val <= 3) return T.green;
@@ -102,7 +138,7 @@ export default function SessionNotes({
   };
 
   const addTag = (tag) => {
-    const trimmed = tag.trim().toLowerCase();
+    const trimmed = normalizeTag(tag);
     if (trimmed && !tags.includes(trimmed)) {
       const newTags = [...tags, trimmed];
       setTags(newTags);
