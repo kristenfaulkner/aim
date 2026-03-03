@@ -979,8 +979,8 @@ export default function ActivityDetail() {
     return (
       <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
         <p style={{ fontSize: 16, color: T.textSoft }}>{error}</p>
-        <button onClick={() => navigate("/dashboard")} style={{ ...btn(false), fontSize: 13 }}>
-          <ArrowLeft size={14} /> Back to Dashboard
+        <button onClick={() => navigate("/activities")} style={{ ...btn(false), fontSize: 13 }}>
+          <ArrowLeft size={14} /> Back to Activities
         </button>
       </div>
     );
@@ -995,26 +995,27 @@ export default function ActivityDetail() {
     <div style={{ minHeight: "100vh", background: T.bg }}>
       {/* Header */}
       <div style={{ padding: isMobile ? "0 12px" : "0 40px", height: isMobile ? 48 : 64, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${T.border}`, background: `${T.surface}cc`, backdropFilter: "blur(16px)", position: "sticky", top: 0, zIndex: 50 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 10 : 16 }}>
-          <button onClick={() => navigate("/dashboard")} style={{ background: "transparent", border: "none", color: T.textSoft, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontFamily: font, padding: "6px 0" }}>
-            <ArrowLeft size={16} /> Dashboard
-          </button>
-          <div style={{ width: 1, height: 20, background: T.border }} />
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 10 : 20 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }} onClick={() => navigate("/")}>
             <div style={{ width: 26, height: 26, borderRadius: 7, background: T.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: T.bg }}>AI</div>
             <span style={{ fontSize: 16, fontWeight: 700 }}><span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>AI</span>M</span>
           </div>
+          {!isMobile && (
+            <div style={{ display: "flex", gap: 3 }}>
+              <button onClick={() => navigate("/activities")} style={{ background: T.accentDim, border: "none", padding: "5px 12px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: T.accent, cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 4 }}>
+                <ArrowLeft size={12} /> Activities
+              </button>
+              {[{ label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }].map(item => (
+                <button key={item.label} onClick={() => navigate(item.path)} style={{ background: "none", border: "none", padding: "5px 12px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: T.textSoft, cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 4 }}>{item.label}</button>
+              ))}
+            </div>
+          )}
         </div>
         {isMobile ? (
           <button onClick={() => setMenuOpen(true)} style={{ background: "none", border: "none", color: T.text, cursor: "pointer", padding: 8, minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}><Menu size={20} /></button>
         ) : (
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-              {["Activities", "Sleep", "Health Lab", "Connect"].map(item => (
-                <button key={item} onClick={() => { if (item === "Activities") navigate("/activities"); if (item === "Sleep") navigate("/sleep"); if (item === "Connect") navigate("/connect"); if (item === "Health Lab") navigate("/health-lab"); }} style={{ background: "none", border: "none", padding: "5px 12px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: T.textSoft, cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 4 }}>{item}</button>
-              ))}
-            </div>
-            <div style={{ position: "relative", marginLeft: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ position: "relative" }}>
               <div onClick={() => setUserMenuOpen(!userMenuOpen)} style={{ width: 30, height: 30, borderRadius: 9, background: `linear-gradient(135deg, ${T.purple}, ${T.pink})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: T.white, cursor: "pointer" }}>
                 {profile?.full_name ? profile.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() : "U"}
               </div>
@@ -1046,8 +1047,8 @@ export default function ActivityDetail() {
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
               <button onClick={() => setMenuOpen(false)} style={{ background: "none", border: "none", color: T.text, cursor: "pointer", padding: 8, minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}><X size={20} /></button>
             </div>
-            {["Dashboard", "Activities", "Sleep", "Health Lab", "Connect", "Profile", "Settings"].map(item => (
-              <button key={item} onClick={() => { setMenuOpen(false); if (item === "Dashboard") navigate("/dashboard"); if (item === "Activities") navigate("/activities"); if (item === "Sleep") navigate("/sleep"); if (item === "Connect") navigate("/connect"); if (item === "Health Lab") navigate("/health-lab"); if (item === "Profile") navigate("/profile"); if (item === "Settings") navigate("/settings"); }} style={{ background: item === "Dashboard" ? T.accentDim : "none", border: "none", padding: "12px 14px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: item === "Dashboard" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font, textAlign: "left", display: "flex", alignItems: "center", gap: 8 }}>{item}</button>
+            {[{ label: "Dashboard", path: "/dashboard" }, { label: "Activities", path: "/activities" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }, { label: "Profile", path: "/profile" }, { label: "Settings", path: "/settings" }].map(item => (
+              <button key={item.label} onClick={() => { setMenuOpen(false); navigate(item.path); }} style={{ background: item.label === "Activities" ? T.accentDim : "none", border: "none", padding: "12px 14px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: item.label === "Activities" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font, textAlign: "left", display: "flex", alignItems: "center", gap: 8 }}>{item.label}</button>
             ))}
             <div style={{ marginTop: "auto", paddingTop: 16, borderTop: `1px solid ${T.border}` }}>
               <button onClick={() => { setMenuOpen(false); handleSignout(); }} style={{ background: "none", border: `1px solid rgba(239,68,68,0.2)`, padding: "12px 14px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: "#ef4444", cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
