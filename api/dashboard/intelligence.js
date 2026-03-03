@@ -146,6 +146,8 @@ export default async function handler(req, res) {
       recentActivitiesResult,
       allActivitiesResult,
       nutritionResult,
+      travelResult,
+      crossTrainingResult,
     ] = await Promise.allSettled([
       supabaseAdmin
         .from("profiles")
@@ -169,7 +171,7 @@ export default async function handler(req, res) {
         .maybeSingle(),
       supabaseAdmin
         .from("daily_metrics")
-        .select("date, ctl, atl, tsb, hrv_ms, hrv_overnight_avg_ms, resting_hr_bpm, resting_hr, sleep_score, recovery_score, weight_kg, total_sleep_seconds, deep_sleep_seconds, rem_sleep_seconds")
+        .select("date, ctl, atl, tsb, hrv_ms, hrv_overnight_avg_ms, resting_hr_bpm, resting_hr, sleep_score, recovery_score, weight_kg, total_sleep_seconds, deep_sleep_seconds, rem_sleep_seconds, life_stress_score, motivation_score, muscle_soreness_score, mood_score, checkin_completed_at, respiratory_rate, resting_spo2")
         .eq("user_id", session.userId)
         .gte("date", sevenDaysAgo)
         .order("date", { ascending: false }),
@@ -190,6 +192,19 @@ export default async function handler(req, res) {
         .select("activity_id, date, totals, per_hour")
         .eq("user_id", session.userId)
         .gte("date", new Date(Date.now() - 90 * 86400000).toISOString().split("T")[0]),
+      supabaseAdmin
+        .from("travel_events")
+        .select("detected_at, distance_km, timezone_shift_hours, altitude_change_m, travel_type, altitude_acclimation_day, dest_timezone")
+        .eq("user_id", session.userId)
+        .gte("detected_at", new Date(Date.now() - 30 * 86400000).toISOString())
+        .order("detected_at", { ascending: false })
+        .limit(5),
+      supabaseAdmin
+        .from("cross_training_log")
+        .select("date, activity_type, body_region, perceived_intensity, duration_minutes, recovery_impact")
+        .eq("user_id", session.userId)
+        .gte("date", new Date(Date.now() - 7 * 86400000).toISOString().split("T")[0])
+        .order("date", { ascending: false }),
     ]);
 
     const getData = (r) => r.status === "fulfilled" ? r.value.data : null;
@@ -217,11 +232,26 @@ export default async function handler(req, res) {
     const firstName = profile?.full_name?.split(" ")[0] || "Athlete";
     const profileSafe = profile ? { ...profile, first_name: firstName } : { first_name: "Athlete" };
     const modelsText = performanceModels ? formatModelsForAI(performanceModels) : "";
+    // Subjective check-in from today's daily metrics
+    const todayMetrics = dailyMetrics.find((d) => d.date === today);
+    const subjectiveCheckin = todayMetrics?.life_stress_score ? {
+      lifeStress: todayMetrics.life_stress_score,
+      motivation: todayMetrics.motivation_score,
+      muscleSoreness: todayMetrics.muscle_soreness_score,
+      mood: todayMetrics.mood_score,
+    } : undefined;
+
+    const travelEvents = getData(travelResult) || [];
+    const crossTrainingLog = getData(crossTrainingResult) || [];
+
     const context = {
       athlete: profileSafe,
       dailyMetrics,
       recentActivities,
       performanceModels: modelsText || undefined,
+      subjectiveCheckin,
+      travelEvents: travelEvents.length > 0 ? travelEvents : undefined,
+      crossTrainingLog: crossTrainingLog.length > 0 ? crossTrainingLog : undefined,
     };
 
     // Add mode-specific context

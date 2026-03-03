@@ -34,7 +34,7 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 - `App.jsx` — route definitions; protected routes wrap with `ProtectedRoute`
 - `context/AuthContext.jsx` — user auth state, profile management, Supabase auth listeners
 - `pages/` — 19 route-level pages (Dashboard, Sleep, ActivityDetail, HealthLab, Boosters, ConnectApps, Settings, WorkoutDatabase, Onboarding, AcceptTerms, Auth, ResetPassword, Landing, Contact, 5 legal pages)
-- `components/` — reusable: `TrainingPeaksImport`, `BloodPanelUpload` (multi-file drag-and-drop), `DexaScanUpload` (single-file drag-and-drop with body composition extraction), `ActivityBrowser` (popover with time filters/search/pagination), `ProtectedRoute` (auth + consent gate), `NeuralBackground`, `SEO` (React 19 native metadata: title, description, OG, Twitter cards, canonical URL), `SessionNotes` (activity annotation: freeform notes, star rating, RPE slider 0-10, tag input with alias normalization — shared across Activities and ActivityDetail pages)
+- `components/` — reusable: `TrainingPeaksImport`, `BloodPanelUpload` (multi-file drag-and-drop), `DexaScanUpload` (single-file drag-and-drop with body composition extraction), `ActivityBrowser` (popover with time filters/search/pagination), `ProtectedRoute` (auth + consent gate), `NeuralBackground`, `SEO` (React 19 native metadata: title, description, OG, Twitter cards, canonical URL), `SessionNotes` (activity annotation: freeform notes, star rating, RPE slider 0-10, GI comfort/mental focus/pre-ride recovery sliders 1-5, tag input with alias normalization — shared across Activities and ActivityDetail pages)
 - `components/dashboard/` — modular dashboard components: `ReadinessCard` (SVG ring + 4 metric pills), `AIPanel` (3-tab AI analysis/summary/chat), `LastRideCard` (8-metric grid), `TrainingWeekChart` (7-day TSS bars), `FitnessChart` (CTL/ATL/TSB SVG), `WorkingGoals` (expandable goal cards with 3 tabs), `NutritionLogger` (5-stage conversational modal with Claude parsing), `CPModelCard` (Critical Power 3-panel: CP/W'/Pmax)
 - `hooks/useDashboardData.js` — parallel Supabase queries (7 concurrent) using `Promise.allSettled`
 - `hooks/useActivities.js` — paginated activity list (legacy, replaced by useActivityBrowser on Dashboard)
@@ -57,13 +57,18 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
   - `source-priority.js` — cross-source deduplication (device > TrainingPeaks > Strava)
   - `fit.js` — FIT binary file parser for Garmin/Wahoo workout files (returns fitLaps for interval extraction)
   - `intervals.js` — Interval extraction from FIT laps + power stream detection, per-interval metrics + execution quality scoring
-  - `tags.js` — Canonical tag dictionary (22 workout + 14 interval tags) + detection engine, cross-activity search
+  - `tags.js` — Canonical tag dictionary (32 workout + 14 interval tags) + detection engine, cross-activity search
   - `weather-enrich.js` — Per-activity weather enrichment via Open-Meteo historical API
   - `interval-insights.js` — deterministic interval execution insight generation (fade, cadence decay, HR creep, pacing)
   - `planned-vs-actual.js` — training plan to activity matching, interval comparison, execution scoring
   - `performance-models.js` — conditional performance models: heat penalty, sleep→execution, HRV readiness, fueling→durability, kJ/kg durability threshold
   - `cp-model.js` — Critical Power model: hyperbolic fitting (CP/W'/Pmax), CP-based zones, AI formatting
+  - `travel.js` — Travel detection pure functions: haversine distance, timezone/altitude shift detection, jet lag recovery estimation, altitude power penalty
+  - `cross-training.js` — Cross-training utilities: recovery impact estimation (none/minor/moderate/major), TSS approximation from intensity + duration
   - `strava.js` — Strava API client with token refresh
+  - `oura.js` — Oura Ring API v2 client (OAuth token refresh with single-use refresh tokens, sleep/readiness/activity/SpO2 data fetching and mapping)
+  - `whoop.js` — Whoop API v2 client (OAuth token refresh, recovery/sleep/body measurement data fetching and mapping)
+  - `withings.js` — Withings API client (OAuth token refresh with non-standard wrapper, body comp/activity/sleep data fetching, value*10^unit decoding)
   - `eightsleep.js` — Eight Sleep API client (credential auth, trends API, extended metrics extraction, encrypted credential decryption)
   - `twilio.js` — Twilio SMS client (send, webhook verification, TwiML response)
   - `email.js` — Resend email client (send)
@@ -73,9 +78,10 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
   - `redis.js` — Redis client for OAuth state
 - `auth/connect/` — OAuth flow initiators (strava, wahoo, oura, whoop, withings, eightsleep)
 - `auth/callback/` — OAuth return handlers (strava, wahoo, oura, whoop, withings)
-- `integrations/sync/` — sync logic (strava full+backfill, eightsleep)
+- `integrations/sync/` — sync logic (strava full+backfill, eightsleep, oura, whoop, withings)
 - `integrations/import/` — file-based imports (TrainingPeaks ZIP/CSV, ZIP optional for CSV-only enrichment)
 - `cron/sync-eightsleep.js` — hourly Vercel Cron syncs last 2 days of Eight Sleep data; skips users synced in last 6 hours
+- `cron/sync-recovery.js` — hourly Vercel Cron syncs last 2 days of Oura/Whoop/Withings data; skips users synced in last 6 hours
 - `webhooks/` — inbound webhooks (strava activity events, wahoo workout summaries)
 - `activities/` — list, detail (includes activity_tags + planned_vs_actual data), annotate (saves user_notes/rating/RPE/tags + name; auto-extracts tags from notes via keyword matching; normalizes all tags to canonical form via `TAG_ALIASES` — e.g. "S&E"→"low cadence", "TT"→"time trial"), analyze, search (tag-based), query (advanced tag/filter/grouping search), smart-chips (AI-suggested query chips), backfill-intervals, backfill-metrics, backfill-cp endpoints
 - `tags/` — tag dictionary endpoint
@@ -91,6 +97,8 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 - `nutrition/` — nutrition logging: parse (Claude-powered free-text → structured items), log (save to `nutrition_logs`), previous (last log for quick reuse)
 - `calendar/` — training calendar: list (date range query), upsert (create/update planned workouts)
 - `models/` — performance model summary endpoint
+- `checkin/` — daily subjective check-in: submit (POST, upserts life_stress/motivation/soreness/mood to daily_metrics), status (GET, today's check-in or null)
+- `cross-training/` — non-cycling activity logger: log (POST, computes recovery_impact + estimated_tss), list (GET, recent entries with ?days=N filter)
 - `dashboard/intelligence.js` — adaptive AI dashboard: 3 modes (POST_RIDE/PRE_RIDE_PLANNED/DAILY_COACH), returns structured action items + insights
 
 **API pattern**: Every endpoint calls `cors(res)`, checks `req.method`, calls `verifySession(req)` for auth, returns `{ error: "message" }` on failure.
@@ -136,7 +144,7 @@ Core tables (15): `profiles`, `integrations`, `activities`, `daily_metrics`, `po
 
 Vercel auto-deploys from GitHub. Frontend SPA rewrite in `vercel.json` routes non-API paths to `index.html`. Environment variables configured in Vercel dashboard. Custom domain `aimfitness.ai` with `www` redirect. SSL handled by Vercel.
 
-**Vercel Cron**: Eight Sleep hourly sync configured in `vercel.json` `crons` array. Requires `CRON_SECRET` env var in Vercel dashboard for auth.
+**Vercel Cron**: Eight Sleep hourly sync + Oura/Whoop/Withings recovery sync configured in `vercel.json` `crons` array. Requires `CRON_SECRET` env var in Vercel dashboard for auth.
 
 ## Product Context
 
@@ -175,10 +183,10 @@ All plans include 14-day free trial, no credit card required.
 - **TrainingPeaks** ✅ — file import: ZIP (.fit/.tcx/.gpx workout files with full metrics computation, ZIP optional for CSV-only enrichment) + workouts CSV (titles/RPE/comments/body weight) + metrics CSV (daily RHR/HRV/sleep/SpO2/body fat/Whoop recovery)
 
 ### Tier 2 — Recovery & Body
-- **Oura Ring** — OAuth connect/callback exist, sync logic TODO
-- **Whoop** — OAuth connect/callback exist, sync logic TODO
+- **Oura Ring** ✅ — OAuth + full sync (sleep, readiness, activity, SpO2), auto 365-day backfill on first connect, hourly Vercel Cron auto-sync
+- **Whoop** ✅ — OAuth + full sync (recovery, sleep, body measurements), auto 365-day backfill on first connect, hourly Vercel Cron auto-sync
 - **EightSleep** ✅ — credential auth (email/password), trends API sync, sleep metrics (score, duration, stages, HRV, RHR, bed temp), extended metrics (toss/turns, room temp, HR/HRV min/max, sleep quality/routine/fitness scores), auto 365-day sync on first connect, hourly Vercel Cron auto-sync (skips if synced in last 6 hours)
-- **Withings** — OAuth connect/callback exist, sync logic TODO
+- **Withings** ✅ — OAuth + full sync (body comp/weight/fat/muscle, activity, sleep), auto 365-day backfill on first connect, hourly Vercel Cron auto-sync
 
 ### Tier 3 — Advanced
 Apple Health, Supersapiens/Lingo (CGM), MyFitnessPal, Cronometer, TrainerRoad, Intervals.icu, Zwift, Hammerhead, Hexis, Noom
@@ -196,7 +204,7 @@ OAuth2 flow: connect/callback file pairs in `/api/auth/`. Credential-based for E
 Cross-domain insights are the product. Every AI insight must connect 2+ data sources and tell the athlete something they cannot learn from any single app. "Your HRV was low" is Whoop-level. "Your HRV was 38ms, which explains why cardiac drift was 8.1% today vs 3.2% on Feb 18 when HRV was 72ms" is AIM-level.
 
 ### AI-Powered Features (9 total)
-1. **Post-ride analysis** — 22-category structured insights triggered after every activity sync
+1. **Post-ride analysis** — 28-category structured insights triggered after every activity sync
 2. **Email workout analysis** — Claude-formatted HTML emails via Resend with full AI analysis, sent on first analysis only (no duplicates on re-analysis or bulk import)
 3. **SMS workout summaries** — 1500-char Claude-generated texts sent via Twilio post-sync
 4. **SMS conversational coaching** — inbound reply handling with full athlete context
@@ -206,9 +214,9 @@ Cross-domain insights are the product. Every AI insight must connect 2+ data sou
 8. **Nutrition parsing** — Claude-powered free-text → structured nutrition items with per-hour calculations via `/api/nutrition/parse`
 9. **Adaptive dashboard intelligence** — 3-mode AI (POST_RIDE/PRE_RIDE_PLANNED/DAILY_COACH) via `/api/dashboard/intelligence`
 
-### 22 Insight Categories
+### 28 Insight Categories (Active) + 6 Planned
 
-See `docs/insights-catalog.md` for the full list with detailed examples. Categories span: Body Comp→Performance, Sleep→Performance, HRV→Training, Environmental, Fatigue Signatures, Long-Term Adaptations, Nutrition, Predictive Analytics, Benchmarking, Menstrual Cycle, Boosters, Blood Work, DEXA, Workout Tagging, Weather Context, Interval Execution, Durability, Fueling Causality, Readiness-to-Response, Workout Progression, Anomaly Detection, Race-Specific Analysis.
+See `docs/insights-catalog.md` for the full list with detailed examples. Active categories span: Body Comp→Performance, Sleep→Performance, HRV→Training, Environmental, Fatigue Signatures, Long-Term Adaptations, Nutrition, Predictive Analytics, Benchmarking, Menstrual Cycle, Boosters, Blood Work, DEXA, Workout Tagging, Weather Context, Interval Execution, Durability, Fueling Causality, Readiness-to-Response, Workout Progression, Anomaly Detection, Race-Specific Analysis, Subjective-Objective Alignment, Respiratory & Illness Warning, GI Tolerance, Perceived vs Actual Recovery, Travel & Environmental Disruption, Cross-Training Impact. Planned (P2/P3): Periodization, Personal Models, Plateau Detection, Team Health, Team Training Load, Shared Race Prep.
 
 ### Insight Quality Rules
 - Connect 2+ data sources in most insights
@@ -257,11 +265,12 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 See `docs/build-status.md` for the full detailed log. Summary of what's built:
 
 **Core**: Auth (email/password/Google SSO/magic link), onboarding, Vercel deployment, mobile-responsive, testing (204 tests), SEO, legal compliance, account management
-**Integrations**: Strava (full), EightSleep (full + hourly cron), Wahoo (webhook), TrainingPeaks (file import), Twilio SMS, Resend email, Oura/Whoop/Withings (OAuth only)
+**Integrations**: Strava (full), EightSleep (full + hourly cron), Wahoo (webhook), TrainingPeaks (file import), Twilio SMS, Resend email, Oura (full + hourly cron), Whoop (full + hourly cron), Withings (full + hourly cron)
 **AI (9 features)**: Post-ride analysis, email summaries, SMS coach, chat coach, sleep summary, blood panel OCR, nutrition parsing, dashboard intelligence, adaptive 3-mode AI
 **Pages**: Dashboard V2, Sleep Intelligence, ActivityDetail, HealthLab, Boosters, ConnectApps, Settings, WorkoutDatabase, Landing, Legal pages
-**Structured Workouts (5 phases)**: Interval extraction, canonical tagging (22+14 tags), weather enrichment, interval execution coaching, performance models (heat/sleep/HRV/fueling/durability), searchable workout database
+**Structured Workouts (5 phases)**: Interval extraction, canonical tagging (32+14 tags), weather enrichment, interval execution coaching, performance models (heat/sleep/HRV/fueling/durability), searchable workout database
 **Power Analytics**: Critical Power (CP) & W' model — hyperbolic fitting from power profile bests, auto-computed on sync, CPModelCard on dashboard, AI context enrichment, backfill endpoint
+**Expansion (P1)**: Daily subjective check-in (4 sliders: stress/motivation/soreness/mood), activity subjective fields (GI comfort, mental focus, pre-ride recovery), travel & timezone auto-detection (GPS-based, jet lag + altitude tracking), cross-training logger (strength/yoga/swimming/hiking with recovery impact + TSS estimation), 6 new AI insight categories (23-28), 10 new workout tags
 **Other**: SessionNotes + tag normalization, markdown rendering, AI voice fix, theme migration (dark→light), activity browser, working goals, nutrition logger
 
 ### Remaining — Prioritized Feature Backlog
@@ -280,7 +289,7 @@ See `docs/build-status.md` for the full detailed log. Summary of what's built:
 
 #### P2 — Integrations & Data Sources
 7. **Garmin Connect** — sync logic (activities, body battery, stress, daily HR)
-8. **Oura / Whoop / Withings** — sync logic (OAuth connect/callback already exist)
+8. ~~**Oura / Whoop / Withings** — sync logic~~ — ✅ DONE (full sync + 365-day backfill + hourly cron for all 3)
 9. **Remaining Tier 3 integrations** — Apple Health, Supersapiens/Lingo, MyFitnessPal, Cronometer, TrainerRoad, Intervals.icu, Zwift, Hammerhead, Hexis, Noom
 
 #### P3 — Platform & Business
@@ -366,7 +375,9 @@ Detailed specifications archived in `docs/`:
 - `docs/data-flows.md` — detailed data flow pipelines (sync, import, AI, SMS, sleep, metrics)
 - `docs/product-blueprint.md` — full product spec, booster library, menstrual cycle science, onboarding fields, pricing tiers, user stories
 - `docs/technical-architecture.md` — complete database schema SQL, build plan, Strava API appendix, EightSleep workarounds, env vars
-- `docs/insights-catalog.md` — all 22 insight categories with detailed examples, quality checklist, system prompt guide
+- `docs/insights-catalog.md` — all 34 insight categories (28 active + 6 planned) with detailed examples, quality checklist, system prompt guide
+- `docs/AIM-PRODUCT-ROADMAP.md` — comprehensive feature roadmap (P1-P5) with data requirements, dependencies, and implementation notes
+- `docs/AIM-EXPANSION-SPEC.md` — expansion spec: check-in, travel, cross-training, periodization, coach dashboard
 
 Dashboard design specifications:
 - `AIM-ADAPTIVE-DASHBOARD-SPEC.md` — 3 dashboard modes (POST_RIDE/PRE_RIDE_PLANNED/DAILY_COACH), AI prompt templates, weather integration, fueling intelligence

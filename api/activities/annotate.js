@@ -203,7 +203,7 @@ export default async function handler(req, res) {
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: "Missing activity id" });
 
-  const { name, user_notes, user_rating, user_rpe, user_tags } = req.body;
+  const { name, user_notes, user_rating, user_rpe, user_tags, gi_comfort, mental_focus, perceived_recovery_pre } = req.body;
 
   // Validate inputs
   if (name !== undefined && name !== null) {
@@ -236,12 +236,24 @@ export default async function handler(req, res) {
     }
   }
 
+  // Validate subjective fields (1-5 scale)
+  for (const [key, val] of [["gi_comfort", gi_comfort], ["mental_focus", mental_focus], ["perceived_recovery_pre", perceived_recovery_pre]]) {
+    if (val !== undefined && val !== null) {
+      if (!Number.isInteger(val) || val < 1 || val > 5) {
+        return res.status(400).json({ error: `${key} must be an integer between 1 and 5` });
+      }
+    }
+  }
+
   // Build update object — activities table has no updated_at column
   const update = {};
   if (name !== undefined) update.name = name;
   if (user_notes !== undefined) update.user_notes = user_notes;
   if (user_rating !== undefined) update.user_rating = user_rating;
   if (user_rpe !== undefined) update.user_rpe = user_rpe;
+  if (gi_comfort !== undefined) update.gi_comfort = gi_comfort;
+  if (mental_focus !== undefined) update.mental_focus = mental_focus;
+  if (perceived_recovery_pre !== undefined) update.perceived_recovery_pre = perceived_recovery_pre;
 
   // When notes are provided, auto-extract tags and merge with explicit user_tags.
   // Normalize all tags (explicit + auto) to canonical form before storing.

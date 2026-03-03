@@ -12,6 +12,7 @@ import { buildLapsPayload } from "../../_lib/intervals.js";
 import { detectAllTags, persistTags } from "../../_lib/tags.js";
 import { fetchActivityWeather, extractLocationFromActivity } from "../../_lib/weather-enrich.js";
 import { resolveActivityTimezone, parseStravaTimezone } from "../../_lib/timezone.js";
+import { detectTravel } from "../../_lib/travel.js";
 
 /**
  * Sync a single Strava activity by ID.
@@ -193,6 +194,36 @@ export async function syncStravaActivity(userId, stravaActivityId, options = {})
         const tags = detectAllTags(activityWithLaps, null, record.activity_weather, ftp);
         if (tags.length > 0) {
           await persistTags(supabaseAdmin, upserted.id, userId, tags);
+        }
+        // Travel detection — compare with last activity's location
+        if (record.start_lat != null && record.start_lng != null) {
+          try {
+            const { data: lastAct } = await supabaseAdmin
+              .from("activities")
+              .select("id, start_lat, start_lng, timezone_iana, started_at, duration_seconds, elevation_gain_meters, source_data, activity_weather")
+              .eq("user_id", userId)
+              .lt("started_at", record.started_at)
+              .not("start_lat", "is", null)
+              .order("started_at", { ascending: false })
+              .limit(1)
+              .single();
+
+            if (lastAct) {
+              const travelEvent = detectTravel(
+                { ...record, id: upserted.id },
+                lastAct
+              );
+              if (travelEvent) {
+                const { has_significant_tz, has_significant_altitude, ...eventData } = travelEvent;
+                await supabaseAdmin.from("travel_events").insert({
+                  user_id: userId,
+                  ...eventData,
+                });
+              }
+            }
+          } catch (travelErr) {
+            console.error(`Travel detection failed for ${upserted.id}:`, travelErr.message);
+          }
         }
       } catch (err) {
         console.error(`Weather/tag enrichment failed for ${upserted.id}:`, err.message);

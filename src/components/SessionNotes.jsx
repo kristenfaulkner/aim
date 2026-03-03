@@ -10,6 +10,10 @@ const RPE_LABELS = {
   9: "Extremely Hard", 10: "Maximal",
 };
 
+const GI_LABELS = { 1: "Perfect", 2: "Minor", 3: "Noticeable", 4: "Significant", 5: "Severe" };
+const FOCUS_LABELS = { 1: "Zoned out", 2: "Distracted", 3: "Normal", 4: "Focused", 5: "In the zone" };
+const RECOVERY_PRE_LABELS = { 1: "Wrecked", 2: "Heavy legs", 3: "Normal", 4: "Feeling good", 5: "Fully fresh" };
+
 const TAG_SUGGESTIONS = [
   "interval", "race", "recovery", "group ride", "solo",
   "indoor", "outdoor", "tempo", "endurance", "time trial",
@@ -165,6 +169,9 @@ export default function SessionNotes({
   initialRating = 0,
   initialRpe = 0,
   initialTags = [],
+  initialGiComfort = 0,
+  initialMentalFocus = 0,
+  initialPerceivedRecoveryPre = 0,
   onSaved,
 }) {
   const [notes, setNotes] = useState(initialNotes);
@@ -174,6 +181,9 @@ export default function SessionNotes({
   const [tagInput, setTagInput] = useState("");
   const [saveStatus, setSaveStatus] = useState(null); // null | "saving" | "saved"
   const [hoverStar, setHoverStar] = useState(0);
+  const [giComfort, setGiComfort] = useState(initialGiComfort);
+  const [mentalFocus, setMentalFocus] = useState(initialMentalFocus);
+  const [perceivedRecoveryPre, setPerceivedRecoveryPre] = useState(initialPerceivedRecoveryPre);
   const debounceRef = useRef(null);
 
   // Cleanup debounce on unmount
@@ -210,22 +220,52 @@ export default function SessionNotes({
     debounceRef.current = setTimeout(() => save(updates), 1200);
   }, [save]);
 
+  // Helper to build the full save payload
+  const buildPayload = (overrides = {}) => ({
+    user_notes: notes,
+    user_rating: rating || null,
+    user_rpe: rpe || null,
+    user_tags: tags,
+    gi_comfort: giComfort || null,
+    mental_focus: mentalFocus || null,
+    perceived_recovery_pre: perceivedRecoveryPre || null,
+    ...overrides,
+  });
+
   const handleNotesChange = (e) => {
     const val = e.target.value;
     setNotes(val);
-    debouncedSave({ user_notes: val, user_rating: rating || null, user_rpe: rpe || null, user_tags: tags });
+    debouncedSave(buildPayload({ user_notes: val }));
   };
 
   const handleRating = (val) => {
     const newRating = val === rating ? 0 : val;
     setRating(newRating);
-    save({ user_notes: notes, user_rating: newRating || null, user_rpe: rpe || null, user_tags: tags });
+    save(buildPayload({ user_rating: newRating || null }));
   };
 
   const handleRpe = (e) => {
     const val = parseInt(e.target.value, 10);
     setRpe(val);
-    save({ user_notes: notes, user_rating: rating || null, user_rpe: val || null, user_tags: tags });
+    save(buildPayload({ user_rpe: val || null }));
+  };
+
+  const handleGiComfort = (e) => {
+    const val = parseInt(e.target.value, 10);
+    setGiComfort(val);
+    save(buildPayload({ gi_comfort: val || null }));
+  };
+
+  const handleMentalFocus = (e) => {
+    const val = parseInt(e.target.value, 10);
+    setMentalFocus(val);
+    save(buildPayload({ mental_focus: val || null }));
+  };
+
+  const handlePerceivedRecoveryPre = (e) => {
+    const val = parseInt(e.target.value, 10);
+    setPerceivedRecoveryPre(val);
+    save(buildPayload({ perceived_recovery_pre: val || null }));
   };
 
   const addTag = (tag) => {
@@ -234,7 +274,7 @@ export default function SessionNotes({
       const newTags = [...tags, trimmed];
       setTags(newTags);
       setTagInput("");
-      save({ user_notes: notes, user_rating: rating || null, user_rpe: rpe || null, user_tags: newTags });
+      save(buildPayload({ user_tags: newTags }));
     } else {
       setTagInput("");
     }
@@ -243,7 +283,7 @@ export default function SessionNotes({
   const removeTag = (tag) => {
     const newTags = tags.filter((t) => t !== tag);
     setTags(newTags);
-    save({ user_notes: notes, user_rating: rating || null, user_rpe: rpe || null, user_tags: newTags });
+    save(buildPayload({ user_tags: newTags }));
   };
 
   const handleTagKeyDown = (e) => {
@@ -354,6 +394,72 @@ export default function SessionNotes({
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((val) => (
             <span key={val} style={{ fontSize: 9, color: rpe === val ? rpeColor(val) : T.textDim, fontFamily: mono, fontWeight: rpe === val ? 700 : 400 }}>{val}</span>
+          ))}
+        </div>
+      </div>
+
+      {/* Pre-Ride Recovery */}
+      <div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <span style={{ fontSize: 11, color: T.textDim, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Pre-Ride Recovery</span>
+          {perceivedRecoveryPre > 0 && (
+            <span style={{ fontSize: 12, fontFamily: mono, fontWeight: 700, color: perceivedRecoveryPre >= 4 ? T.green : perceivedRecoveryPre >= 3 ? T.warn : T.danger }}>
+              {perceivedRecoveryPre}/5 — {RECOVERY_PRE_LABELS[perceivedRecoveryPre]}
+            </span>
+          )}
+        </div>
+        <input
+          type="range" min={0} max={5} step={1} value={perceivedRecoveryPre}
+          onChange={handlePerceivedRecoveryPre}
+          style={{ width: "100%", height: 6, WebkitAppearance: "none", appearance: "none", background: perceivedRecoveryPre > 0 ? `linear-gradient(90deg, ${T.danger} 0%, ${T.warn} 50%, ${T.green} 100%)` : T.surface, borderRadius: 3, outline: "none", cursor: "pointer", accentColor: T.accent }}
+        />
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+          {[1, 2, 3, 4, 5].map((val) => (
+            <span key={val} style={{ fontSize: 9, color: perceivedRecoveryPre === val ? (val >= 4 ? T.green : val >= 3 ? T.warn : T.danger) : T.textDim, fontFamily: mono, fontWeight: perceivedRecoveryPre === val ? 700 : 400 }}>{val}</span>
+          ))}
+        </div>
+      </div>
+
+      {/* GI Comfort */}
+      <div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <span style={{ fontSize: 11, color: T.textDim, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>GI Comfort</span>
+          {giComfort > 0 && (
+            <span style={{ fontSize: 12, fontFamily: mono, fontWeight: 700, color: giComfort <= 2 ? T.green : giComfort <= 3 ? T.warn : T.danger }}>
+              {giComfort}/5 — {GI_LABELS[giComfort]}
+            </span>
+          )}
+        </div>
+        <input
+          type="range" min={0} max={5} step={1} value={giComfort}
+          onChange={handleGiComfort}
+          style={{ width: "100%", height: 6, WebkitAppearance: "none", appearance: "none", background: giComfort > 0 ? `linear-gradient(90deg, ${T.green} 0%, ${T.warn} 50%, ${T.danger} 100%)` : T.surface, borderRadius: 3, outline: "none", cursor: "pointer", accentColor: T.accent }}
+        />
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+          {[1, 2, 3, 4, 5].map((val) => (
+            <span key={val} style={{ fontSize: 9, color: giComfort === val ? (val <= 2 ? T.green : val <= 3 ? T.warn : T.danger) : T.textDim, fontFamily: mono, fontWeight: giComfort === val ? 700 : 400 }}>{val}</span>
+          ))}
+        </div>
+      </div>
+
+      {/* Mental Focus */}
+      <div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <span style={{ fontSize: 11, color: T.textDim, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Mental Focus</span>
+          {mentalFocus > 0 && (
+            <span style={{ fontSize: 12, fontFamily: mono, fontWeight: 700, color: mentalFocus >= 4 ? T.green : mentalFocus >= 3 ? T.warn : T.danger }}>
+              {mentalFocus}/5 — {FOCUS_LABELS[mentalFocus]}
+            </span>
+          )}
+        </div>
+        <input
+          type="range" min={0} max={5} step={1} value={mentalFocus}
+          onChange={handleMentalFocus}
+          style={{ width: "100%", height: 6, WebkitAppearance: "none", appearance: "none", background: mentalFocus > 0 ? `linear-gradient(90deg, ${T.danger} 0%, ${T.warn} 50%, ${T.green} 100%)` : T.surface, borderRadius: 3, outline: "none", cursor: "pointer", accentColor: T.accent }}
+        />
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+          {[1, 2, 3, 4, 5].map((val) => (
+            <span key={val} style={{ fontSize: 9, color: mentalFocus === val ? (val >= 4 ? T.green : val >= 3 ? T.warn : T.danger) : T.textDim, fontFamily: mono, fontWeight: mentalFocus === val ? 700 : 400 }}>{val}</span>
           ))}
         </div>
       </div>

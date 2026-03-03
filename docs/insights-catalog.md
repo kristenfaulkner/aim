@@ -7,7 +7,7 @@ This is the living catalog of every AI-powered feature in AIM. It documents both
 ### Document Structure
 
 1. **Part 1: Active AI Prompts** — Every system prompt currently deployed, organized by feature
-2. **Part 2: Insight Categories** — The complete 22-category catalog of cross-domain insight patterns (all 22 active in production)
+2. **Part 2: Insight Categories** — The complete 34-category catalog of cross-domain insight patterns (Categories 1-22 active in production; 23-28 ready for implementation; 29-31 P2 future; 32-34 P3 future)
 3. **Part 3: Quality Standards** — Rules, confidence levels, and the no-medical-advice policy
 
 ---
@@ -713,7 +713,7 @@ Rules:
 
 # PART 2: INSIGHT CATEGORIES
 
-The 15-category catalog below defines what patterns AIM looks for in athlete data. Categories 1-13 are embedded in the main analysis prompt (Prompt #1). Categories 14-15 are newer additions.
+The 34-category catalog below defines what patterns AIM looks for in athlete data. Categories 1-22 are active in production. Categories 23-28 are ready for implementation. Categories 29-31 are P2 (future). Categories 32-34 are P3 (future, requires coach dashboard).
 
 ---
 
@@ -1122,6 +1122,303 @@ The 15-category catalog below defines what patterns AIM looks for in athlete dat
 - "The decisive move came at 82 min (2.1 km from summit). You held 340W for 90s while the field faded — this was your race-winning surge."
 
 **Confidence:** High (deterministic analysis of race file data)
+
+---
+
+## CATEGORY 23: Subjective-Objective Alignment
+
+**Required sources:** Daily check-in + any device data + activity data
+**When to run:** Post-ride analysis, Daily Coach
+
+### 23A. RPE-Power Mismatch Detection
+
+**What to look for:** When subjective effort doesn't match objective output
+**Example insights:**
+- "You rated this ride 8/10 effort but your NP was 12% below your average for similar workouts. Your life stress has been elevated (avg 4.2) for 3 days — perceived effort often inflates under high stress."
+
+**Confidence:** Medium-High (requires 20+ matched data points)
+
+### 23B. Motivation-Performance Correlation
+
+**What to look for:** Pattern between motivation score and workout quality
+**Example insights:**
+- "When your motivation is 4-5, your interval execution averages 94% of target. When it's 1-2, it drops to 81%."
+
+**Confidence:** Medium (requires 30+ data points)
+
+### 23C. Life Stress Impact Modeling
+
+**What to look for:** How life stress affects training tolerance, recovery, sleep
+**Example insights:**
+- "Your life stress has averaged 4.1 this week (vs your normal 2.3). In past high-stress weeks, your HRV drops ~8ms by day 4."
+
+**Confidence:** Medium (requires 60+ days check-in data)
+
+### 23D. Soreness-Load Mismatch
+
+**What to look for:** Soreness that doesn't match recent training load
+
+**Confidence:** Low-Medium
+
+---
+
+## CATEGORY 24: Respiratory & Illness Early Warning
+
+**Required sources:** Respiratory rate (Garmin/Whoop/Apple Watch) + HRV + RHR
+**When to run:** Daily Coach, morning readiness
+
+### 24A. Illness Precursor Pattern Detection
+
+**What to look for:** Elevated respiratory rate + suppressed HRV + elevated RHR over 2-3 days
+**Example insights:**
+- "Your respiratory rate has trended up 2.1 breaths/min over the last 3 nights while HRV dropped 12ms and RHR rose 4 bpm. This triple pattern has preceded illness in the past — consider a rest day."
+
+**Confidence:** Medium (early-warning, not diagnostic — emphasize pattern-matching, not medical advice)
+
+### 24B. Recovery Respiratory Signature
+
+**What to look for:** How respiratory rate responds to training load
+**Example insights:**
+- "After high-TSS days (>300), your respiratory rate elevates by ~1.5 breaths/min for 2 nights. This week it's still elevated after 3 nights — recovery is lagging."
+
+**Confidence:** Medium
+
+---
+
+## CATEGORY 25: GI Tolerance & Fueling Boundaries
+
+**Required sources:** Nutrition log + GI comfort + weather + intensity
+**When to run:** Post-ride analysis
+
+### 25A. Personal Fueling Ceiling Detection
+
+**What to look for:** The carb intake rate above which GI distress occurs, personalized from logged data
+**Example insights:**
+- "Your GI comfort drops sharply above 85g/hr carbs. Your last 3 rides at 90g+ all had GI issues logged. Your personal ceiling appears to be ~80-85g/hr."
+
+**Confidence:** Medium-High (requires 10+ fueled rides with GI logging)
+
+### 25B. Heat x Fueling GI Interaction
+
+**What to look for:** How temperature affects GI tolerance at the same fueling rate
+**Example insights:**
+- "In rides above 30°C, your GI tolerance drops by ~15g/hr. You tolerate 85g/hr in cool temps but only ~70g/hr in heat."
+
+**Confidence:** Medium-High (requires heat + cool rides with matched fueling)
+
+### 25C. Race Fueling Risk Assessment
+
+**What to look for:** Whether planned race fueling exceeds tested personal limits
+**Example insights:**
+- "Your race plan calls for 90g/hr but you've only tested up to 75g/hr in training. Consider a rehearsal ride at 85g/hr before race day."
+
+**Confidence:** Medium-High (requires 10+ fueled rides with GI logging)
+
+---
+
+## CATEGORY 26: Perceived vs Actual Recovery
+
+**Required sources:** Pre-ride perceived recovery + actual performance metrics
+**When to run:** Post-ride analysis
+
+### 26A. Recovery Perception Accuracy
+
+**What to look for:** How well the athlete's self-assessed recovery predicts actual performance output
+**Example insights:**
+- "You rated your recovery 3/5 pre-ride, but your EF was 4% above baseline and HR drift was your lowest in 2 weeks. You tend to underestimate recovery after rest days — your body was more ready than you felt."
+- "Your perceived recovery accuracy is 72% — when you feel good, you perform well 85% of the time, but when you feel bad, you still perform well 58% of the time."
+
+**Confidence:** Medium (requires 15+ rides with pre-ride recovery ratings)
+
+---
+
+## CATEGORY 27: Travel & Environmental Disruption
+
+**Required sources:** GPS from activities (auto-detected) + timezone data
+**When to run:** Daily Coach (when travel detected), Post-ride (first 5 rides after travel)
+
+### 27A. Jet Lag Impact Prediction
+
+**What to look for:** Timezone shifts and expected performance impact based on direction and magnitude
+**Example insights:**
+- "You crossed 6 time zones eastward 2 days ago. Based on your history, expect HRV to normalize by day 4-5. Your last eastward trip showed EF 7% below baseline for 3 days."
+
+**Confidence:** High
+
+### 27B. Altitude Adjustment Tracking
+
+**What to look for:** Performance changes after altitude transitions, acclimatization timeline
+**Example insights:**
+- "You're training at 1,800m after arriving from sea level 3 days ago. Your HR at Z2 power is 8 bpm higher than sea level baseline. Expect normalization around day 7-10."
+
+**Confidence:** High
+
+### 27C. Travel Fatigue Detection
+
+**What to look for:** Performance degradation from travel stress (sleep disruption, dehydration, sitting) independent of timezone
+**Example insights:**
+- "Your first 2 rides after travel show EF 5% below baseline even without timezone change. Sleep quality was poor for 2 nights post-travel."
+
+**Confidence:** Medium
+
+---
+
+## CATEGORY 28: Cross-Training Impact
+
+**Required sources:** Cross-training log + next-day activity data + readiness
+**When to run:** Post-ride (when cross-training in previous 48 hours), Daily Coach
+
+### 28A. Strength-Performance Relationship
+
+**What to look for:** How strength/gym sessions affect cycling performance in the following 24-72 hours
+**Example insights:**
+- "Rides 24-48 hours after your strength sessions show NP 4% lower but HR drift is unchanged. By 72 hours, your NP rebounds to baseline. Your body needs 2 days to absorb strength work."
+
+**Confidence:** Medium-High
+
+### 28B. Optimal Strength Timing
+
+**What to look for:** Which days relative to key cycling sessions produce the best outcomes for both modalities
+**Example insights:**
+- "Your best interval execution (avg score 91/100) follows strength sessions by 3+ days. Sessions within 48 hours of strength average 79/100. Consider scheduling strength on Monday for Thursday key sessions."
+
+**Confidence:** Medium
+
+---
+
+## CATEGORY 29: Periodization & Season Intelligence (P2 — future)
+
+**Required sources:** Phase data + training history
+**When to run:** Weekly summary, phase transitions
+
+### 29A. Phase Compliance Tracking
+
+**What to look for:** Whether actual training matches prescribed phase goals (volume, intensity distribution)
+**Example insights:**
+- "You're in a base phase but 32% of your TSS came from Z4+ this week (target: <15%). Consider shifting 2 sessions to Z2 endurance."
+
+**Confidence:** High (deterministic comparison to plan)
+
+### 29B. Phase Transition Recommendations
+
+**What to look for:** Readiness signals for moving between training phases
+**Example insights:**
+- "Your CTL plateau at 78 for 3 weeks plus improving aerobic decoupling suggests you're ready to transition from base to build."
+
+**Confidence:** Medium
+
+### 29C. Taper Anxiety Management
+
+**What to look for:** Performance anxiety signals during taper (excessive training, sleep disruption)
+**Example insights:**
+- "Your training volume dropped 40% this week (taper), but sleep quality also dropped 15%. This is common — your CTL will stabilize, and the freshness gain from TSB +15 will outweigh any small fitness loss."
+
+**Confidence:** Medium
+
+---
+
+## CATEGORY 30: Personal Model Insights (P2 — future)
+
+**Required sources:** Personal models (accumulated data)
+**When to run:** When model confidence thresholds are crossed
+
+### 30A. Model Maturity Notifications
+
+**What to look for:** When enough data accumulates to activate or improve a personal model
+**Example insights:**
+- "Your heat penalty model just reached high confidence (25 hot rides logged). AIM can now predict your power adjustment within ±2% for any temperature."
+
+**Confidence:** High (meta-confidence about model quality)
+
+### 30B. Model-Based Predictions
+
+**What to look for:** Proactive predictions from mature personal models before key sessions
+**Example insights:**
+- "Tomorrow's forecast is 33°C. Based on your heat model, expect threshold power ~6% below indoor baseline. Suggested target: 268W instead of 285W."
+
+**Confidence:** Varies (depends on underlying model maturity)
+
+### 30C. Model Improvement Suggestions
+
+**What to look for:** Data gaps that would most improve personal model accuracy
+**Example insights:**
+- "Your sleep-performance model only has 8 data points with sleep <6 hours. A few more short-sleep data points would significantly improve prediction accuracy for poor-sleep days."
+
+**Confidence:** High (deterministic gap analysis)
+
+---
+
+## CATEGORY 31: Plateau & Breakthrough Analysis (P2 — future)
+
+**Required sources:** Power profile history (12+ weeks)
+**When to run:** Weekly summary, when plateau or breakthrough detected
+
+### 31A. Plateau Detection with Causal Analysis
+
+**What to look for:** Stagnation in key power durations with potential explanations from cross-domain data
+**Example insights:**
+- "Your 20-min power has plateaued at 275-280W for 6 weeks despite consistent training. Your sleep has averaged 6.1 hours (vs 7.2 in your last progression phase) and HRV trend is flat. Sleep debt may be limiting adaptation."
+
+**Confidence:** Medium (correlation-based — always present multiple possible causes)
+
+### 31B. Breakthrough Attribution
+
+**What to look for:** What changed before a new personal best or significant improvement
+**Example insights:**
+- "New 20-min PR: 292W (+5.2%). In the 3 weeks prior: sleep averaged 7.8 hrs (+1.1 vs prior block), you added 2 sweet spot sessions/week, and HRV trended up 6ms. All three likely contributed."
+
+**Confidence:** Medium (attribution is inherently uncertain — present evidence, not certainty)
+
+---
+
+## CATEGORY 32: Team Health Monitoring (P3 — future, requires coach dashboard)
+
+**Required sources:** Multiple athlete profiles + readiness data
+**When to run:** Coach dashboard daily view
+
+### 32A. Team Readiness Overview
+
+**What to look for:** Aggregate team recovery status, flagging athletes at risk
+**Confidence:** High (aggregation of individual models)
+
+### 32B. Illness Risk Flagging
+
+**What to look for:** Athletes showing pre-illness patterns (Category 24) who may affect team
+**Confidence:** Medium
+
+---
+
+## CATEGORY 33: Team Training Load Management (P3 — future)
+
+**Required sources:** Multiple athlete training logs + team calendar
+**When to run:** Coach dashboard weekly planning
+
+### 33A. Team Load Distribution
+
+**What to look for:** Load balance across team members, identifying overloaded/underloaded athletes
+**Confidence:** High (deterministic load comparison)
+
+### 33B. Group Session Optimization
+
+**What to look for:** Optimal groupings for shared sessions based on fitness levels and training targets
+**Confidence:** Medium
+
+---
+
+## CATEGORY 34: Shared Race Preparation (P3 — future)
+
+**Required sources:** Team race calendar + individual power profiles + race course data
+**When to run:** Pre-race planning (7-14 days out)
+
+### 34A. Team Tactics from Individual Strengths
+
+**What to look for:** Optimal race roles based on each athlete's power profile shape and durability
+**Confidence:** Medium-High (requires power profiles for all team members)
+
+### 34B. Pacing Strategy Coordination
+
+**What to look for:** Coordinated pacing plans for team time trials or relay events
+**Confidence:** High (physics-based calculations from individual profiles)
 
 ---
 

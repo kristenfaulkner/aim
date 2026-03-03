@@ -257,6 +257,132 @@ const WORKOUT_TAG_DETECTORS = {
       return { match: false };
     },
   },
+
+  // ── Subjective State Tags (from daily check-in) ──
+
+  high_life_stress: {
+    label: "High Life Stress",
+    category: "readiness",
+    detect: (a, daily) => {
+      if (!daily?.life_stress_score) return { match: false };
+      if (daily.life_stress_score >= 4) {
+        return { match: true, confidence: 0.9, evidence: { life_stress_score: daily.life_stress_score } };
+      }
+      return { match: false };
+    },
+  },
+
+  low_motivation: {
+    label: "Low Motivation",
+    category: "readiness",
+    detect: (a, daily) => {
+      if (!daily?.motivation_score) return { match: false };
+      if (daily.motivation_score <= 2) {
+        return { match: true, confidence: 0.9, evidence: { motivation_score: daily.motivation_score } };
+      }
+      return { match: false };
+    },
+  },
+
+  high_soreness: {
+    label: "High Soreness",
+    category: "readiness",
+    detect: (a, daily) => {
+      if (!daily?.muscle_soreness_score) return { match: false };
+      if (daily.muscle_soreness_score >= 4) {
+        return { match: true, confidence: 0.9, evidence: { muscle_soreness_score: daily.muscle_soreness_score } };
+      }
+      return { match: false };
+    },
+  },
+
+  low_mood: {
+    label: "Low Mood",
+    category: "readiness",
+    detect: (a, daily) => {
+      if (!daily?.mood_score) return { match: false };
+      if (daily.mood_score <= 2) {
+        return { match: true, confidence: 0.9, evidence: { mood_score: daily.mood_score } };
+      }
+      return { match: false };
+    },
+  },
+
+  // ── GI & Perception Tags (from activity subjective fields) ──
+
+  gi_distress: {
+    label: "GI Distress",
+    category: "physiology",
+    detect: (a) => {
+      if (!a.gi_comfort) return { match: false };
+      if (a.gi_comfort >= 3) {
+        return { match: true, confidence: 0.9, evidence: { gi_comfort: a.gi_comfort } };
+      }
+      return { match: false };
+    },
+  },
+
+  gi_distress_severe: {
+    label: "Severe GI Distress",
+    category: "physiology",
+    detect: (a) => {
+      if (!a.gi_comfort) return { match: false };
+      if (a.gi_comfort >= 4) {
+        return { match: true, confidence: 0.95, evidence: { gi_comfort: a.gi_comfort } };
+      }
+      return { match: false };
+    },
+  },
+
+  high_mental_focus: {
+    label: "High Focus",
+    category: "readiness",
+    detect: (a) => {
+      if (!a.mental_focus) return { match: false };
+      if (a.mental_focus >= 4) {
+        return { match: true, confidence: 0.9, evidence: { mental_focus: a.mental_focus } };
+      }
+      return { match: false };
+    },
+  },
+
+  low_mental_focus: {
+    label: "Low Focus",
+    category: "readiness",
+    detect: (a) => {
+      if (!a.mental_focus) return { match: false };
+      if (a.mental_focus <= 2) {
+        return { match: true, confidence: 0.9, evidence: { mental_focus: a.mental_focus } };
+      }
+      return { match: false };
+    },
+  },
+
+  // ── Altitude Tags ──
+
+  altitude_high: {
+    label: "High Altitude",
+    category: "environment",
+    detect: (a) => {
+      const alt = a.source_data?.elev_low || a.activity_weather?.altitude_m;
+      if (alt != null && alt > 1500) {
+        return { match: true, confidence: 0.85, evidence: { altitude_m: alt } };
+      }
+      return { match: false };
+    },
+  },
+
+  altitude_very_high: {
+    label: "Very High Altitude",
+    category: "environment",
+    detect: (a) => {
+      const alt = a.source_data?.elev_low || a.activity_weather?.altitude_m;
+      if (alt != null && alt > 2500) {
+        return { match: true, confidence: 0.85, evidence: { altitude_m: alt } };
+      }
+      return { match: false };
+    },
+  },
 };
 
 

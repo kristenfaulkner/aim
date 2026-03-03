@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/sync-eightsleep",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/sync-recovery",
+      "schedule": "15 * * * *"
     }
   ]
 }

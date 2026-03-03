@@ -121,6 +121,10 @@ CREATE TABLE activities (
   user_rating INTEGER CHECK (user_rating BETWEEN 1 AND 5), -- session rating (1-5 stars)
   user_rpe INTEGER CHECK (user_rpe BETWEEN 1 AND 10), -- rate of perceived exertion
   user_tags TEXT[] DEFAULT '{}', -- freeform tags (e.g., "interval", "race", "indoor")
+  -- Subjective perception (migration 010)
+  gi_comfort SMALLINT CHECK (gi_comfort BETWEEN 1 AND 5),
+  mental_focus SMALLINT CHECK (mental_focus BETWEEN 1 AND 5),
+  perceived_recovery_pre SMALLINT CHECK (perceived_recovery_pre BETWEEN 1 AND 5),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(user_id, source, source_id)
@@ -168,6 +172,13 @@ CREATE TABLE daily_metrics (
   -- Menstrual cycle (from Oura or manual)
   cycle_day INTEGER,
   cycle_phase TEXT, -- menstrual, follicular, ovulatory, luteal
+  -- Subjective check-in (migration 010)
+  life_stress_score SMALLINT CHECK (life_stress_score BETWEEN 1 AND 5),
+  motivation_score SMALLINT CHECK (motivation_score BETWEEN 1 AND 5),
+  muscle_soreness_score SMALLINT CHECK (muscle_soreness_score BETWEEN 1 AND 5),
+  mood_score SMALLINT CHECK (mood_score BETWEEN 1 AND 5),
+  checkin_completed_at TIMESTAMPTZ,
+  resting_spo2 NUMERIC, -- (migration 010)
   -- AI
   ai_daily_summary TEXT,
   ai_readiness_assessment TEXT,
@@ -286,6 +297,57 @@ CREATE TABLE user_settings (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Travel events for timezone/altitude acclimation tracking (migration 010)
+CREATE TABLE travel_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  detected_at TIMESTAMPTZ NOT NULL,
+  origin_lat NUMERIC,
+  origin_lng NUMERIC,
+  origin_timezone TEXT,
+  origin_altitude NUMERIC,
+  dest_lat NUMERIC,
+  dest_lng NUMERIC,
+  dest_timezone TEXT,
+  dest_altitude NUMERIC,
+  distance_km NUMERIC,
+  timezone_shift_hours NUMERIC,
+  altitude_change_m NUMERIC,
+  travel_type TEXT, -- flight, drive, train, unknown
+  altitude_acclimation_day INTEGER, -- days since arrival at altitude
+  altitude_acclimation_complete BOOLEAN DEFAULT FALSE,
+  last_activity_before UUID REFERENCES activities(id),
+  first_activity_after UUID REFERENCES activities(id),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE travel_events ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view own travel events" ON travel_events FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own travel events" ON travel_events FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own travel events" ON travel_events FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete own travel events" ON travel_events FOR DELETE USING (auth.uid() = user_id);
+CREATE INDEX idx_travel_events_user_date ON travel_events(user_id, detected_at DESC);
+
+-- Cross-training log for non-cycling activities (migration 010)
+CREATE TABLE cross_training_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  activity_type TEXT, -- yoga, strength, pilates, swimming, running, hiking, etc.
+  body_region TEXT, -- upper, lower, core, full_body, cardio
+  perceived_intensity SMALLINT CHECK (perceived_intensity BETWEEN 1 AND 10),
+  duration_minutes INTEGER,
+  notes TEXT,
+  estimated_tss NUMERIC,
+  recovery_impact TEXT, -- positive, neutral, negative
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE cross_training_log ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view own cross training" ON cross_training_log FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own cross training" ON cross_training_log FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own cross training" ON cross_training_log FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete own cross training" ON cross_training_log FOR DELETE USING (auth.uid() = user_id);
+CREATE INDEX idx_cross_training_user_date ON cross_training_log(user_id, date DESC);
 ```
 
 ### Row Level Security (RLS)
@@ -1220,6 +1282,28 @@ ALTER TABLE activities ADD COLUMN IF NOT EXISTS user_rpe INTEGER CHECK (user_rpe
 ALTER TABLE activities ADD COLUMN IF NOT EXISTS user_tags TEXT[] DEFAULT '{}';
 ```
 
+```sql
+-- Expansion: check-in, travel, cross-training (migration 010)
+-- See /supabase/migrations/010_expansion_checkin_travel_crosstraining.sql
+
+-- Subjective check-in columns on daily_metrics
+ALTER TABLE daily_metrics ADD COLUMN IF NOT EXISTS life_stress_score SMALLINT CHECK (life_stress_score BETWEEN 1 AND 5);
+ALTER TABLE daily_metrics ADD COLUMN IF NOT EXISTS motivation_score SMALLINT CHECK (motivation_score BETWEEN 1 AND 5);
+ALTER TABLE daily_metrics ADD COLUMN IF NOT EXISTS muscle_soreness_score SMALLINT CHECK (muscle_soreness_score BETWEEN 1 AND 5);
+ALTER TABLE daily_metrics ADD COLUMN IF NOT EXISTS mood_score SMALLINT CHECK (mood_score BETWEEN 1 AND 5);
+ALTER TABLE daily_metrics ADD COLUMN IF NOT EXISTS checkin_completed_at TIMESTAMPTZ;
+ALTER TABLE daily_metrics ADD COLUMN IF NOT EXISTS respiratory_rate NUMERIC;
+ALTER TABLE daily_metrics ADD COLUMN IF NOT EXISTS resting_spo2 NUMERIC;
+
+-- Subjective perception columns on activities
+ALTER TABLE activities ADD COLUMN IF NOT EXISTS gi_comfort SMALLINT CHECK (gi_comfort BETWEEN 1 AND 5);
+ALTER TABLE activities ADD COLUMN IF NOT EXISTS mental_focus SMALLINT CHECK (mental_focus BETWEEN 1 AND 5);
+ALTER TABLE activities ADD COLUMN IF NOT EXISTS perceived_recovery_pre SMALLINT CHECK (perceived_recovery_pre BETWEEN 1 AND 5);
+
+-- Travel events table (see Core Tables section for full CREATE TABLE)
+-- Cross-training log table (see Core Tables section for full CREATE TABLE)
+```
+
 ### `activities.laps` JSONB Structure
 
 The `laps` column already exists (migration 001) but is currently unpopulated. Structure:
@@ -1273,7 +1357,7 @@ The `laps` column already exists (migration 001) but is currently unpopulated. S
 
 ### Canonical Tag Dictionary (Cycling — Starter Set)
 
-#### Workout-Level Tags (22)
+#### Workout-Level Tags (32)
 
 | tag_id | Detection Rules | Signals |
 |--------|----------------|---------|
@@ -1299,6 +1383,16 @@ The `laps` column already exists (migration 001) but is currently unpopulated. S
 | `poor_sleep_day` | Sleep < 6 hrs OR sleep score < 60 | daily_metrics |
 | `underfueled` | Nutrition < 40 g/hr carbs on ride > 90 min | nutrition_logs |
 | `data_quality_issue` | >10% power dropout OR GPS spikes | quality flags |
+| `high_life_stress` | Check-in life_stress_score >= 4 | daily_metrics.life_stress_score |
+| `low_motivation` | Check-in motivation_score <= 2 | daily_metrics.motivation_score |
+| `high_soreness` | Check-in muscle_soreness_score >= 4 | daily_metrics.muscle_soreness_score |
+| `low_mood` | Check-in mood_score <= 2 | daily_metrics.mood_score |
+| `gi_distress` | Post-ride gi_comfort <= 2 | activities.gi_comfort |
+| `gi_distress_severe` | Post-ride gi_comfort = 1 | activities.gi_comfort |
+| `high_mental_focus` | Post-ride mental_focus >= 4 | activities.mental_focus |
+| `low_mental_focus` | Post-ride mental_focus <= 2 | activities.mental_focus |
+| `altitude_high` | Activity altitude 1500-2500m OR travel dest_altitude 1500-2500m | travel_events, GPS |
+| `altitude_very_high` | Activity altitude > 2500m OR travel dest_altitude > 2500m | travel_events, GPS |
 
 #### Interval-Level Tags (16)
 

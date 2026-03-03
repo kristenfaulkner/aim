@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "../../_lib/supabase.js";
 import { redis } from "../../_lib/redis.js";
+import { fullWhoopSync } from "../../integrations/sync/whoop.js";
 
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
@@ -39,6 +40,11 @@ export default async function handler(req, res) {
     is_active: true,
     sync_status: "pending",
   }, { onConflict: "user_id,provider" });
+
+  // Auto-sync last 365 days of data (fire-and-forget)
+  fullWhoopSync(userId, 365).catch(err =>
+    console.error(`Whoop auto-backfill failed for ${userId}:`, err.message)
+  );
 
   res.redirect(302, "/connect?connected=whoop");
 }
