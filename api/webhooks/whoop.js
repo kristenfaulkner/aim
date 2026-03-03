@@ -2,6 +2,8 @@ import { createHmac } from "crypto";
 import { supabaseAdmin } from "../_lib/supabase.js";
 import { getWhoopToken, whoopFetch, mapWhoopToMetrics, extractWhoopExtended } from "../_lib/whoop.js";
 
+export const config = { maxDuration: 30 };
+
 /**
  * Verify the X-WHOOP-Signature header.
  * Formula: base64(HMAC-SHA256(timestamp + body, client_secret))
@@ -101,13 +103,9 @@ export default async function handler(req, res) {
 
   const { accessToken } = tokenResult;
 
-  // Respond immediately, then process
-  res.status(200).json({ ok: true });
-
+  // Process before responding — Vercel can terminate the function after res is sent
   try {
     if (type === "recovery.updated") {
-      // resourceId is the sleep UUID for recovery events
-      // Fetch recovery by querying the collection and matching
       const data = await whoopFetch(accessToken, `/v2/recovery?limit=1&start=${new Date(Date.now() - 2 * 86400000).toISOString()}`);
       const recovery = data.records?.find(r => r.sleep_id === resourceId);
       if (recovery?.score_state === "SCORED" && recovery.created_at) {
@@ -129,11 +127,11 @@ export default async function handler(req, res) {
         console.log(`[Whoop Webhook] Sleep synced for ${userId} on ${date}`);
       }
     } else if (type === "workout.updated") {
-      // Workouts could be synced to activities table in the future
-      // For now, just log it
       console.log(`[Whoop Webhook] Workout event for ${userId}, resource ${resourceId} — skipping (not yet implemented)`);
     }
   } catch (err) {
     console.error(`[Whoop Webhook] Processing failed for ${userId}:`, err.message);
   }
+
+  return res.status(200).json({ ok: true });
 }

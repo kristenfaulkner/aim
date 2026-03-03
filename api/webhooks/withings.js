@@ -1,4 +1,7 @@
 import { supabaseAdmin } from "../_lib/supabase.js";
+
+export const config = { maxDuration: 30 };
+
 import {
   getWithingsToken,
   fetchWithingsMeasurements,
@@ -130,12 +133,14 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, skipped: true });
   }
 
-  // Respond immediately, then process in background
-  res.status(200).json({ ok: true });
-
+  // Process the notification, then respond.
+  // On Vercel, the function can be terminated after res is sent,
+  // so we must finish processing BEFORE responding.
   try {
     await syncFromNotification(integration.user_id, appliInt, parseInt(startdate), parseInt(enddate));
   } catch (err) {
     console.error(`[Withings Webhook] Processing failed for user ${integration.user_id}:`, err.message);
   }
+
+  return res.status(200).json({ ok: true });
 }
