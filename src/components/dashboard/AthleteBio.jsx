@@ -1,34 +1,56 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { T, font } from "../../theme/tokens";
 import { apiFetch } from "../../lib/api";
-import { Pencil, Sparkles, Check, X } from "lucide-react";
+import { Pencil, Sparkles } from "lucide-react";
 
 /**
  * AthleteBio — auto-generated athlete profile description.
+ * Auto-generates on mount if no bio exists, auto-saves the result.
  * States:
- *  - No bio, idle: "Generate Profile" button
- *  - Generating: loading spinner
- *  - Generated (pending confirm): shows text with "Looks good!" / "Edit" buttons
- *  - Has bio: shows text with edit icon
+ *  - No bio: auto-generating (loading shimmer)
+ *  - Has bio: shows text with regenerate/edit icons
  *  - Editing: inline textarea with Save/Cancel
  */
 export default function AthleteBio({ profile, onUpdateProfile, isMobile }) {
   const [generating, setGenerating] = useState(false);
-  const [pendingBio, setPendingBio] = useState(null); // bio awaiting confirmation
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const hasTriggered = useRef(false);
 
   const savedBio = profile?.athlete_bio;
 
-  async function handleGenerate() {
+  // Auto-generate on mount if no bio exists
+  useEffect(() => {
+    if (!savedBio && !hasTriggered.current && profile) {
+      hasTriggered.current = true;
+      generateAndSave();
+    }
+  }, [savedBio, profile]);
+
+  async function generateAndSave() {
     setGenerating(true);
     setError(null);
     try {
       const data = await apiFetch("/profile/generate-bio", { method: "POST" });
       if (data.bio) {
-        setPendingBio(data.bio);
+        await onUpdateProfile({ athlete_bio: data.bio });
+      }
+    } catch {
+      // Silent fail — bio is non-critical, user can regenerate manually
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function handleRegenerate() {
+    setGenerating(true);
+    setError(null);
+    try {
+      const data = await apiFetch("/profile/generate-bio", { method: "POST" });
+      if (data.bio) {
+        await onUpdateProfile({ athlete_bio: data.bio });
       } else {
         setError(data.reason || "Could not generate bio");
       }
@@ -44,50 +66,12 @@ export default function AthleteBio({ profile, onUpdateProfile, isMobile }) {
     setError(null);
     try {
       await onUpdateProfile({ athlete_bio: text });
-      setPendingBio(null);
       setEditing(false);
     } catch (err) {
       setError(err.message || "Failed to save");
     } finally {
       setSaving(false);
     }
-  }
-
-  // Pending confirmation state (just generated)
-  if (pendingBio) {
-    return (
-      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: 18 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Your Athlete Profile</div>
-        <div style={{ fontSize: 13, color: T.text, lineHeight: 1.6, marginBottom: 14 }}>{pendingBio}</div>
-        {error && <div style={{ fontSize: 11, color: T.danger, marginBottom: 8 }}>{error}</div>}
-        <div style={{ display: "flex", gap: 8 }}>
-          <button
-            onClick={() => handleSave(pendingBio)}
-            disabled={saving}
-            style={{
-              display: "flex", alignItems: "center", gap: 6,
-              padding: "7px 14px", borderRadius: 8, border: "none",
-              background: T.accent, color: T.white,
-              fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: font,
-              opacity: saving ? 0.6 : 1,
-            }}
-          >
-            <Check size={14} /> {saving ? "Saving..." : "Looks good!"}
-          </button>
-          <button
-            onClick={() => { setEditing(true); setEditText(pendingBio); setPendingBio(null); }}
-            style={{
-              display: "flex", alignItems: "center", gap: 6,
-              padding: "7px 14px", borderRadius: 8,
-              border: `1px solid ${T.border}`, background: "none",
-              fontSize: 12, fontWeight: 600, color: T.textSoft, cursor: "pointer", fontFamily: font,
-            }}
-          >
-            <Pencil size={13} /> Edit
-          </button>
-        </div>
-      </div>
-    );
   }
 
   // Editing state
@@ -148,7 +132,7 @@ export default function AthleteBio({ profile, onUpdateProfile, isMobile }) {
           <div style={{ fontSize: 11, fontWeight: 700, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.06em" }}>Your Athlete Profile</div>
           <div style={{ display: "flex", gap: 4 }}>
             <button
-              onClick={handleGenerate}
+              onClick={handleRegenerate}
               disabled={generating}
               title="Regenerate"
               style={{
@@ -176,28 +160,21 @@ export default function AthleteBio({ profile, onUpdateProfile, isMobile }) {
     );
   }
 
-  // No bio yet — show generate button
-  return (
-    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: 18 }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Your Athlete Profile</div>
-      <div style={{ fontSize: 12, color: T.textSoft, lineHeight: 1.5, marginBottom: 12 }}>
-        Generate an AI-powered description of your training profile based on your activity history.
+  // No bio yet — auto-generating (shimmer placeholder)
+  if (generating) {
+    return (
+      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: 18 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Your Athlete Profile</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ height: 14, borderRadius: 6, background: T.surface, animation: "bio-shimmer 1.5s ease-in-out infinite" }} />
+          <div style={{ height: 14, borderRadius: 6, background: T.surface, animation: "bio-shimmer 1.5s ease-in-out 0.2s infinite", width: "85%" }} />
+          <div style={{ height: 14, borderRadius: 6, background: T.surface, animation: "bio-shimmer 1.5s ease-in-out 0.4s infinite", width: "60%" }} />
+        </div>
+        <style>{`@keyframes bio-shimmer { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }`}</style>
       </div>
-      {error && <div style={{ fontSize: 11, color: T.danger, marginBottom: 8 }}>{error}</div>}
-      <button
-        onClick={handleGenerate}
-        disabled={generating}
-        style={{
-          display: "flex", alignItems: "center", gap: 8,
-          padding: "8px 16px", borderRadius: 10, border: "none",
-          background: generating ? T.surface : T.gradient, color: generating ? T.textSoft : T.white,
-          fontSize: 12, fontWeight: 700, cursor: generating ? "default" : "pointer",
-          fontFamily: font, transition: "all 0.2s",
-        }}
-      >
-        <Sparkles size={14} />
-        {generating ? "Generating..." : "Generate Profile"}
-      </button>
-    </div>
-  );
+    );
+  }
+
+  // Fallback — no bio, not generating (shouldn't normally show)
+  return null;
 }
