@@ -130,7 +130,8 @@ export default function UniversalUpload({ compact = false }) {
 
     // CSV — sniff and route
     if (type === "csv_workouts" || type === "csv_metrics") {
-      const csvBase64 = btoa(await file.text());
+      const csvBuffer = await file.arrayBuffer();
+      const csvBase64 = btoa(new Uint8Array(csvBuffer).reduce((s, b) => s + String.fromCharCode(b), ""));
       const body = type === "csv_workouts"
         ? { csvData: csvBase64 }
         : { metricsCsvData: csvBase64 };
