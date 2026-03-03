@@ -4,39 +4,142 @@ import { verifySession, cors } from "../_lib/auth.js";
 // Canonical tag aliases — maps any variant to the canonical stored form.
 // Keys are lowercase alias strings; values are canonical tags.
 const TAG_ALIASES = {
-  // Time trial
+  // ── Low cadence (Strength & Endurance) ──
+  "s&e": "low cadence",
+  "se": "low cadence",
+  "strength and endurance": "low cadence",
+  "strength & endurance": "low cadence",
+  "force reps": "low cadence",
+  "force rep": "low cadence",
+  "big gear": "low cadence",
+  "big gear reps": "low cadence",
+  "heavy gear": "low cadence",
+  "muscular endurance": "low cadence",
+  "low-cadence": "low cadence",
+
+  // ── High cadence ──
+  "spinups": "high cadence",
+  "spin ups": "high cadence",
+  "spin-ups": "high cadence",
+  "spin up": "high cadence",
+  "leg speed": "high cadence",
+  "cadence drills": "high cadence",
+  "cadence drill": "high cadence",
+  "spin drill": "high cadence",
+  "high-cadence": "high cadence",
+
+  // ── VO2max ──
+  "vo2 max": "vo2max",
+  "v02max": "vo2max",
+  "vo2": "vo2max",
+  "map": "vo2max",           // maximum aerobic power
+  "aerobic power": "vo2max",
+  "5min power": "vo2max",
+  "5 min power": "vo2max",
+
+  // ── Sweet spot ──
+  "sweetspot": "sweet spot",
+  "ss": "sweet spot",
+  "sst": "sweet spot",       // sweet spot training
+
+  // ── Threshold ──
+  "ftp": "threshold",
+  "lactate threshold": "threshold",
+  "lt": "threshold",
+  "at": "threshold",         // anaerobic threshold
+  "ltp": "threshold",        // lactate threshold power
+  "mlss": "threshold",       // maximal lactate steady state
+
+  // ── Time trial ──
   "tt": "time trial",
   "tt bike": "time trial",
   "time trial bike": "time trial",
   "timetrial": "time trial",
   "time-trial": "time trial",
-  // Race
+  "chrono": "time trial",    // French
+  "clm": "time trial",       // contre la montre
+  "contre la montre": "time trial",
+
+  // ── Race ──
   "crit": "race",
   "criterium": "race",
   "criterion": "race",
   "crits": "race",
-  // Indoor
+  "road race": "race",
+  "rr": "race",
+  "gran fondo": "race",
+  "sportive": "race",
+  "circuit race": "race",
+  "masters race": "race",
+
+  // ── Indoor ──
   "zwift": "indoor",
   "trainer": "indoor",
   "turbo": "indoor",
-  "rouvy": "indoor",
   "turbo trainer": "indoor",
-  // VO2max
-  "vo2 max": "vo2max",
-  "v02max": "vo2max",
-  "vo2": "vo2max",
-  // Sweet spot
-  "sweetspot": "sweet spot",
-  "ss": "sweet spot",
-  // Threshold
-  "ftp": "threshold",
-  "lactate threshold": "threshold",
-  "lt": "threshold",
-  // Group ride
+  "rouvy": "indoor",
+  "rollers": "indoor",
+  "smart trainer": "indoor",
+  "kickr": "indoor",
+  "tacx": "indoor",
+  "wahoo trainer": "indoor",
+
+  // ── Group ride ──
   "group": "group ride",
-  // Hill repeats
+  "chain gang": "group ride",
+  "chaingang": "group ride",
+  "club ride": "group ride",
+  "team ride": "group ride",
+  "shop ride": "group ride",
+  "hammerfest": "group ride",
+
+  // ── Recovery ──
+  "active recovery": "recovery",
+  "active rest": "recovery",
+  "flush": "recovery",
+  "flush ride": "recovery",
+  "ez": "recovery",
+  "easy ride": "recovery",
+
+  // ── Endurance ──
+  "lsd": "endurance",        // long slow distance
+  "base": "endurance",
+  "base miles": "endurance",
+  "aerobic base": "endurance",
+  "long ride": "endurance",
+  "zone 2": "endurance",
+  "z2": "endurance",
+
+  // ── Hill repeats ──
   "hills": "hill repeats",
   "climbs": "hill repeats",
+  "power climbs": "hill repeats",
+  "ramps": "hill repeats",
+
+  // ── Sprint ──
+  "jumps": "sprint",
+  "snap": "sprint",
+  "accelerations": "sprint",
+  "accels": "sprint",
+  "max sprint": "sprint",
+  "flying 200": "sprint",
+
+  // ── Test ──
+  "ftp test": "test",
+  "ramp test": "test",
+  "power test": "test",
+  "20 min test": "test",
+  "20min test": "test",
+  "1 hr test": "test",
+  "8 min test": "test",
+
+  // ── Openers ──
+  "opener": "openers",
+  "activation": "openers",
+  "activation ride": "openers",
+  "priming": "openers",
+  "pre-race": "openers",
+  "pre race": "openers",
 };
 
 /** Normalize a user-supplied tag to its canonical form. */
@@ -49,22 +152,24 @@ function normalizeTag(tag) {
 // Matched tags are merged with any explicitly set user_tags.
 const NOTE_TAG_PATTERNS = [
   { pattern: /\bintervals?\b/i, tag: "interval" },
-  { pattern: /\b(race|racing|criterium|crit)\b/i, tag: "race" },
-  { pattern: /\b(recovery|easy spin|zone\s*1|z1)\b/i, tag: "recovery" },
-  { pattern: /\b(group\s*ride|group)\b/i, tag: "group ride" },
-  { pattern: /\b(indoor|zwift|trainer|turbo|rouvy)\b/i, tag: "indoor" },
+  { pattern: /\b(race|racing|criterium|crit|road\s*race|gran\s*fondo|sportive)\b/i, tag: "race" },
+  { pattern: /\b(recovery|easy\s*spin|active\s*recovery|flush|zone\s*1|z1)\b/i, tag: "recovery" },
+  { pattern: /\b(group\s*ride|chain\s*gang|club\s*ride|team\s*ride|hammerfest)\b/i, tag: "group ride" },
+  { pattern: /\b(indoor|zwift|trainer|turbo|rouvy|rollers|kickr|tacx)\b/i, tag: "indoor" },
   { pattern: /\boutdoor\b/i, tag: "outdoor" },
   { pattern: /\btempo\b/i, tag: "tempo" },
-  { pattern: /\b(endurance|aerobic|zone\s*2|z2|long\s*ride)\b/i, tag: "endurance" },
-  { pattern: /\b(hill\s*repeats?|climbs?|climbing|mountain)\b/i, tag: "hill repeats" },
-  { pattern: /\blow[- ]cadence\b/i, tag: "low cadence" },
-  { pattern: /\bhigh[- ]cadence\b/i, tag: "high cadence" },
-  { pattern: /\bsweet[- ]spot\b/i, tag: "sweet spot" },
-  { pattern: /\b(vo2\s*max|vo2max)\b/i, tag: "vo2max" },
-  { pattern: /\b(sprints?|sprinting|max\s*effort)\b/i, tag: "sprint" },
+  { pattern: /\b(endurance|aerobic\s*base|zone\s*2|z2|long\s*ride|base\s*miles)\b/i, tag: "endurance" },
+  { pattern: /\b(hill\s*repeats?|power\s*climbs?|climbing|ramps)\b/i, tag: "hill repeats" },
+  { pattern: /\b(low[- ]cadence|s&e|strength\s*(and|&)\s*endurance|force\s*reps?|big\s*gear|muscular\s*endurance)\b/i, tag: "low cadence" },
+  { pattern: /\b(high[- ]cadence|spin[- ]?ups?|leg\s*speed|cadence\s*drills?)\b/i, tag: "high cadence" },
+  { pattern: /\b(sweet[- ]?spot|sst)\b/i, tag: "sweet spot" },
+  { pattern: /\b(vo2\s*max|vo2max|map|aerobic\s*power)\b/i, tag: "vo2max" },
+  { pattern: /\b(sprints?|sprinting|max\s*effort|jumps?|accelerations?)\b/i, tag: "sprint" },
   { pattern: /\bsolo\b/i, tag: "solo" },
-  { pattern: /\b(threshold|ftp|lactate)\b/i, tag: "threshold" },
-  { pattern: /\b(time\s*trial|tt\s*bike|time\s*trial\s*bike|\btt\b)\b/i, tag: "time trial" },
+  { pattern: /\b(threshold|lactate\s*threshold|mlss)\b/i, tag: "threshold" },
+  { pattern: /\b(time\s*trial|tt\s*bike|time\s*trial\s*bike|\btt\b|chrono|contre\s*la\s*montre|clm)\b/i, tag: "time trial" },
+  { pattern: /\b(ftp\s*test|ramp\s*test|power\s*test|20\s*min\s*test|8\s*min\s*test)\b/i, tag: "test" },
+  { pattern: /\b(openers?|activation\s*ride?|priming|pre[- ]race)\b/i, tag: "openers" },
 ];
 
 /**
