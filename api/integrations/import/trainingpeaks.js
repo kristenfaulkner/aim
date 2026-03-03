@@ -22,6 +22,7 @@ import { buildLapsPayload } from "../../_lib/intervals.js";
 import { resolveActivityTimezone } from "../../_lib/timezone.js";
 import { detectAllTags, persistTags } from "../../_lib/tags.js";
 import { fetchActivityWeather, extractLocationFromActivity } from "../../_lib/weather-enrich.js";
+import { analyzeActivity } from "../../_lib/ai.js";
 
 export const config = {
   maxDuration: 300, // 5 minutes for large imports
@@ -584,6 +585,13 @@ async function processEntries(session, entries, csvRows, profile, existing) {
             console.error(`Tag/weather enrichment failed for TP import ${upserted.id}:`, err.message);
           }
         })();
+      }
+
+      // Fire-and-forget: AI analysis (runs after weather/tags so context is richer)
+      if (upserted?.id) {
+        analyzeActivity(session.userId, upserted.id).catch(err =>
+          console.error(`AI analysis failed for TP import ${upserted.id}:`, err.message)
+        );
       }
     } catch (err) {
       results.failed++;

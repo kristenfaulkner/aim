@@ -200,21 +200,21 @@ export async function syncStravaActivity(userId, stravaActivityId, options = {})
     })();
   }
 
-  // For real-time events (webhook): analyze + notify immediately
-  // For backfill: skip — analysis runs as a batch after backfill completes
+  // For real-time events (webhook): analyze + notify immediately.
+  // Awaited so the caller's waitUntil() keeps the function alive until Claude finishes.
+  // For backfill: skip — analysis runs as a batch after backfill completes.
   if (upserted?.id && notify) {
-    analyzeActivity(userId, upserted.id)
-      .then(() => {
-        sendWorkoutEmail(userId, upserted.id).catch(err =>
-          console.error(`Email failed for activity ${upserted.id}:`, err.message)
-        );
-        sendWorkoutSMS(userId, upserted.id).catch(err =>
-          console.error(`SMS failed for activity ${upserted.id}:`, err.message)
-        );
-      })
-      .catch(err =>
-        console.error(`AI analysis failed for activity ${upserted.id}:`, err.message)
+    try {
+      await analyzeActivity(userId, upserted.id);
+      sendWorkoutEmail(userId, upserted.id).catch(err =>
+        console.error(`Email failed for activity ${upserted.id}:`, err.message)
       );
+      sendWorkoutSMS(userId, upserted.id).catch(err =>
+        console.error(`SMS failed for activity ${upserted.id}:`, err.message)
+      );
+    } catch (err) {
+      console.error(`AI analysis failed for activity ${upserted.id}:`, err.message);
+    }
   }
 
   return { ...record, id: upserted?.id };
