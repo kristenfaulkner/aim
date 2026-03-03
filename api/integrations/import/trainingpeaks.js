@@ -444,6 +444,11 @@ async function processEntries(session, entries, csvRows, profile, existing) {
           await updatePowerProfile(session.userId, metrics.power_curve, weightKg);
         }
 
+        // Re-analyze with enriched TP metrics (fire-and-forget)
+        analyzeActivity(session.userId, duplicate.id).catch(err =>
+          console.error(`AI re-analysis failed for TP upgrade ${duplicate.id}:`, err.message)
+        );
+
         results.merged++;
         continue;
       }
@@ -475,6 +480,11 @@ async function processEntries(session, entries, csvRows, profile, existing) {
           .from("activities")
           .update(mergeData)
           .eq("id", duplicate.id);
+
+        // Re-analyze with new coach notes / metadata (fire-and-forget)
+        analyzeActivity(session.userId, duplicate.id).catch(err =>
+          console.error(`AI re-analysis failed for TP enrich ${duplicate.id}:`, err.message)
+        );
 
         results.merged++;
         continue;
@@ -563,7 +573,7 @@ async function processEntries(session, entries, csvRows, profile, existing) {
       results.imported++;
 
       // Fire-and-forget: tag detection + weather enrichment
-      if (upserted?.id && record.avg_power_watts) {
+      if (upserted?.id) {
         (async () => {
           try {
             const location = extractLocationFromActivity(record);

@@ -298,6 +298,30 @@ export async function fullStravaSync(userId) {
     console.error(`Backfill after Strava sync failed:`, err.message)
   );
 
+  // Batch AI analysis for newly synced activities without analysis (fire-and-forget)
+  (async () => {
+    const oneYearAgo = new Date(Date.now() - 365 * 86400000).toISOString();
+    const { data: unanalyzed } = await supabaseAdmin
+      .from("activities")
+      .select("id")
+      .eq("user_id", userId)
+      .is("ai_analysis", null)
+      .gte("started_at", oneYearAgo)
+      .order("started_at", { ascending: false })
+      .limit(50);
+
+    if (unanalyzed?.length) {
+      for (const act of unanalyzed) {
+        try {
+          await analyzeActivity(userId, act.id);
+        } catch (err) {
+          console.error(`Post-sync analysis failed for ${act.id}:`, err.message);
+          if (err.message?.includes("credit balance")) break;
+        }
+      }
+    }
+  })().catch(err => console.error(`Post-sync analysis error:`, err.message));
+
   return results;
 }
 
