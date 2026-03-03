@@ -96,62 +96,9 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 
 ### Key Data Flows
 
-**Integration sync pipeline** (e.g. Strava):
-1. OAuth connect → token stored in `integrations` table → fire-and-forget 365-day backfill auto-triggered on first connect (both Strava and Eight Sleep)
-2. Sync fetches activity + streams from provider API
-3. Backend computes metrics (NP, TSS, IF, VI, EF, HR drift, zones, power curve) via `/api/_lib/metrics.js`
-4. Cross-source deduplication via `source-priority.js` (device > TrainingPeaks > Strava)
-5. Upserts to `activities` table, updates `daily_metrics` (CTL/ATL/TSB), updates `power_profiles`
-6. Fire-and-forget AI analysis → stored in `activities.ai_analysis` JSONB
-7. Fire-and-forget email notification → sends AI analysis email via Resend (first analysis only, if opted in)
-8. Fire-and-forget SMS notification → sends workout summary text via Twilio (if opted in)
+See `docs/data-flows.md` for detailed pipeline documentation (Strava sync, TrainingPeaks import, Eight Sleep cron, AI analysis, blood panel upload, SMS coach, sleep summary, metrics computation).
 
-**TrainingPeaks file import** (`/api/integrations/import/trainingpeaks.js`):
-1. User uploads ZIP (workout files) + optional workouts CSV + optional metrics CSV via `TrainingPeaksImport` component. ZIP is optional — CSV-only import enriches existing activities by matching on date.
-2. ZIP uploaded to Supabase `import-files` bucket, CSVs sent as base64
-3. Backend extracts .fit/.tcx/.gpx files, parses with `fit.js`/xml2js, computes full metrics
-4. Source priority merge: UPGRADE (TP replaces lower-priority source), ENRICH (add metadata), or SKIP (duplicate)
-5. Workouts CSV enriches activities with titles, RPE, coach comments, body weight
-6. Metrics CSV imports daily health data (RHR, HRV, sleep, SpO2, body fat, Whoop recovery) — only fills null fields, never overwrites device data
-
-**Eight Sleep hourly cron** (`/api/cron/sync-eightsleep.js`):
-1. Vercel Cron fires every hour (`0 * * * *`)
-2. Queries active Eight Sleep integrations where `last_sync_at` is null or >6 hours ago
-3. Syncs last 2 days of sleep data per user via `fullEightSleepSync`
-4. Skips recently-synced users — first run after wake-up does the work, subsequent runs are no-ops
-5. Auth: requires `CRON_SECRET` env var, verified via Bearer token
-
-**AI analysis** (`/api/_lib/ai.js`):
-- Smart context assembly: 3-layer structure reduces token usage ~60% while improving insight quality
-  - `recentWindow` — last 7 days raw activities + daily metrics (trimmed fields)
-  - `historicalContext` — pre-computed 90-day summaries: baselines (avg/stdDev/percentiles for HRV/RHR/sleep/weight), training load trends (CTL/ATL/TSB/ACWR), similar efforts (top 5 past activities enriched with that day's recovery), notable outliers (z-score >1.5), performance range, seasonal comparison (recent 14d vs prior 14d)
-  - `activityVsBests` — current activity power curve as % of personal bests
-- 7 pure helper functions compute summaries server-side: `computeBaselines`, `computeTrainingLoadSummary`, `findSimilarEfforts`, `findNotableOutliers`, `computePerformanceRange`, `computeSeasonalComparison`, `computeActivityVsBests`
-- System prompt defines 22 insight categories + DATA STRUCTURE guide for cross-source pattern detection
-- Output is structured JSON: summary, insights (with type/category/confidence), and dataGaps ("Unlock More Insights")
-- Triggered post-sync, non-blocking
-
-**Blood panel upload** (`/api/health/upload.js`):
-1. User uploads one or more PDF/image files via `BloodPanelUpload` multi-file drag-drop component (sequential processing with progress tracking)
-2. File sent to Claude AI for OCR extraction of 25 biomarkers (ferritin, iron, vitamins, thyroid, hormones, lipids, liver/kidney, minerals)
-3. Claude handles unit conversions (nmol/L → ng/mL, etc.) and flags normal/high/low/critical
-4. PDF stored in Supabase `health-files` bucket, results in `blood_panels` table
-5. Fire-and-forget: `generatePanelAnalysis()` cross-references panel with training data and prior panels
-
-**SMS AI Coach** (`/api/sms/`):
-1. Post-activity: Claude generates 1500-char workout summary with key insights → sent via Twilio
-2. Inbound replies: Twilio webhook receives texts, loads conversation history + athlete context, generates AI coaching response
-3. TCPA compliance: STOP/UNSUBSCRIBE/CANCEL → opt-out, START/SUBSCRIBE → opt-in, HELP → info text
-4. Messages stored in `ai_conversations`/`ai_messages` tables for continuity
-
-**Morning sleep summary** (`/api/sleep/summary.js`):
-- Fetches last night's sleep data + 30-day history + recent activities
-- Eight Sleep extended metrics: toss/turns, room temp, HR/HRV min/max, sleep quality/routine/fitness scores
-- Claude generates: greeting, metrics line, narrative summary, recommendation, recovery rating (green/yellow/red)
-
-**Metrics computation** (`/api/_lib/metrics.js`):
-- Coggan methodology: normalizedPower, intensityFactor, trainingStressScore, variabilityIndex, efficiencyFactor, hrDrift, zoneDistribution, powerCurve
-- Training load (`/api/_lib/training-load.js`): CTL (42-day), ATL (7-day), TSB = CTL - ATL, power profile bests at 1/5/10/20/30/60 min
+**Summary**: OAuth connect → sync → compute metrics → dedup → upsert → fire-and-forget AI analysis + email + SMS. TrainingPeaks is file-based (ZIP + CSV). Eight Sleep syncs hourly via Vercel Cron. AI uses 3-layer smart context assembly (~60% token reduction).
 
 ### Database (Supabase)
 
@@ -253,28 +200,8 @@ Cross-domain insights are the product. Every AI insight must connect 2+ data sou
 9. **Adaptive dashboard intelligence** — 3-mode AI (POST_RIDE/PRE_RIDE_PLANNED/DAILY_COACH) via `/api/dashboard/intelligence`
 
 ### 22 Insight Categories
-1. **Body Composition → Performance** — W/kg from Withings + power output, weight loss rate monitoring, hydration impact on cardiac drift, race weight projection
-2. **Sleep Architecture → Next-Day Performance** — deep sleep vs NP/EF, REM vs tactical performance, sleep timing correlations, EightSleep temperature optimization
-3. **HRV Patterns → Training Prescription** — personal HRV thresholds, dose-response curves, readiness traffic light (Green 70+/Yellow 45-69/Red <45)
-4. **Environmental Performance Modeling** — heat adaptation (power:HR at temperature), altitude impact, wind-adjusted performance
-5. **Fatigue Signature Analysis** — L/R balance shift under fatigue, cadence decay, power fade patterns, pacing intelligence
-6. **Long-Term Training Adaptations** — dose-response modeling (zone minutes → FTP change), periodization, year-over-year progress, strain/recovery balance
-7. **Nutrition & Fueling Intelligence** — carb/hr vs power fade, CGM glucose monitoring, caloric balance, pre-ride timing
-8. **Predictive Analytics** — race-day FTP prediction, event time estimation (VAM + weight + gradient), taper protocol, power profile vs race demands
-9. **Benchmarking & Classification** — Coggan power classification at each duration, weakest-link identification, age-adjusted percentile ranking
-10. **Menstrual Cycle Intelligence** — cycle phase detection from Oura basal temperature, luteal HR/temp adjustments, personal patterns after 3+ cycles (opt-in via `uses_cycle_tracking`)
-11. **Performance Booster Cross-References** — supplement impact detection (pre/post metrics), protocol compliance, recovery recommendations
-12. **Blood Work → Training Impact** — ferritin vs VO2max (athlete-optimal >50, not clinical >12), vitamin D, thyroid, CRP inflammation, hormonal health
-13. **DEXA Scan → Power & Body Composition** — lean mass W/kg accuracy, regional L/R imbalances, visceral fat tracking
-14. **Workout Classification & Tagging** — canonical workout/interval tags (22+14), confidence scoring, evidence-based detection, cross-activity search
-15. **Environmental Context** — per-activity weather enrichment, historical conditions, heat/cold/wind impact on performance
-16. **Interval Execution Coaching** — planned vs actual comparison, per-interval fade/cadence/HR/pacing insights, execution scoring (0-100), deterministic coaching feedback
-17. **Durability & Fatigue Resistance** — kJ/kg durability threshold, peak power at progressive fatigue levels, power fade under accumulated work, race-specific durability predictions
-18. **Fueling Causality** — carb/hr intake correlated with late-ride power fade, fueling timing vs bonk risk, glycogen depletion modeling from duration + intensity
-19. **Readiness-to-Response** — HRV/sleep readiness vs actual workout execution quality, red/yellow/green day validation, recovery day compliance
-20. **Workout Type Progression** — longitudinal tracking of same workout types over time, interval power trends, session-over-session improvement detection
-21. **Anomaly Detection** — unusual metric combinations flagged (high power + high HR drift, low HRV + strong performance), unexpected breakthroughs or regressions
-22. **Race-Specific Analysis** — race demands vs training profile, pacing strategy evaluation, tactical decision analysis, race-day conditions impact
+
+See `docs/insights-catalog.md` for the full list with detailed examples. Categories span: Body Comp→Performance, Sleep→Performance, HRV→Training, Environmental, Fatigue Signatures, Long-Term Adaptations, Nutrition, Predictive Analytics, Benchmarking, Menstrual Cycle, Boosters, Blood Work, DEXA, Workout Tagging, Weather Context, Interval Execution, Durability, Fueling Causality, Readiness-to-Response, Workout Progression, Anomaly Detection, Race-Specific Analysis.
 
 ### Insight Quality Rules
 - Connect 2+ data sources in most insights
@@ -319,58 +246,15 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 ## Build Status
 
 ### Completed
-- Project setup (Vite + React + React Router + Supabase)
-- Design system (theme tokens, light theme with DM Sans font, NeuralBackground animation)
-- Auth (email/password, Google SSO, magic link, password reset, protected routes)
-- Onboarding (3-step: health data consent → profile → FTP/HR zone setup with power zones Z1-Z7 and HR zones Z1-Z5)
-- **Strava** integration (full: OAuth, sync, backfill, metrics, streams, webhook, cross-source dedup)
-- **EightSleep** integration (credential auth with password visibility toggle, trends API, sleep metrics + extended metrics sync)
-- **Wahoo** integration (OAuth + webhook receiver for workout summaries)
-- **TrainingPeaks** file import (ZIP workouts + workouts CSV + metrics CSV with daily health data)
-- **Twilio SMS** AI coach (post-workout summaries, conversational inbound replies, TCPA consent flow with STOP/START/HELP)
-- Oura, Whoop, Withings OAuth connect/callback (sync logic TODO)
-- AI post-ride analysis engine with smart context assembly (3-layer pre-computed summaries, ~60% token reduction)
-- AI chat coach endpoint (`/api/chat/ask` with conversation history + full athlete context)
-- Morning sleep summary (Claude-powered readiness assessment from Eight Sleep data)
-- **Sleep Intelligence page** — dedicated `/sleep` route with time-period filters (7d/30d/90d/1y/All), summary cards with sparklines (score/duration/efficiency/HRV), stacked sleep architecture chart (deep/REM/light), trend charts (score/HRV/RHR), AI morning report, expandable nightly detail with Eight Sleep extended metrics, empty state CTA
-- **Dashboard V2** — redesigned two-column layout (left: content, right: sticky AI panel + goals): ReadinessCard (SVG ring + HRV/RHR/Sleep/Deep Sleep pills), ActionItems (3-tab Today/This Week/Big Picture with clickable actions), LastRideCard (8-metric grid), TrainingWeekChart (7-day TSS bars), FitnessChart (CTL/ATL/TSB SVG), Power Zones, Training Load Summary with fuel breakdown; right column: AIPanel (AI Analysis/Summary/Ask Claude tabs), WorkingGoals (expandable cards with Action Plan/Why It Matters/This Week tabs); NutritionLogger modal (5-stage conversational flow with Claude parsing, suggestion chips, follow-ups, per-hour badge, confirmation)
-- Activity detail page with tabbed AI panel (Summary / AI Analysis / Ask Claude tabs, category filters, confidence badges, data gaps, regenerate analysis)
-- Health Lab: blood panel upload with Claude AI OCR extraction (25 biomarkers), AI analysis cross-referencing training data, biomarker trend charts with athlete-optimal ranges, panel management; DEXA scan upload with Claude AI extraction (body fat %, lean/fat mass, BMD, visceral fat, regional L/R breakdown), AI analysis cross-referencing power/training data, scan history with summary cards
-- Boosters page (searchable/filterable protocol library)
-- Connect Apps page with integration management, sync buttons, feature request form
-- Settings page (full profile editor with 4 cards: personal info, physical stats with unit conversion, training profile with zone recomputation, preferences with cycle tracking; password reset via email; SMS opt-in, notification preferences; Account & Data tab with data export + account deletion)
-- Landing page with pricing, founder section, neural background
-- Legal pages (privacy, terms, GDPR, cookie policy, data processing) with named sub-processors (Anthropic, Twilio), Washington MHMDA section
-- Legal compliance: Terms acceptance on signup, AcceptTerms interstitial for SSO/existing users, GDPR Article 9 health data consent in onboarding, consent gate in ProtectedRoute
-- Account management: full data export (JSON), account deletion with confirmation, consent withdrawal
-- EightSleep credential encryption (AES-256-GCM via `api/_lib/crypto.js`)
-- Source priority system (`_lib/source-priority.js`: device > TrainingPeaks > Strava)
-- Supabase storage: `health-files` bucket (blood/DEXA), `import-files` bucket (TrainingPeaks uploads)
-- Vercel deployment with GitHub auto-deploy
-- Mobile-responsive overhaul: all pages responsive at 320px–428px (mobile), 768px–1024px (tablet), 1024px+ (desktop) via `useResponsive()` hook, hamburger nav, collapsible grids, full-screen modals, 44px touch targets
-- Testing infrastructure: Vitest + React Testing Library + MSW + Playwright; initial test suites for metrics, source-priority, routing, ProtectedRoute, API utility, Auth, theme tokens
-- SEO foundations: reusable `SEO` component (React 19 native metadata hoisting), static fallback meta/OG/Twitter tags in `index.html`, JSON-LD structured data (Organization + SoftwareApplication) on Landing page, `robots.txt`, `sitemap.xml`, `manifest.json`, favicon links, semantic `<main>` wrapper, per-page titles/descriptions for all public pages
-- **Activity Browser** — popover-based activity picker replacing plain `<select>` dropdown: time period filters (Week/Month/Year/All), date-grouped sections (Today/Yesterday/This Week/Last Week/by month), client-side search, cursor-based pagination (50/page), sticky section headers
-- **Auto-sync on first connect** — Strava and Eight Sleep both auto-trigger 365-day backfill on first OAuth connect (fire-and-forget); removed manual sync sections from Connect Apps page
-- **Eight Sleep hourly Cron** — Vercel Cron job (`/api/cron/sync-eightsleep.js`) syncs every hour, skips users synced in last 6 hours, covers all time zones
-- **Multi-file blood panel upload** — `BloodPanelUpload` supports drag-and-drop of multiple files with sequential processing, per-file progress bar, and aggregated success/failure summary
-- **TrainingPeaks ZIP optional** — CSV-only import enriches existing activities by matching on date without requiring ZIP file
-- **Email workout analysis** — Resend-powered post-workout emails: Claude formats AI analysis into branded dark-theme HTML email (metrics grid + insights + CTA), sent on first AI analysis only (skips re-analysis and bulk imports), notification preference toggle in Settings, fallback static template if Claude unavailable
-- **Theme migration** — dark → light theme across entire app: `#f8f8fa` bg, `#10b981` accent, DM Sans font, all 37+ component files updated (hardcoded colors, rgba patterns, font references)
-- **Weather integration** — Open-Meteo API (free, no key) via `/api/weather/current`, caches in `daily_metrics.weather_data`, profile-based lat/lng location
-- **Working Goals** — goal tracking system with CRUD API (`/api/goals/*`), expandable GoalCard with 3 tabs (Action Plan/Why It Matters/This Week), sparklines, progress bars, status badges, AI-suggested goals
-- **Nutrition Logger** — 5-stage conversational modal (input → followup → summary → confirmed), Claude-powered free-text parsing (`/api/nutrition/parse`), per-hour carbs badge, confirmation save to `nutrition_logs` table, triggered from ActionItems
-- **Training Calendar API** — planned workout CRUD (`/api/calendar/*`) for `training_calendar` table
-- **Adaptive Dashboard Intelligence** — 3-mode AI endpoint (`/api/dashboard/intelligence`): POST_RIDE, PRE_RIDE_PLANNED, DAILY_COACH modes with structured action items
-- **Structured Workouts Engine (Phase 1+2)** — Interval extraction from FIT laps + power stream detection, per-interval metrics (NP, IF, HR, cadence, zones, work kJ), execution quality scoring (smoothness CV, fade score, cadence drift, HR rise slope, execution labels), canonical tagging engine (22 workout + 14 interval tags with confidence + evidence), per-activity weather enrichment (Open-Meteo historical API), tag-based search endpoint, intervals table + tag pills + weather card on ActivityDetail, migration 008 (activity_tags table, activity_weather/annotation columns)
-- **Structured Workouts Engine (Phase 3)** — Interval execution coaching: deterministic interval insights (fade/cadence/HR/pacing), planned vs actual comparison with execution scoring (0-100), AI context enrichment with Category 16 (Interval Execution Coaching), PlannedVsActual UI component on ActivityDetail
-- **Structured Workouts Engine (Phase 4)** — Conditional performance models: heat penalty (temp→EF/HR drift), sleep→execution quality, HRV readiness thresholds (red/yellow/green), fueling→durability, kJ/kg durability model; AI system prompt Categories 17-22 (Durability, Fueling Causality, Readiness-to-Response, Workout Type Progression, Anomaly Detection, Race-Specific Analysis); performance models integrated into dashboard intelligence
-- **Structured Workouts Engine (Phase 5)** — Searchable workout database: advanced query endpoint with tag filters/date range/grouping/aggregation, smart chips API (tag co-occurrence analysis, suggested queries), WorkoutDatabase page at `/workout-db` with smart query chips, tag filter panel, aggregation bar, grouped comparison tables, sortable results grid; route added to App.jsx
-- **SessionNotes shared component** — `src/components/SessionNotes.jsx` extracted and shared across Activities and ActivityDetail pages; freeform notes, star rating (1-5), RPE slider (0-10 with Borg labels), tag input with suggestion chips; uses `key={activityId}` for reset on activity switch; `onSaved` callback for parent state sync
-- **Tag normalization & alias system** — `TAG_ALIASES` map (50+ entries) in both `api/activities/annotate.js` (server-authoritative) and `src/components/SessionNotes.jsx` (client-side for instant chip rendering); normalizes cycling shorthands: "S&E"→"low cadence", "TT"/"TT bike"→"time trial", "crit"→"race", "sst"→"sweet spot", "MAP"→"vo2max", etc.; new canonical tags "test" and "openers" added with their own suggestion chips and NOTE_TAG_PATTERNS
-- **Note-to-tag keyword extraction** — `annotate.js` auto-extracts structured tags from `user_notes` via regex patterns (e.g. writing "S&E intervals today" auto-tags as "low cadence" + "interval"); merged with explicit `user_tags` before saving; runs on every annotate call
-- **Markdown rendering fix across all AI surfaces** — `src/lib/formatText.jsx` (`cleanText` + `FormattedText`): strips `##` headings and `---` rules, renders `**bold**` as `<strong>` and `*italic*` as `<em>`, proper paragraph spacing; applied to AIPanel (both tabs + chat + preview), ActivityDetail AI panel, SleepAIPanel (summary + insight.body), Sleep.jsx morning report
-- **AI voice fix** — Added Rule 10 to ANALYSIS_SYSTEM_PROMPT: always write in second person ("your worst sleep nights") — never "athletes in the bottom quartile" when describing the user's own data
+
+See `docs/build-status.md` for the full detailed log. Summary of what's built:
+
+**Core**: Auth (email/password/Google SSO/magic link), onboarding, Vercel deployment, mobile-responsive, testing (141 tests), SEO, legal compliance, account management
+**Integrations**: Strava (full), EightSleep (full + hourly cron), Wahoo (webhook), TrainingPeaks (file import), Twilio SMS, Resend email, Oura/Whoop/Withings (OAuth only)
+**AI (9 features)**: Post-ride analysis, email summaries, SMS coach, chat coach, sleep summary, blood panel OCR, nutrition parsing, dashboard intelligence, adaptive 3-mode AI
+**Pages**: Dashboard V2, Sleep Intelligence, ActivityDetail, HealthLab, Boosters, ConnectApps, Settings, WorkoutDatabase, Landing, Legal pages
+**Structured Workouts (5 phases)**: Interval extraction, canonical tagging (22+14 tags), weather enrichment, interval execution coaching, performance models (heat/sleep/HRV/fueling/durability), searchable workout database
+**Other**: SessionNotes + tag normalization, markdown rendering, AI voice fix, theme migration (dark→light), activity browser, working goals, nutrition logger
 
 ### Remaining — Prioritized Feature Backlog
 
