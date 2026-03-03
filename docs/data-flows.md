@@ -15,12 +15,13 @@ Detailed data flow documentation for all major pipelines.
 
 ## TrainingPeaks File Import (`/api/integrations/import/trainingpeaks.js`)
 
-1. User uploads ZIP (workout files) + optional workouts CSV + optional metrics CSV via `TrainingPeaksImport` component. ZIP is optional — CSV-only import enriches existing activities by matching on date.
-2. ZIP uploaded to Supabase `import-files` bucket, CSVs sent as base64
-3. Backend extracts .fit/.tcx/.gpx files, parses with `fit.js`/xml2js, computes full metrics
-4. Source priority merge: UPGRADE (TP replaces lower-priority source), ENRICH (add metadata), or SKIP (duplicate)
-5. Workouts CSV enriches activities with titles, RPE, coach comments, body weight
-6. Metrics CSV imports daily health data (RHR, HRV, sleep, SpO2, body fat, Whoop recovery) — only fills null fields, never overwrites device data
+1. User uploads ZIP (workout files) + optional workouts CSV + optional metrics CSV via `TrainingPeaksImport` component (or `UniversalUpload` drag-and-drop). ZIP is optional — CSV-only import enriches existing activities by matching on date.
+2. ZIP extracted client-side using JSZip in the browser, workout files (.fit/.tcx/.gpx) grouped into ~3MB batches
+3. Each batch sent as base64 JSON to the API; backend parses with `fit.js`/xml2js, computes full metrics
+4. After all batches, a finalize request handles CSV enrichment + integration record + backfill
+5. Source priority merge: UPGRADE (TP replaces lower-priority source), ENRICH (add metadata), or SKIP (duplicate)
+6. Workouts CSV enriches activities with titles, RPE, coach comments, body weight
+7. Metrics CSV imports daily health data (RHR, HRV, sleep, SpO2, body fat, Whoop recovery) — only fills null fields, never overwrites device data
 
 ## Eight Sleep Hourly Cron (`/api/cron/sync-eightsleep.js`)
 

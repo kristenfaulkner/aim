@@ -10,13 +10,13 @@ Full log of all completed features and implementations.
 - Vercel deployment with GitHub auto-deploy
 - EightSleep credential encryption (AES-256-GCM via `api/_lib/crypto.js`)
 - Source priority system (`_lib/source-priority.js`: device > TrainingPeaks > Strava)
-- Supabase storage: `health-files` bucket (blood/DEXA), `import-files` bucket (TrainingPeaks uploads)
+- Supabase storage: `health-files` bucket (blood/DEXA), `import-files` bucket (legacy — TrainingPeaks now uses client-side JSZip extraction)
 
 ## Integrations
 - **Strava** integration (full: OAuth, sync, backfill, metrics, streams, webhook, cross-source dedup)
 - **EightSleep** integration (credential auth with password visibility toggle, trends API, sleep metrics + extended metrics sync)
 - **Wahoo** integration (OAuth + webhook receiver for workout summaries)
-- **TrainingPeaks** file import (ZIP workouts + workouts CSV + metrics CSV with daily health data)
+- **TrainingPeaks** file import (client-side JSZip extraction → batched base64 upload, ZIP workouts + workouts CSV + metrics CSV with daily health data, no file size limit)
 - **Twilio SMS** AI coach (post-workout summaries, conversational inbound replies, TCPA consent flow with STOP/START/HELP)
 - Oura, Whoop, Withings OAuth connect/callback (sync logic TODO)
 - **Auto-sync on first connect** — Strava and Eight Sleep both auto-trigger 365-day backfill on first OAuth connect (fire-and-forget)
