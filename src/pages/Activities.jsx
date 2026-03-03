@@ -8,6 +8,7 @@ import { useActivityBrowser } from "../hooks/useActivityBrowser";
 import { useResponsive } from "../hooks/useResponsive";
 import { supabase } from "../lib/supabase";
 import AIPanel from "../components/dashboard/AIPanel";
+import SessionNotes from "../components/SessionNotes.jsx";
 import SEO from "../components/SEO";
 import { LogOut, Settings, Menu, X, Search, Calendar, ChevronDown, User, Sparkles } from "lucide-react";
 import { apiFetch } from "../lib/api";
@@ -592,16 +593,27 @@ export default function Workouts() {
 
             {/* AI Panel or empty state */}
             {activity ? (
-              <AIPanel
-                aiAnalysis={effectiveAiAnalysis}
-                activity={activity}
-                profile={profile}
-                dailyMetrics={dailyMetrics}
-                computed={computed}
-                onRequestAnalysis={triggerAnalysis}
-                analysisLoading={analysisLoading}
-                analysisError={analysisError}
-              />
+              <>
+                <AIPanel
+                  aiAnalysis={effectiveAiAnalysis}
+                  activity={activity}
+                  profile={profile}
+                  dailyMetrics={dailyMetrics}
+                  computed={computed}
+                  onRequestAnalysis={triggerAnalysis}
+                  analysisLoading={analysisLoading}
+                  analysisError={analysisError}
+                />
+                <SessionNotes
+                  key={activity.id}
+                  activityId={activity.id}
+                  initialNotes={activity.user_notes || ""}
+                  initialRating={activity.user_rating || 0}
+                  initialRpe={activity.user_rpe || 0}
+                  initialTags={activity.user_tags || []}
+                  onSaved={(updated) => setActivity(prev => ({ ...prev, ...updated }))}
+                />
+              </>
             ) : (
               <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: "60px 24px", textAlign: "center" }}>
                 <div style={{ fontSize: 28, marginBottom: 10 }}>{"\u2726"}</div>

@@ -950,13 +950,17 @@ export default function ActivityDetail() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-      await fetch(`/api/activities/annotate?id=${id}`, {
+      const res = await fetch(`/api/activities/annotate?id=${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({ name: trimmed }),
       });
-      setActivity(prev => ({ ...prev, name: trimmed }));
-      setLocalName(trimmed);
+      if (res.ok) {
+        setActivity(prev => ({ ...prev, name: trimmed }));
+        setLocalName(trimmed);
+      } else {
+        setLocalName(activity?.name || "");
+      }
     } catch { /* ignore */ } finally {
       setNameSaving(false);
       setNameEditing(false);
