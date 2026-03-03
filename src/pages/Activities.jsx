@@ -326,6 +326,20 @@ export default function Workouts() {
     setLiveAnalysis(null);
   }, [activity?.id]);
 
+  // Auto-trigger analysis when activity loads without one
+  const autoTriggeredRef = useRef(new Set());
+  useEffect(() => {
+    if (
+      activity?.id &&
+      !activity.ai_analysis &&
+      !analysisLoading &&
+      !autoTriggeredRef.current.has(activity.id)
+    ) {
+      autoTriggeredRef.current.add(activity.id);
+      triggerAnalysis();
+    }
+  }, [activity?.id, activity?.ai_analysis, analysisLoading, triggerAnalysis]);
+
   // ── Computed values (for AIPanel) ──
   const computed = useMemo(() => {
     if (!activity || !profile) return null;
