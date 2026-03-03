@@ -57,6 +57,8 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
   - `intervals.js` — Interval extraction from FIT laps + power stream detection, per-interval metrics + execution quality scoring
   - `tags.js` — Canonical tag dictionary (22 workout + 14 interval tags) + detection engine, cross-activity search
   - `weather-enrich.js` — Per-activity weather enrichment via Open-Meteo historical API
+  - `interval-insights.js` — deterministic interval execution insight generation (fade, cadence decay, HR creep, pacing)
+  - `planned-vs-actual.js` — training plan to activity matching, interval comparison, execution scoring
   - `strava.js` — Strava API client with token refresh
   - `eightsleep.js` — Eight Sleep API client (credential auth, trends API, extended metrics extraction, encrypted credential decryption)
   - `twilio.js` — Twilio SMS client (send, webhook verification, TwiML response)
@@ -71,7 +73,7 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 - `integrations/import/` — file-based imports (TrainingPeaks ZIP/CSV, ZIP optional for CSV-only enrichment)
 - `cron/sync-eightsleep.js` — hourly Vercel Cron syncs last 2 days of Eight Sleep data; skips users synced in last 6 hours
 - `webhooks/` — inbound webhooks (strava activity events, wahoo workout summaries)
-- `activities/` — list, detail (includes activity_tags), annotate, analyze, search (tag-based), backfill-intervals, backfill-metrics endpoints
+- `activities/` — list, detail (includes activity_tags + planned_vs_actual data), annotate, analyze, search (tag-based), backfill-intervals, backfill-metrics endpoints
 - `tags/` — tag dictionary endpoint
 - `health/` — blood panel upload (Claude AI extraction from PDF/image), DEXA scan upload (Claude AI extraction of body composition/regional data), and panel management
 - `sleep/summary.js` — Claude-powered morning readiness assessment
@@ -121,7 +123,7 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
   - `historicalContext` — pre-computed 90-day summaries: baselines (avg/stdDev/percentiles for HRV/RHR/sleep/weight), training load trends (CTL/ATL/TSB/ACWR), similar efforts (top 5 past activities enriched with that day's recovery), notable outliers (z-score >1.5), performance range, seasonal comparison (recent 14d vs prior 14d)
   - `activityVsBests` — current activity power curve as % of personal bests
 - 7 pure helper functions compute summaries server-side: `computeBaselines`, `computeTrainingLoadSummary`, `findSimilarEfforts`, `findNotableOutliers`, `computePerformanceRange`, `computeSeasonalComparison`, `computeActivityVsBests`
-- System prompt defines 13+ insight categories + DATA STRUCTURE guide for cross-source pattern detection
+- System prompt defines 16 insight categories + DATA STRUCTURE guide for cross-source pattern detection
 - Output is structured JSON: summary, insights (with type/category/confidence), and dataGaps ("Unlock More Insights")
 - Triggered post-sync, non-blocking
 
@@ -236,7 +238,7 @@ OAuth2 flow: connect/callback file pairs in `/api/auth/`. Credential-based for E
 Cross-domain insights are the product. Every AI insight must connect 2+ data sources and tell the athlete something they cannot learn from any single app. "Your HRV was low" is Whoop-level. "Your HRV was 38ms, which explains why cardiac drift was 8.1% today vs 3.2% on Feb 18 when HRV was 72ms" is AIM-level.
 
 ### AI-Powered Features (9 total)
-1. **Post-ride analysis** — 13-category structured insights triggered after every activity sync
+1. **Post-ride analysis** — 16-category structured insights triggered after every activity sync
 2. **Email workout analysis** — Claude-formatted HTML emails via Resend with full AI analysis, sent on first analysis only (no duplicates on re-analysis or bulk import)
 3. **SMS workout summaries** — 1500-char Claude-generated texts sent via Twilio post-sync
 4. **SMS conversational coaching** — inbound reply handling with full athlete context
@@ -246,7 +248,7 @@ Cross-domain insights are the product. Every AI insight must connect 2+ data sou
 8. **Nutrition parsing** — Claude-powered free-text → structured nutrition items with per-hour calculations via `/api/nutrition/parse`
 9. **Adaptive dashboard intelligence** — 3-mode AI (POST_RIDE/PRE_RIDE_PLANNED/DAILY_COACH) via `/api/dashboard/intelligence`
 
-### 13 Insight Categories
+### 16 Insight Categories
 1. **Body Composition → Performance** — W/kg from Withings + power output, weight loss rate monitoring, hydration impact on cardiac drift, race weight projection
 2. **Sleep Architecture → Next-Day Performance** — deep sleep vs NP/EF, REM vs tactical performance, sleep timing correlations, EightSleep temperature optimization
 3. **HRV Patterns → Training Prescription** — personal HRV thresholds, dose-response curves, readiness traffic light (Green 70+/Yellow 45-69/Red <45)
@@ -260,6 +262,9 @@ Cross-domain insights are the product. Every AI insight must connect 2+ data sou
 11. **Performance Booster Cross-References** — supplement impact detection (pre/post metrics), protocol compliance, recovery recommendations
 12. **Blood Work → Training Impact** — ferritin vs VO2max (athlete-optimal >50, not clinical >12), vitamin D, thyroid, CRP inflammation, hormonal health
 13. **DEXA Scan → Power & Body Composition** — lean mass W/kg accuracy, regional L/R imbalances, visceral fat tracking
+14. **Workout Classification & Tagging** — canonical workout/interval tags (22+14), confidence scoring, evidence-based detection, cross-activity search
+15. **Environmental Context** — per-activity weather enrichment, historical conditions, heat/cold/wind impact on performance
+16. **Interval Execution Coaching** — planned vs actual comparison, per-interval fade/cadence/HR/pacing insights, execution scoring (0-100), deterministic coaching feedback
 
 ### Insight Quality Rules
 - Connect 2+ data sources in most insights
@@ -348,6 +353,7 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 - **Training Calendar API** — planned workout CRUD (`/api/calendar/*`) for `training_calendar` table
 - **Adaptive Dashboard Intelligence** — 3-mode AI endpoint (`/api/dashboard/intelligence`): POST_RIDE, PRE_RIDE_PLANNED, DAILY_COACH modes with structured action items
 - **Structured Workouts Engine (Phase 1+2)** — Interval extraction from FIT laps + power stream detection, per-interval metrics (NP, IF, HR, cadence, zones, work kJ), execution quality scoring (smoothness CV, fade score, cadence drift, HR rise slope, execution labels), canonical tagging engine (22 workout + 14 interval tags with confidence + evidence), per-activity weather enrichment (Open-Meteo historical API), tag-based search endpoint, intervals table + tag pills + weather card on ActivityDetail, migration 008 (activity_tags table, activity_weather/annotation columns)
+- **Structured Workouts Engine (Phase 3)** — Interval execution coaching: deterministic interval insights (fade/cadence/HR/pacing), planned vs actual comparison with execution scoring (0-100), AI context enrichment with Category 16 (Interval Execution Coaching), PlannedVsActual UI component on ActivityDetail
 
 ### Remaining — Prioritized Feature Backlog
 
@@ -361,7 +367,7 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 
 #### P1 — Enhanced Analysis (high-value features that build on P0)
 5. ~~**Automatic Session Classification**~~ — ✅ DONE (Phase 2 canonical tagging: 22 workout + 14 interval tags)
-6. **AI Session Summaries with Interval Breakdown** — enhance post-ride AI with structured interval intelligence + cross-domain context (sleep/recovery impact on interval quality). *[Phase 3 of Structured Workouts Engine]*
+6. ~~**AI Session Summaries with Interval Breakdown**~~ — ✅ DONE (Phase 3: interval execution coaching, planned vs actual comparison, execution scoring, AI context enrichment)
 7. **W' Balance Tracking** — real-time anaerobic reserve depletion/recovery throughout rides, "empty tank" flagging, race analysis. Requires CP model (P0). *[Task 49]*
 8. **Similar Session Finder & Comparison** — auto-find comparable past rides, side-by-side metrics, AI explains what changed using cross-domain data. *[Task 47]*
 9. **Cross-domain AI insights** — conditional performance models (heat, sleep, HRV, fueling). *[Phase 4 of Structured Workouts Engine]*
@@ -384,7 +390,7 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 20. **Mascot design & integration** — create an AIM brand mascot, integrate into UI (loading states, empty states, onboarding, AI chat personality)
 21. ~~**Activity annotation columns migration**~~ — ✅ DONE (included in migration 008_structured_workouts.sql)
 22. **Twilio toll-free verification** — update opt-in proof URL to `https://aimfitness.ai` when approved
-23. **Structured Workouts Phase 3** — Interval execution coaching: planned vs actual comparison, per-interval AI insights
+23. ~~**Structured Workouts Phase 3**~~ — ✅ DONE (interval execution coaching, planned vs actual, execution scoring, AI context)
 24. **Structured Workouts Phase 4** — Conditional performance models: heat penalty, sleep→EF, HRV→readiness, fueling→durability
 25. **Structured Workouts Phase 5** — Searchable workout database: tag-based queries, smart chips, trend charts, comparison view
 23. **Apple OAuth** — configure in Apple Developer + Supabase when ready
@@ -457,7 +463,7 @@ All AI-generated content, hardcoded text, and UI copy must follow these rules:
 Detailed specifications archived in `docs/`:
 - `docs/product-blueprint.md` — full product spec, booster library (20+ protocols with dosing/timing/evidence), menstrual cycle science (10 peer-reviewed papers), onboarding fields, community benchmarking engine, pricing tiers and feature gating, user stories
 - `docs/technical-architecture.md` — complete database schema SQL, 25-task build plan, Strava API appendix, EightSleep workarounds, environment variable reference
-- `docs/insights-catalog.md` — all 13 insight categories with detailed examples and specific numbers, insight quality checklist, system prompt integration guide, template for adding new categories
+- `docs/insights-catalog.md` — all 16 insight categories with detailed examples and specific numbers, insight quality checklist, system prompt integration guide, template for adding new categories
 
 Dashboard design specifications:
 - `AIM-ADAPTIVE-DASHBOARD-SPEC.md` — 3 dashboard modes (POST_RIDE/PRE_RIDE_PLANNED/DAILY_COACH), AI prompt templates, weather integration, fueling intelligence

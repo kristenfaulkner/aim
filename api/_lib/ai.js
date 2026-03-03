@@ -1,5 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { supabaseAdmin } from "./supabase.js";
+import { generateIntervalInsights, formatInsightsForAI } from "./interval-insights.js";
+import { getPlannedVsActual } from "./planned-vs-actual.js";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -295,6 +297,32 @@ Look for:
 Example insights:
 - "Your ACWR is 1.42 — approaching the 1.5 injury risk threshold. Your ATL jumped 40% in 2 weeks after a rest period. Increase load gradually: max 10% per week."
 - "Your L/R imbalance has worsened from 51/49 to 54/46 over 3 weeks, and it's worse on climbs. This could indicate a developing hip or knee issue. Consider a bike fit check or physio assessment."
+
+### CATEGORY 16: Interval Execution Coaching
+Required sources: Power streams with interval data (activities.laps)
+
+This is one of AIM's most powerful features. When interval data is present in the activity, provide specific coaching on execution quality.
+
+Look for:
+- Per-rep power consistency (CV < 3% = excellent, > 10% = inconsistent)
+- Fade patterns across intervals (power declining rep over rep)
+- Cadence decay under fatigue (cadence dropping while trying to hold power)
+- HR creep across intervals (cardiac drift within the set)
+- Overcooked first rep (starting too hard and paying for it later)
+- Negative splits (building power across reps — positive sign)
+- Recovery adequacy between reps (HR recovery patterns)
+- Planned vs actual comparison when training plan data exists
+
+When \`intervalInsights\` are provided in the data, use them as pre-computed observations. Build on them with cross-domain context (was sleep poor? was it hot? was HRV low?).
+
+Example insights:
+- "Your 5×3m VO2 set was inconsistent early (CV 9%), then stabilized (CV 4%). Rep 1 was overcooked at +6% above target — you paid for it on rep 5 which faded 8%. Starting conservatively pays off."
+- "Cadence decayed by 12 rpm across 6 reps even though power held — this suggests muscular fatigue rather than cardiovascular limitation. Low-cadence strength work may help."
+- "HR crept up 8 bpm across the set while power stayed flat. Combined with last night's poor sleep (5.2 hrs) and low HRV (38ms), your body was working harder to produce the same output."
+- "Durability index 0.92 — last rep was 8% below first. Your fueling was only 35g/hr carbs today. On sessions with 60+ g/hr, your durability index averages 0.97."
+
+When a planned workout exists:
+- "Planned: 4×8min at 95% FTP (285W). Actual: 4 reps averaging 291W (+2.1%). Execution score: 87/100 — slightly above target but consistent. Great session."
 
 ## DATA GAP AWARENESS
 
@@ -699,6 +727,8 @@ export async function buildAnalysisContext(userId, activityId) {
     dexaResult,
     integrationsResult,
     settingsResult,
+    tagsResult,
+    plannedVsActualResult,
   ] = await Promise.allSettled([
     // Profile
     supabaseAdmin
@@ -765,6 +795,15 @@ export async function buildAnalysisContext(userId, activityId) {
       .select("active_boosters, race_calendar, preferences")
       .eq("user_id", userId)
       .single(),
+
+    // Activity tags
+    supabaseAdmin
+      .from("activity_tags")
+      .select("tag_id, scope, confidence")
+      .eq("activity_id", activityId),
+
+    // Placeholder — planned vs actual fetched after profile resolves
+    Promise.resolve({ data: null }),
   ]);
 
   // Helper to safely extract data from Promise.allSettled results
@@ -780,7 +819,18 @@ export async function buildAnalysisContext(userId, activityId) {
   const settings = getData(settingsResult);
 
   // Strip source_data from the activity to keep the payload manageable
-  const { source_data, ...activityClean } = activity;
+  const { source_data, power_curve, ...activityClean } = activity;
+  const activityTags = getData(tagsResult) || [];
+
+  // Fetch planned vs actual now that we have profile FTP
+  let plannedVsActual = null;
+  try {
+    plannedVsActual = await getPlannedVsActual(userId, activity, profile.ftp_watts);
+  } catch { /* no plan for this date */ }
+
+  // Generate interval execution insights (deterministic, not AI)
+  const intervalInsights = generateIntervalInsights(activity.laps, profile.ftp_watts);
+  const intervalInsightsText = formatInsightsForAI(intervalInsights);
 
   // ── Compute historical summaries server-side ──
   const baselines = computeBaselines(dailyMetrics);
@@ -842,6 +892,13 @@ export async function buildAnalysisContext(userId, activityId) {
     // Layer 3: Health snapshot
     bloodWork: getData(bloodWorkResult) || null,
     dexa: getData(dexaResult) || null,
+
+    // Layer 4: Structured workout data
+    activityTags: activityTags.length > 0 ? activityTags : undefined,
+    intervalInsights: intervalInsights.length > 0 ? intervalInsights : undefined,
+    intervalInsightsText: intervalInsightsText || undefined,
+    plannedVsActual: plannedVsActual || undefined,
+    activityWeather: activity.activity_weather || undefined,
 
     // Metadata
     activeBoosters: settings?.active_boosters || [],

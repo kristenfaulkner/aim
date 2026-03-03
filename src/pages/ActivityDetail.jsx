@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { T, font, mono } from "../theme/tokens";
 import { btn, inputStyle } from "../theme/styles";
-import { ArrowLeft, Clock, Zap, Heart, Mountain, Gauge, Activity, TrendingUp, Flame, RefreshCw, Brain, ChevronRight, Star, X, Check, Send, Menu, Settings, User, LogOut, Wind, Thermometer, Droplets, Tag } from "lucide-react";
+import { ArrowLeft, Clock, Zap, Heart, Mountain, Gauge, Activity, TrendingUp, Flame, RefreshCw, Brain, ChevronRight, Star, X, Check, Send, Menu, Settings, User, LogOut, Wind, Thermometer, Droplets, Tag, Target, CheckCircle } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 import { useResponsive } from "../hooks/useResponsive";
@@ -329,6 +329,183 @@ function IntervalsTable({ laps, isMobile }) {
               </span>
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PlannedVsActual({ data, isMobile }) {
+  if (!data) return null;
+  const { plan, comparison, execution_score } = data;
+  if (!plan) return null;
+
+  const scoreColor = execution_score?.score >= 85 ? "#22c55e"
+    : execution_score?.score >= 70 ? T.accent
+    : execution_score?.score >= 50 ? "#f59e0b"
+    : "#ef4444";
+
+  const scoreLabel = execution_score?.label === "excellent" ? "Excellent"
+    : execution_score?.label === "good" ? "Good"
+    : execution_score?.label === "fair" ? "Fair"
+    : "Needs Work";
+
+  return (
+    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Target size={14} style={{ color: "#3b82f6" }} />
+          <span style={{ fontSize: 13, fontWeight: 700 }}>Planned vs Actual</span>
+        </div>
+        {execution_score && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 11, color: T.textDim }}>Execution</span>
+            <span style={{
+              fontSize: 14, fontWeight: 800, fontFamily: mono, color: scoreColor,
+              padding: "2px 10px", borderRadius: 8, background: `${scoreColor}15`,
+            }}>
+              {execution_score.score}
+            </span>
+            <span style={{ fontSize: 10, fontWeight: 600, color: scoreColor }}>{scoreLabel}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Plan summary */}
+      <div style={{
+        padding: "12px 14px", background: T.surface, borderRadius: 10, marginBottom: 16,
+        display: "flex", flexWrap: "wrap", gap: 16, alignItems: "center"
+      }}>
+        <div>
+          <div style={{ fontSize: 10, color: T.textDim, fontWeight: 600, textTransform: "uppercase" }}>Planned</div>
+          <div style={{ fontSize: 13, fontWeight: 600, marginTop: 2 }}>{plan.title || plan.workout_type || "Workout"}</div>
+        </div>
+        {plan.planned_duration_min && (
+          <div>
+            <div style={{ fontSize: 10, color: T.textDim, fontWeight: 600, textTransform: "uppercase" }}>Duration</div>
+            <div style={{ fontFamily: mono, fontSize: 14, fontWeight: 700 }}>{plan.planned_duration_min}m</div>
+          </div>
+        )}
+        {plan.planned_tss && (
+          <div>
+            <div style={{ fontSize: 10, color: T.textDim, fontWeight: 600, textTransform: "uppercase" }}>Target TSS</div>
+            <div style={{ fontFamily: mono, fontSize: 14, fontWeight: 700 }}>{plan.planned_tss}</div>
+          </div>
+        )}
+        {plan.description && (
+          <div style={{ flex: "1 0 100%", fontSize: 11, color: T.textSoft, lineHeight: 1.4, marginTop: 2 }}>
+            {plan.description}
+          </div>
+        )}
+      </div>
+
+      {/* Interval comparisons */}
+      {comparison?.comparisons?.length > 0 && (
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+            <thead>
+              <tr style={{ borderBottom: `1px solid ${T.border}` }}>
+                <th style={{ textAlign: "left", padding: "8px 6px", color: T.textDim, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>Interval</th>
+                <th style={{ textAlign: "right", padding: "8px 6px", color: T.textDim, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>Target W</th>
+                <th style={{ textAlign: "right", padding: "8px 6px", color: T.textDim, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>Actual W</th>
+                <th style={{ textAlign: "right", padding: "8px 6px", color: T.textDim, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>Power Δ</th>
+                {!isMobile && (
+                  <>
+                    <th style={{ textAlign: "right", padding: "8px 6px", color: T.textDim, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>Target Dur</th>
+                    <th style={{ textAlign: "right", padding: "8px 6px", color: T.textDim, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>Actual Dur</th>
+                    <th style={{ textAlign: "right", padding: "8px 6px", color: T.textDim, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>Dur Δ</th>
+                  </>
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {comparison.comparisons.map((c, i) => {
+                const powerColor = c.power_deviation_pct == null ? T.textDim
+                  : Math.abs(c.power_deviation_pct) <= 3 ? "#22c55e"
+                  : Math.abs(c.power_deviation_pct) <= 8 ? "#f59e0b"
+                  : "#ef4444";
+                const durColor = c.duration_deviation_pct == null ? T.textDim
+                  : Math.abs(c.duration_deviation_pct) <= 5 ? "#22c55e"
+                  : Math.abs(c.duration_deviation_pct) <= 15 ? "#f59e0b"
+                  : "#ef4444";
+
+                return (
+                  <tr key={i} style={{ borderBottom: `1px solid ${T.border}08` }}>
+                    <td style={{ padding: "8px 6px", fontSize: 11, fontWeight: 500 }}>{c.planned_name}</td>
+                    <td style={{ padding: "8px 6px", textAlign: "right", fontFamily: mono, color: T.textSoft }}>
+                      {c.planned_watts || "—"}
+                    </td>
+                    <td style={{ padding: "8px 6px", textAlign: "right", fontFamily: mono, fontWeight: 600 }}>
+                      {c.actual_watts || "—"}
+                    </td>
+                    <td style={{ padding: "8px 6px", textAlign: "right", fontFamily: mono, fontWeight: 700, color: powerColor }}>
+                      {c.power_deviation_pct != null ? `${c.power_deviation_pct > 0 ? "+" : ""}${c.power_deviation_pct}%` : "—"}
+                    </td>
+                    {!isMobile && (
+                      <>
+                        <td style={{ padding: "8px 6px", textAlign: "right", fontFamily: mono, color: T.textSoft }}>
+                          {c.planned_duration_s ? formatDuration(c.planned_duration_s) : "—"}
+                        </td>
+                        <td style={{ padding: "8px 6px", textAlign: "right", fontFamily: mono }}>
+                          {c.actual_duration_s ? formatDuration(c.actual_duration_s) : "—"}
+                        </td>
+                        <td style={{ padding: "8px 6px", textAlign: "right", fontFamily: mono, fontWeight: 700, color: durColor }}>
+                          {c.duration_deviation_pct != null ? `${c.duration_deviation_pct > 0 ? "+" : ""}${c.duration_deviation_pct}%` : "—"}
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Count mismatch notice */}
+      {comparison && !comparison.count_match && (
+        <div style={{
+          marginTop: 10, padding: "8px 12px", borderRadius: 8,
+          background: "#f59e0b10", fontSize: 11, color: "#f59e0b", fontWeight: 500,
+        }}>
+          Planned {comparison.planned_count} intervals, completed {comparison.actual_count}
+        </div>
+      )}
+
+      {/* Execution score breakdown */}
+      {execution_score?.breakdown && (
+        <div style={{
+          marginTop: 14, display: "grid",
+          gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)",
+          gap: 8, padding: "10px 12px", background: T.surface, borderRadius: 8
+        }}>
+          {[
+            { label: "Count", val: execution_score.breakdown.count, max: 40 },
+            { label: "Power", val: execution_score.breakdown.power, max: 30 },
+            { label: "Duration", val: execution_score.breakdown.duration, max: 20 },
+            { label: "Consistency", val: execution_score.breakdown.consistency, max: 10 },
+          ].map(({ label, val, max }) => (
+            <div key={label}>
+              <div style={{ fontSize: 10, color: T.textDim, fontWeight: 600, textTransform: "uppercase" }}>{label}</div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 2, marginTop: 2 }}>
+                <span style={{ fontFamily: mono, fontSize: 14, fontWeight: 700, color: val >= max * 0.8 ? "#22c55e" : val >= max * 0.5 ? "#f59e0b" : "#ef4444" }}>
+                  {val}
+                </span>
+                <span style={{ fontSize: 10, color: T.textDim }}>/{max}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Nutrition plan if present */}
+      {plan.nutrition_plan && (
+        <div style={{
+          marginTop: 14, padding: "10px 12px", background: T.surface, borderRadius: 8,
+          fontSize: 11, color: T.textSoft, lineHeight: 1.5
+        }}>
+          <span style={{ fontWeight: 600, color: T.text, fontSize: 10, textTransform: "uppercase" }}>Nutrition Plan: </span>
+          {typeof plan.nutrition_plan === "string" ? plan.nutrition_plan : JSON.stringify(plan.nutrition_plan)}
         </div>
       )}
     </div>
@@ -1168,6 +1345,9 @@ export default function ActivityDetail() {
 
             {/* Weather conditions */}
             <WeatherCard weather={a.activity_weather} />
+
+            {/* Planned vs Actual */}
+            <PlannedVsActual data={a.planned_vs_actual} isMobile={isMobile} />
 
             {/* Intervals */}
             <IntervalsTable laps={a.laps} isMobile={isMobile} />
