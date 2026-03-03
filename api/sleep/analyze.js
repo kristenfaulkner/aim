@@ -88,7 +88,8 @@ Return valid JSON:
 8. NEVER give medical advice. Use "research suggests...", "consider discussing with your doctor..."
 9. Be specific: "Your EF averaged 1.82 on nights with >7.5h sleep vs 1.64 on <6h nights" — not generic advice.
 10. Generate 6-10 insights total.
-11. Return ONLY valid JSON. No markdown, no explanation, no code fences.`;
+11. Return ONLY valid JSON. No markdown, no explanation, no code fences.
+12. For all enum fields, use one of the exact allowed values (e.g. "high", "medium", or "low" for confidence).`;
 
 /**
  * POST /api/sleep/analyze
@@ -221,10 +222,31 @@ export default async function handler(req, res) {
     } catch {
       const match = text.match(/```(?:json)?\s*([\s\S]*?)```/);
       if (match) {
-        analysis = JSON.parse(match[1].trim());
-      } else {
-        console.error("Sleep analysis parse error:", text.substring(0, 200));
-        return res.status(500).json({ error: "Failed to parse AI analysis" });
+        try {
+          analysis = JSON.parse(match[1].trim());
+        } catch {
+          // Code fence content also wasn't valid JSON
+          console.error("Sleep analysis parse error (code fence):", match[1].substring(0, 200));
+        }
+      }
+      // Last resort: try to extract a JSON object from anywhere in the text
+      if (!analysis) {
+        const braceMatch = text.match(/\{[\s\S]*\}/);
+        if (braceMatch) {
+          try {
+            analysis = JSON.parse(braceMatch[0]);
+          } catch {
+            console.error("Sleep analysis parse error (brace extract):", text.substring(0, 300));
+          }
+        }
+      }
+      // Final fallback: wrap raw text as a summary
+      if (!analysis) {
+        analysis = {
+          summary: text.substring(0, 500),
+          insights: [],
+          dataGaps: [],
+        };
       }
     }
 

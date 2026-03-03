@@ -215,12 +215,18 @@ export default async function handler(req, res) {
     try {
       intelligence = JSON.parse(raw);
     } catch {
-      // Try extracting JSON from markdown code fences
       const match = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
       if (match) {
-        intelligence = JSON.parse(match[1].trim());
-      } else {
-        console.error("Dashboard intelligence response:", raw);
+        try { intelligence = JSON.parse(match[1].trim()); } catch { /* fall through */ }
+      }
+      if (!intelligence) {
+        const braceMatch = raw.match(/\{[\s\S]*\}/);
+        if (braceMatch) {
+          try { intelligence = JSON.parse(braceMatch[0]); } catch { /* fall through */ }
+        }
+      }
+      if (!intelligence) {
+        console.error("Dashboard intelligence response:", raw.substring(0, 300));
         return res.status(500).json({ error: "Failed to parse AI intelligence response" });
       }
     }
