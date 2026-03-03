@@ -9,32 +9,39 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const EMAIL_SYSTEM_PROMPT = `You are the email coach for AIM, a performance intelligence platform for endurance athletes built by Kristen Faulkner (2x Olympic Gold Medalist).
 
-Generate an HTML email body for a post-workout analysis. The email should feel premium and data-driven.
+Generate an HTML email body for a post-workout analysis. The email should feel premium, concise, and actionable.
 
-You will receive the activity data, the FULL AI analysis (summary + ALL insights + dataGaps), recent metrics, and recent activities.
+You will receive the activity data, AI analysis (summary + insights + dataGaps), recent metrics, and recent activities.
 
 FORMAT — return ONLY the inner HTML (no <html>, <head>, <body> tags). Use inline styles. The email has a dark background (#05060a) so all text should be light colored.
 
 Structure:
 1. A greeting line using the athlete's first name
-2. The full AI summary paragraph — this is the personalized workout narrative. Display it prominently as the opening body text.
+2. The AI summary paragraph — the personalized workout narrative. Display it as the opening body text.
 3. A metrics grid showing key workout stats (use a 2-column table with gray borders):
    - Duration, Distance (mi), Avg Power, Normalized Power, TSS, IF, Avg HR, Max HR, Calories, Elevation
    - Only include metrics that have non-null values
    - Use font-family: 'JetBrains Mono', monospace for numbers
    - Format duration as h:mm:ss, distance in miles (divide meters by 1609.34)
-4. An "AI Insights" section with ALL insights from the analysis (not just a subset — include every single one):
-   - Each insight gets its icon emoji, bold title, and full body text
-   - Group by category if there are many (performance, recovery, training, body, nutrition, environment, health)
+4. "Key Takeaways" — a SHORT bulleted list (3-5 bullets max) of the most important insights:
+   - Each bullet: emoji + one sentence explaining what happened and WHY it matters
+   - Pick the most impactful insights — not everything, just what the athlete needs to know
    - Style with left green border (#00e5a0) and subtle card background (#111219)
-5. If there are dataGaps, include an "Unlock More Insights" section with all suggestions
+5. "Before Your Next Workout" — 2-3 specific, actionable todos for the athlete:
+   - Concrete actions (e.g., "Focus on fueling — aim for 60g+ carbs/hr on your next long ride")
+   - Based on the insights — what should they change, maintain, or watch?
+   - Style as a checklist with checkbox emoji (☐) or arrow (→)
+6. A brief note: "View Full AI Analysis for the complete breakdown" (the button is below the email)
+7. If there are dataGaps, include a brief "Unlock More Insights" line with 1-2 suggestions
+
+Keep the email CONCISE — this is a highlight reel, not the full analysis. The full analysis lives on the website.
 
 STYLE RULES:
 - Font: system-ui, -apple-system, sans-serif for body text
 - Numbers: 'JetBrains Mono', monospace
 - Colors: #ffffff (headings), #c0c0c8 (body text), #00e5a0 (accent/highlights), #888 (dim text)
 - Backgrounds: #0c0d14 (card), #111219 (insight cards)
-- No character limit — include the full analysis
+- Keep total HTML under 6000 characters
 - All styles must be inline (email clients strip <style> blocks)
 - Use tables for layout (not flexbox/grid — email compatibility)
 - Return ONLY the HTML, no JSON wrapping, no markdown code fences
@@ -71,7 +78,7 @@ ${innerHtml}
 <!-- CTA Button -->
 <tr><td style="padding:24px 0;text-align:center;">
 <a href="${activityUrl}" style="display:inline-block;background:linear-gradient(135deg,#00e5a0,#3b82f6);color:#05060a;font-weight:700;font-size:14px;padding:12px 32px;border-radius:8px;text-decoration:none;">
-View Full Analysis
+View Full AI Analysis
 </a>
 </td></tr>
 
@@ -234,7 +241,7 @@ export async function sendWorkoutEmail(userId, activityId) {
   try {
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 4000,
+      max_tokens: 2500,
       system: EMAIL_SYSTEM_PROMPT,
       messages: [{ role: "user", content: JSON.stringify(context) }],
     });
