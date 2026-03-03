@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { T, font, mono } from "../../theme/tokens";
 import { supabase } from "../../lib/supabase";
-import { FormattedText } from "../../lib/formatText";
+import { FormattedText } from "../../lib/formatText.jsx";
 
 // ── CATEGORY DEFINITIONS ──
 const allCategories = [

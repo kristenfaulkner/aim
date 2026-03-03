@@ -8,7 +8,7 @@ import { useAuth } from "../context/AuthContext";
 import { useResponsive } from "../hooks/useResponsive";
 import { usePreferences } from "../context/PreferencesContext";
 import { formatDistance, formatSpeed, formatElevation, elevationUnit, formatWeight, weightUnit } from "../lib/units";
-import { FormattedText } from "../lib/formatText";
+import { FormattedText } from "../lib/formatText.jsx";
 
 function formatDuration(seconds) {
   if (!seconds) return "--";
@@ -666,7 +666,7 @@ function AIAnalysis({ analysis, loading, onRegenerate, activityId }) {
               <div>
                 <div style={{ fontSize: 10, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>Workout Summary</div>
                 {analysisSummary && (
-                  <div style={{ fontSize: 13, color: T.text, lineHeight: 1.8, padding: "16px 18px", background: T.bg, borderRadius: 12, borderLeft: `3px solid ${T.accent}`, marginBottom: 16 }}>{analysisSummary}</div>
+                  <div style={{ fontSize: 13, color: T.text, lineHeight: 1.8, padding: "16px 18px", background: T.bg, borderRadius: 12, borderLeft: `3px solid ${T.accent}`, marginBottom: 16 }}><FormattedText text={analysisSummary} /></div>
                 )}
                 {analysisInsights.length > 0 && (
                   <div>
@@ -716,7 +716,7 @@ function AIAnalysis({ analysis, loading, onRegenerate, activityId }) {
                 <div style={{ fontSize: 10, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em" }}>Post-Ride Analysis</div>
 
                 {analysisSummary && (
-                  <div style={{ fontSize: 12, color: T.text, lineHeight: 1.6, padding: "10px 14px", background: T.bg, borderRadius: 10, borderLeft: `3px solid ${T.accent}` }}>{analysisSummary}</div>
+                  <div style={{ fontSize: 12, color: T.text, lineHeight: 1.6, padding: "10px 14px", background: T.bg, borderRadius: 10, borderLeft: `3px solid ${T.accent}` }}><FormattedText text={analysisSummary} /></div>
                 )}
 
                 {insightCategories.length > 0 && (
@@ -739,7 +739,7 @@ function AIAnalysis({ analysis, loading, onRegenerate, activityId }) {
                         <span style={{ fontSize: 8, padding: "2px 5px", borderRadius: 4, background: insight.confidence === "high" ? T.accentDim : `${T.warn}20`, color: insight.confidence === "high" ? T.accent : T.warn, textTransform: "uppercase", letterSpacing: "0.05em" }}>{insight.confidence}</span>
                       )}
                     </div>
-                    <div style={{ fontSize: 11, lineHeight: 1.6, color: T.textSoft }}>{insight.body}</div>
+                    <FormattedText text={insight.body} style={{ fontSize: 11, lineHeight: 1.6, color: T.textSoft }} />
                   </div>
                 ))}
 
@@ -776,7 +776,9 @@ function AIAnalysis({ analysis, loading, onRegenerate, activityId }) {
               )}
               {messages.map((msg, i) => (
                 <div key={i} style={{ marginBottom: 14, display: "flex", flexDirection: "column", alignItems: msg.role === "user" ? "flex-end" : "flex-start" }}>
-                  <div style={{ maxWidth: "85%", padding: "9px 13px", borderRadius: msg.role === "user" ? "13px 13px 4px 13px" : "13px 13px 13px 4px", background: msg.role === "user" ? T.accent : T.bg, color: msg.role === "user" ? T.bg : T.text, fontSize: 12, lineHeight: 1.6, fontWeight: msg.role === "user" ? 600 : 400 }}>{msg.text}</div>
+                  <div style={{ maxWidth: "85%", padding: "9px 13px", borderRadius: msg.role === "user" ? "13px 13px 4px 13px" : "13px 13px 13px 4px", background: msg.role === "user" ? T.accent : T.bg, color: msg.role === "user" ? T.bg : T.text, fontSize: 12, lineHeight: 1.6, fontWeight: msg.role === "user" ? 600 : 400 }}>
+                    {msg.role === "user" ? msg.text : <FormattedText text={msg.text} />}
+                  </div>
                 </div>
               ))}
               {isTyping && (
