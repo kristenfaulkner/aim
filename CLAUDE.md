@@ -33,17 +33,18 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 ### Frontend (`/src/`)
 - `App.jsx` — route definitions; protected routes wrap with `ProtectedRoute`
 - `context/AuthContext.jsx` — user auth state, profile management, Supabase auth listeners
-- `pages/` — 19 route-level pages (Dashboard, Sleep, ActivityDetail, HealthLab, Boosters, ConnectApps, Settings, WorkoutDatabase, Onboarding, AcceptTerms, Auth, ResetPassword, Landing, Contact, 5 legal pages)
+- `pages/` — 20 route-level pages (Dashboard, MyStats, Sleep, ActivityDetail, HealthLab, Boosters, ConnectApps, Settings, WorkoutDatabase, Onboarding, AcceptTerms, Auth, ResetPassword, Landing, Contact, 5 legal pages)
 - `components/` — reusable: `TrainingPeaksImport`, `BloodPanelUpload` (multi-file drag-and-drop), `DexaScanUpload` (single-file drag-and-drop with body composition extraction), `ActivityBrowser` (popover with time filters/search/pagination), `ProtectedRoute` (auth + consent gate), `NeuralBackground`, `SEO` (React 19 native metadata: title, description, OG, Twitter cards, canonical URL), `SessionNotes` (activity annotation: freeform notes, star rating, RPE slider 0-10, GI comfort/mental focus/pre-ride recovery sliders 1-5, tag input with alias normalization — shared across Activities and ActivityDetail pages)
 - `components/dashboard/` — modular dashboard components: `ReadinessCard` (SVG ring + 4 metric pills), `AIPanel` (3-tab AI analysis/summary/chat), `LastRideCard` (8-metric grid), `TrainingWeekChart` (7-day TSS bars), `FitnessChart` (CTL/ATL/TSB SVG), `WorkingGoals` (expandable goal cards with 3 tabs), `NutritionLogger` (5-stage conversational modal with Claude parsing), `CPModelCard` (Critical Power 3-panel: CP/W'/Pmax)
 - `hooks/useDashboardData.js` — parallel Supabase queries (7 concurrent) using `Promise.allSettled`
 - `hooks/useActivities.js` — paginated activity list (legacy, replaced by useActivityBrowser on Dashboard)
 - `hooks/useSleepData.js` — sleep data from `daily_metrics` with configurable time period, computes averages
 - `hooks/useActivityBrowser.js` — cursor-based paginated activity browser with time period filtering (Week/Month/Year/All) and client-side search
+- `hooks/useMyStats.js` — parallel Supabase queries for My Stats page (power profile, daily metrics, DEXA, 30-day averages)
 - `hooks/useResponsive.js` — responsive breakpoint hook (`isMobile`/`isTablet`/`isDesktop`) via `matchMedia`
 - `lib/api.js` — `apiFetch()` utility adds Bearer token to all `/api` calls
 - `lib/supabase.js` — Supabase client init
-- `lib/zones.js` — `computePowerZones(ftp)` and `computeHRZones(maxHR)` used by Onboarding + Settings
+- `lib/zones.js` — `computePowerZones(ftp)`, `computeHRZones(maxHR)`, `computeCPZones(cp)` used by Onboarding + Settings + MyStats
 - `lib/formatText.jsx` — `cleanText()` strips markdown artifacts from AI JSON text fields; `FormattedText` component renders paragraphs, `**bold**` as `<strong>`, `*italic*` as `<em>`
 - `lib/formatTime.js` — `formatActivityDate()`, `formatActivityTime()`, `getActivityTimezoneAbbrev()` helpers
 - `data/` — static data: integrations metadata, biomarker clinical ranges, booster protocols, power classification tables

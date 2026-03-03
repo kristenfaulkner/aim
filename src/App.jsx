@@ -18,6 +18,7 @@ import Onboarding from "./pages/Onboarding";
 import ActivityDetail from "./pages/ActivityDetail";
 import Activities from "./pages/Activities";
 import WorkoutDatabase from "./pages/WorkoutDatabase";
+import MyStats from "./pages/MyStats";
 import ResetPassword from "./pages/ResetPassword";
 import AcceptTerms from "./pages/AcceptTerms";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -35,6 +36,7 @@ export default function App() {
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/activities" element={<ProtectedRoute><Activities /></ProtectedRoute>} />
       <Route path="/workout-db" element={<ProtectedRoute><WorkoutDatabase /></ProtectedRoute>} />
+      <Route path="/my-stats" element={<ProtectedRoute><MyStats /></ProtectedRoute>} />
       <Route path="/boosters" element={<ProtectedRoute><Boosters /></ProtectedRoute>} />
       <Route path="/activity/:id" element={<ProtectedRoute><ActivityDetail /></ProtectedRoute>} />
       <Route path="/sleep" element={<ProtectedRoute><Sleep /></ProtectedRoute>} />
