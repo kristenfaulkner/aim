@@ -6,6 +6,39 @@ import { sendWorkoutSMS } from "../sms/send.js";
 import { backfillUserMetrics } from "../_lib/backfill.js";
 import { resolveActivityTimezone } from "../_lib/timezone.js";
 
+// Map Wahoo workout_type_id integers to our activity_type strings.
+// Wahoo API workout types: https://developers.wahooligan.com/cloud
+const WAHOO_WORKOUT_TYPE_MAP = {
+  0: "ride",            // Cycling (outdoor)
+  1: "run",             // Running
+  2: "ride",            // Mountain Biking
+  3: "nordic_ski",      // Cross Country Skiing
+  4: "ice_skate",       // Nordic Skating
+  5: "ice_skate",       // Skating
+  6: "swim",            // Swimming (pool)
+  7: "workout",         // Wheelchair
+  8: "weight_training", // Strength Training
+  9: "yoga",            // Yoga
+  10: "workout",        // Pilates
+  11: "workout",        // HIIT
+  12: "workout",        // Barre
+  13: "workout",        // Dance
+  14: "rowing",         // Rowing
+  15: "elliptical",     // Elliptical
+  16: "workout",        // Stair Climber
+  17: "run",            // Treadmill Running
+  18: "ride",           // Indoor Cycling / Trainer
+  19: "swim",           // Open Water Swimming
+  20: "workout",        // Triathlon
+  21: "hike",           // Hiking
+  22: "walk",           // Walking
+};
+
+function wahooActivityType(workoutTypeId) {
+  if (workoutTypeId == null) return "workout";
+  return WAHOO_WORKOUT_TYPE_MAP[workoutTypeId] ?? "workout";
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
@@ -62,7 +95,7 @@ export default async function handler(req, res) {
     user_id: userId,
     source: "wahoo",
     source_id: String(ws.id || workout?.id || ""),
-    activity_type: "ride",
+    activity_type: wahooActivityType(workout?.workout_type_id),
     name: ws.name || workout?.name || "Wahoo Workout",
     started_at: workout?.starts || ws.created_at,
     duration_seconds: Math.round(durationSec),
