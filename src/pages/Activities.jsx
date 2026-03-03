@@ -139,7 +139,7 @@ function NavBar({ profile, isMobile, menuOpen, setMenuOpen, userMenuOpen, setUse
           </div>
           {!isMobile && (
             <div style={{ display: "flex", gap: 3 }}>
-              {[{ label: "Dashboard", path: "/dashboard" }, { label: "Activities", path: "/workouts" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }].map(item => (
+              {[{ label: "Dashboard", path: "/dashboard" }, { label: "Activities", path: "/activities" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }].map(item => (
                 <button key={item.label} onClick={() => navigate(item.path)} style={{
                   background: item.label === "Activities" ? T.accentDim : "none", border: "none", padding: "5px 12px", borderRadius: 7,
                   fontSize: 11, fontWeight: 600, color: item.label === "Activities" ? T.accent : T.textSoft,
@@ -191,7 +191,7 @@ function NavBar({ profile, isMobile, menuOpen, setMenuOpen, userMenuOpen, setUse
               </div>
               <span style={{ fontSize: 14, fontWeight: 600 }}>{profile?.full_name || "Athlete"}</span>
             </div>
-            {[{ label: "Dashboard", path: "/dashboard" }, { label: "Activities", path: "/workouts" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }, { label: "Profile", path: "/profile" }, { label: "Settings", path: "/settings" }].map(item => (
+            {[{ label: "Dashboard", path: "/dashboard" }, { label: "Activities", path: "/activities" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }, { label: "Profile", path: "/profile" }, { label: "Settings", path: "/settings" }].map(item => (
               <button key={item.label} onClick={() => { setMenuOpen(false); navigate(item.path); }} style={{
                 background: item.label === "Activities" ? T.accentDim : "none", border: "none", padding: "12px 14px", borderRadius: 8,
                 fontSize: 14, fontWeight: 600, color: item.label === "Activities" ? T.accent : T.textSoft,
@@ -394,7 +394,7 @@ export default function Workouts() {
 
   return (
     <div style={{ minHeight: "100vh", background: T.bg, color: T.text, fontFamily: font }}>
-      <SEO title="Activities" path="/workouts" description="Browse all your activities with AI-powered analysis and cross-domain insights." />
+      <SEO title="Activities" path="/activities" description="Browse all your activities with AI-powered analysis and cross-domain insights." />
       <NavBar profile={profile} isMobile={isMobile} menuOpen={menuOpen} setMenuOpen={setMenuOpen} userMenuOpen={userMenuOpen} setUserMenuOpen={setUserMenuOpen} onSignout={handleSignout} navigate={navigate} />
 
       <div style={{ maxWidth: 1400, margin: "0 auto", padding: isMobile ? 16 : "20px 24px" }}>
