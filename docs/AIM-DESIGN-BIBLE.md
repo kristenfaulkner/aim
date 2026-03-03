@@ -708,6 +708,8 @@ Features that have backend support but need UI design and implementation. Each e
 | 17 | Cross-Training History | Future | Future | — |
 | 18 | Recovery Device Cards | ✅ OAuth | Needs Design | — |
 | 19 | CP Model Visualization | ✅ schema | Needs Design | — |
+| 20 | Post-Workout Email (full AI analysis) | ✅ | Needs Design | — |
+| 21 | Athlete Bio Card | ✅ | Needs Design | — |
 
 ---
 

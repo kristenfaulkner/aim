@@ -11,28 +11,30 @@ const EMAIL_SYSTEM_PROMPT = `You are the email coach for AIM, a performance inte
 
 Generate an HTML email body for a post-workout analysis. The email should feel premium and data-driven.
 
-You will receive the activity data, AI analysis (summary + insights), recent metrics, and recent activities.
+You will receive the activity data, the FULL AI analysis (summary + ALL insights + dataGaps), recent metrics, and recent activities.
 
 FORMAT — return ONLY the inner HTML (no <html>, <head>, <body> tags). Use inline styles. The email has a dark background (#05060a) so all text should be light colored.
 
 Structure:
-1. A greeting line using the athlete's first name and a one-line workout summary
-2. A metrics grid showing key workout stats (use a 2-column table with gray borders):
+1. A greeting line using the athlete's first name
+2. The full AI summary paragraph — this is the personalized workout narrative. Display it prominently as the opening body text.
+3. A metrics grid showing key workout stats (use a 2-column table with gray borders):
    - Duration, Distance (mi), Avg Power, Normalized Power, TSS, IF, Avg HR, Max HR, Calories, Elevation
    - Only include metrics that have non-null values
    - Use font-family: 'JetBrains Mono', monospace for numbers
    - Format duration as h:mm:ss, distance in miles (divide meters by 1609.34)
-3. An "AI Insights" section with the top 4-6 insights from the analysis:
-   - Each insight gets its icon emoji, bold title, and body text
+4. An "AI Insights" section with ALL insights from the analysis (not just a subset — include every single one):
+   - Each insight gets its icon emoji, bold title, and full body text
+   - Group by category if there are many (performance, recovery, training, body, nutrition, environment, health)
    - Style with left green border (#00e5a0) and subtle card background (#111219)
-4. If there are dataGaps, include a brief "Unlock More Insights" section with 1-2 suggestions
+5. If there are dataGaps, include an "Unlock More Insights" section with all suggestions
 
 STYLE RULES:
 - Font: system-ui, -apple-system, sans-serif for body text
 - Numbers: 'JetBrains Mono', monospace
 - Colors: #ffffff (headings), #c0c0c8 (body text), #00e5a0 (accent/highlights), #888 (dim text)
 - Backgrounds: #0c0d14 (card), #111219 (insight cards)
-- Keep total HTML under 8000 characters
+- No character limit — include the full analysis
 - All styles must be inline (email clients strip <style> blocks)
 - Use tables for layout (not flexbox/grid — email compatibility)
 - Return ONLY the HTML, no JSON wrapping, no markdown code fences
@@ -119,15 +121,19 @@ function fallbackEmailHtml(activity, athleteName) {
   if (activity.ai_analysis?.insights?.length) {
     insightsHtml = `<div style="margin-top:24px;">
 <h3 style="color:#00e5a0;font-size:14px;margin:0 0 12px;">AI Insights</h3>
-${activity.ai_analysis.insights.slice(0, 5).map(i => `<div style="background:#111219;border-left:3px solid #00e5a0;padding:12px 14px;margin-bottom:8px;border-radius:0 6px 6px 0;">
+${activity.ai_analysis.insights.map(i => `<div style="background:#111219;border-left:3px solid #00e5a0;padding:12px 14px;margin-bottom:8px;border-radius:0 6px 6px 0;">
 <div style="color:#fff;font-size:13px;font-weight:600;">${i.icon || ""} ${i.title}</div>
 <div style="color:#c0c0c8;font-size:12px;margin-top:4px;line-height:1.5;">${i.body}</div>
 </div>`).join("")}
 </div>`;
   }
 
-  return `<h2 style="color:#fff;font-size:20px;font-weight:700;margin:0 0 4px;">${activity.name || "Workout"}</h2>
-<p style="color:#c0c0c8;font-size:14px;margin:0 0 20px;">Hey ${athleteName}, here's your workout breakdown.</p>
+  const summaryHtml = activity.ai_analysis?.summary
+    ? `<p style="color:#c0c0c8;font-size:14px;margin:0 0 20px;line-height:1.6;">${activity.ai_analysis.summary}</p>`
+    : `<p style="color:#c0c0c8;font-size:14px;margin:0 0 20px;">Hey ${athleteName}, here's your workout breakdown.</p>`;
+
+  return `<h2 style="color:#fff;font-size:20px;font-weight:700;margin:0 0 12px;">${activity.name || "Workout"}</h2>
+${summaryHtml}
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#111219;border-radius:8px;overflow:hidden;">
 ${metricsRows}
 </table>
@@ -228,7 +234,7 @@ export async function sendWorkoutEmail(userId, activityId) {
   try {
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 2000,
+      max_tokens: 4000,
       system: EMAIL_SYSTEM_PROMPT,
       messages: [{ role: "user", content: JSON.stringify(context) }],
     });
