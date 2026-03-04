@@ -10,6 +10,7 @@ import { apiFetch } from "../lib/api";
 export function useDashboardData(selectedActivityId = null) {
   const { user, profile } = useAuth();
   const backfillRan = useRef(false);
+  const geoRan = useRef(false);
   const [activity, setActivity] = useState(null);
   const [dailyMetrics, setDailyMetrics] = useState(null);
   const [fitnessHistory, setFitnessHistory] = useState([]);
@@ -183,6 +184,41 @@ export function useDashboardData(selectedActivityId = null) {
       apiFetch("/activities/backfill-wbal", { method: "POST" }).catch(() => {});
     }
   }, [user]);
+
+  // Browser geolocation travel detection — once per day
+  useEffect(() => {
+    if (!user || geoRan.current) return;
+    geoRan.current = true;
+
+    // Rate-limit: once per calendar day
+    const today = new Date().toISOString().split("T")[0];
+    if (localStorage.getItem("aim_geo_last_check") === today) return;
+
+    if (!navigator.geolocation) return;
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        localStorage.setItem("aim_geo_last_check", today);
+        apiFetch("/location/detect-travel", {
+          method: "POST",
+          body: JSON.stringify({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          }),
+        })
+          .then((result) => {
+            if (result.travelDetected) fetchData();
+          })
+          .catch(() => {});
+      },
+      () => {
+        // User denied or geolocation unavailable — skip silently
+        localStorage.setItem("aim_geo_last_check", today);
+      },
+      { timeout: 10000, maximumAge: 300000 }
+    );
+  }, [user, fetchData]);
 
   return {
     activity,
