@@ -152,9 +152,9 @@ export default function Terms() {
           AIM offers three subscription tiers, each providing different levels of access to the Service:
         </p>
         <ul style={ul}>
-          <li style={li}><span style={bold}>Starter:</span> $19.00 per month (monthly billing) or $15.00 per month (billed annually at $180.00 per year);</li>
-          <li style={li}><span style={bold}>Pro:</span> $49.00 per month (monthly billing) or $39.00 per month (billed annually at $468.00 per year);</li>
-          <li style={li}><span style={bold}>Elite:</span> $99.00 per month (monthly billing) or $79.00 per month (billed annually at $948.00 per year).</li>
+          <li style={li}><span style={bold}>Starter:</span> $19.00 per month;</li>
+          <li style={li}><span style={bold}>Pro:</span> $49.00 per month;</li>
+          <li style={li}><span style={bold}>Elite:</span> $99.00 per month.</li>
         </ul>
         <p style={p}>
           All prices are in United States Dollars (USD) unless otherwise specified at the time of purchase. AIM reserves the right to change subscription pricing at any time upon thirty (30) days' prior written notice. Price changes will take effect at the start of your next billing cycle following such notice.
@@ -178,7 +178,7 @@ export default function Terms() {
 
         <h3 style={h3}>6.4 Auto-Renewal</h3>
         <p style={p}>
-          All subscription plans automatically renew at the end of each billing cycle (monthly or annually, as applicable) at the then-current subscription rate unless you cancel your subscription before the renewal date. You acknowledge and agree that your payment method will be automatically charged at each renewal.
+          All subscription plans automatically renew at the end of each monthly billing cycle at the then-current subscription rate unless you cancel your subscription before the renewal date. You acknowledge and agree that your payment method will be automatically charged at each renewal.
         </p>
 
         <h3 style={h3}>6.5 Cancellation</h3>

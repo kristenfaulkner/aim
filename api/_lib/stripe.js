@@ -7,12 +7,9 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
  * Price IDs are configured in env vars from Stripe Dashboard.
  */
 export const PRICE_IDS = {
-  starter_monthly: process.env.STRIPE_PRICE_STARTER_MONTHLY,
-  starter_annual: process.env.STRIPE_PRICE_STARTER_ANNUAL,
-  pro_monthly: process.env.STRIPE_PRICE_PRO_MONTHLY,
-  pro_annual: process.env.STRIPE_PRICE_PRO_ANNUAL,
-  elite_monthly: process.env.STRIPE_PRICE_ELITE_MONTHLY,
-  elite_annual: process.env.STRIPE_PRICE_ELITE_ANNUAL,
+  starter: process.env.STRIPE_PRICE_STARTER,
+  pro: process.env.STRIPE_PRICE_PRO,
+  elite: process.env.STRIPE_PRICE_ELITE,
 };
 
 /**
@@ -20,7 +17,7 @@ export const PRICE_IDS = {
  */
 export function tierFromPriceId(priceId) {
   for (const [key, id] of Object.entries(PRICE_IDS)) {
-    if (id === priceId) return key.split("_")[0]; // starter_monthly → starter
+    if (id === priceId) return key; // direct tier name
   }
   return "free";
 }

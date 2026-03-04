@@ -98,10 +98,21 @@ async function handleCheckoutCompleted(session) {
 
 /**
  * Subscription updated — handle upgrades, downgrades, and status changes.
+ *
+ * IMPORTANT: For downgrades, Stripe fires this event TWICE:
+ * 1. When the downgrade is scheduled (subscription has a `pending_update`)
+ * 2. When the downgrade actually takes effect at period end
+ * Only update the tier when the change is EFFECTIVE, not when scheduled.
  */
 async function handleSubscriptionUpdated(subscription) {
   const userId = await findUserByCustomerId(subscription.customer);
   if (!userId) return;
+
+  // Downgrade is scheduled but not yet effective — don't change tier
+  if (subscription.pending_update) {
+    console.log(`[Stripe Webhook] Pending downgrade for user ${userId}, not updating tier yet`);
+    return;
+  }
 
   const priceId = subscription.items.data[0]?.price?.id;
   const tier = tierFromPriceId(priceId);
@@ -120,6 +131,10 @@ async function handleSubscriptionUpdated(subscription) {
   if (subscription.status === "canceled") {
     updates.subscription_tier = "free";
   }
+
+  // If user was on invite access and now has a Stripe subscription, update access_source
+  updates.access_source = "stripe";
+  updates.invite_access_expires_at = null;
 
   await supabaseAdmin
     .from("profiles")

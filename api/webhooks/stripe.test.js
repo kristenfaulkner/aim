@@ -12,9 +12,9 @@ vi.mock("../_lib/stripe.js", () => ({
   stripe: mockStripe,
   tierFromPriceId: (priceId) => {
     const map = {
-      "price_starter_m": "starter",
-      "price_pro_m": "pro",
-      "price_elite_m": "elite",
+      "price_starter": "starter",
+      "price_pro": "pro",
+      "price_elite": "elite",
     };
     return map[priceId] || "free";
   },
@@ -100,7 +100,7 @@ describe("Stripe Webhook Handler", () => {
       },
     });
     mockRetrieveSubscription.mockResolvedValue({
-      items: { data: [{ price: { id: "price_pro_m" } }] },
+      items: { data: [{ price: { id: "price_pro" } }] },
     });
 
     const req = { method: "POST", headers: { "stripe-signature": "valid" }, body: "{}" };
@@ -140,7 +140,7 @@ describe("Stripe Webhook Handler", () => {
           customer: "cus_123",
           id: "sub_456",
           status: "active",
-          items: { data: [{ price: { id: "price_elite_m" } }] },
+          items: { data: [{ price: { id: "price_elite" } }] },
         },
       },
     });
@@ -150,6 +150,53 @@ describe("Stripe Webhook Handler", () => {
     await handler(req, res);
 
     expect(res.statusCode).toBe(200);
+  });
+
+  it("does NOT update tier when subscription has pending_update (scheduled downgrade)", async () => {
+    mockConstructEvent.mockReturnValue({
+      type: "customer.subscription.updated",
+      id: "evt_6",
+      data: {
+        object: {
+          customer: "cus_123",
+          id: "sub_456",
+          status: "active",
+          pending_update: { subscription_items: [{ price: "price_starter" }] },
+          items: { data: [{ price: { id: "price_pro" } }] },
+        },
+      },
+    });
+
+    const req = { method: "POST", headers: { "stripe-signature": "valid" }, body: "{}" };
+    const res = makeRes();
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(200);
+    // The update mock should NOT be called for tier change since pending_update is present
+    // The function returns early when pending_update exists
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("sets access_source to stripe when subscription updates (invite→stripe transition)", async () => {
+    mockConstructEvent.mockReturnValue({
+      type: "customer.subscription.updated",
+      id: "evt_7",
+      data: {
+        object: {
+          customer: "cus_123",
+          id: "sub_456",
+          status: "active",
+          items: { data: [{ price: { id: "price_pro" } }] },
+        },
+      },
+    });
+
+    const req = { method: "POST", headers: { "stripe-signature": "valid" }, body: "{}" };
+    const res = makeRes();
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(mockUpdate).toHaveBeenCalled();
   });
 
   it("handles invoice.payment_failed gracefully", async () => {

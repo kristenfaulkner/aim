@@ -32,9 +32,9 @@ const softwareSchema = {
   description: "AI-powered performance intelligence for endurance athletes. Connect power, sleep, recovery, body composition, and blood work data for cross-domain insights.",
   url: "https://aimfitness.ai",
   offers: [
-    { "@type": "Offer", name: "Starter", price: "15.00", priceCurrency: "USD", description: "For athletes ready to get serious about their data" },
-    { "@type": "Offer", name: "Pro", price: "39.00", priceCurrency: "USD", description: "For competitive athletes who want every edge" },
-    { "@type": "Offer", name: "Elite", price: "79.00", priceCurrency: "USD", description: "The full platform — blood work, body comp, and cycle intelligence" },
+    { "@type": "Offer", name: "Starter", price: "19.00", priceCurrency: "USD", description: "For athletes ready to get serious about their data" },
+    { "@type": "Offer", name: "Pro", price: "49.00", priceCurrency: "USD", description: "For competitive athletes who want every edge" },
+    { "@type": "Offer", name: "Elite", price: "99.00", priceCurrency: "USD", description: "The full platform — blood work, body comp, and cycle intelligence" },
   ],
 };
 
@@ -218,7 +218,7 @@ function InsightsShowcase({ navigate, user }) {
 export default function Landing() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [billingCycle, setBillingCycle] = useState("annual");
+  // Annual billing planned for future release
   const [menuOpen, setMenuOpen] = useState(false);
   const { isMobile, isTablet } = useResponsive();
 
@@ -239,9 +239,9 @@ export default function Landing() {
   ];
 
   const plans = [
-    { name: "Starter", monthlyPrice: 19, annualPrice: 15, desc: "For athletes ready to get serious about their data", features: ["3 app connections", "AI workout analysis", "Power benchmarking (Cat 1-5)", "Basic training prescriptions", "Performance Boosters library"], cta: "Start Free Trial" },
-    { name: "Pro", monthlyPrice: 49, annualPrice: 39, badge: "MOST POPULAR", desc: "For competitive athletes who want every edge", features: ["Unlimited app connections", "Full cross-domain AI analysis", "Advanced training prescriptions", "Recovery intelligence (HRV, sleep)", "Evidence-based supplement protocols", "Coach sharing & export"], cta: "Start Free Trial" },
-    { name: "Elite", monthlyPrice: 99, annualPrice: 79, badge: "COMPLETE", desc: "The full platform — blood work, body comp, and cycle intelligence", features: ["Everything in Pro", "Health Lab (blood panels & DEXA scans)", "Biomarker tracking with athlete-optimal ranges", "Menstrual cycle × performance intelligence", "AI nutrition periodization", "Priority analysis & early features"], cta: "Start Free Trial" },
+    { name: "Starter", price: 19, desc: "For athletes ready to get serious about their data", features: ["3 app connections", "AI workout analysis", "Power benchmarking (Cat 1-5)", "Basic training prescriptions", "Performance Boosters library"], cta: "Start Free Trial" },
+    { name: "Pro", price: 49, badge: "MOST POPULAR", desc: "For competitive athletes who want every edge", features: ["Unlimited app connections", "Full cross-domain AI analysis", "Advanced training prescriptions", "Recovery intelligence (HRV, sleep)", "Evidence-based supplement protocols", "Coach sharing & export"], cta: "Start Free Trial" },
+    { name: "Elite", price: 99, badge: "COMPLETE", desc: "The full platform — blood work, body comp, and cycle intelligence", features: ["Everything in Pro", "Health Lab (blood panels & DEXA scans)", "Biomarker tracking with athlete-optimal ranges", "Menstrual cycle × performance intelligence", "AI nutrition periodization", "Priority analysis & early features"], cta: "Start Free Trial" },
   ];
 
   return (
@@ -463,28 +463,19 @@ export default function Landing() {
           <div style={{ textAlign: "center", marginBottom: isMobile ? 32 : 48 }}>
             <h2 style={{ fontSize: isMobile ? 28 : isTablet ? 34 : 42, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 16px" }}>Invest in your <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>greatest asset</span></h2>
             <p style={{ fontSize: isMobile ? 15 : 17, color: T.textSoft, maxWidth: 480, margin: "0 auto 24px" }}>Less than a single coaching session per month. More actionable than a year of guessing.</p>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 12, padding: "4px", background: T.card, borderRadius: 12, border: `1px solid ${T.border}` }}>
-              {["monthly", "annual"].map(cycle => (
-                <button key={cycle} onClick={() => setBillingCycle(cycle)} style={{ padding: "8px 20px", borderRadius: 9, fontSize: 13, fontWeight: 600, fontFamily: font, cursor: "pointer", border: "none", transition: "all 0.2s", background: billingCycle === cycle ? T.accent : "transparent", color: billingCycle === cycle ? T.bg : T.textDim }}>
-                  {cycle === "monthly" ? "Monthly" : "Annual"}{cycle === "annual" && <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 700, color: billingCycle === "annual" ? T.bg : T.accent }}>(Save 20%)</span>}
-                </button>
-              ))}
-            </div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: isMobile ? 16 : 20, alignItems: "start" }}>
             {plans.map((plan) => {
-              const price = billingCycle === "annual" ? plan.annualPrice : plan.monthlyPrice;
               const isPro = plan.name === "Pro";
               return (
                 <div key={plan.name} style={{ background: T.card, borderRadius: 20, padding: isMobile ? "28px 24px" : "36px 28px", position: "relative", overflow: "hidden", border: `1px solid ${isPro ? T.accentMid : T.border}`, transform: isPro && !isMobile ? "scale(1.03)" : "none", boxShadow: isPro ? `0 0 60px ${T.accentDim}` : "none" }}>
                   {plan.badge && <div style={{ position: "absolute", top: 16, right: 16, padding: "3px 10px", borderRadius: 6, background: T.accentDim, border: `1px solid ${T.accentMid}`, fontSize: 10, fontWeight: 800, color: T.accent, letterSpacing: "0.06em" }}>{plan.badge}</div>}
                   <h3 style={{ fontSize: 20, fontWeight: 800, margin: "0 0 4px", letterSpacing: "-0.02em" }}>{plan.name}</h3>
                   <p style={{ fontSize: 13, color: T.textDim, margin: "0 0 20px", lineHeight: 1.5 }}>{plan.desc}</p>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 4 }}>
-                    <span style={{ fontSize: 44, fontWeight: 800, fontFamily: mono, letterSpacing: "-0.03em" }}>${price}</span>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 24 }}>
+                    <span style={{ fontSize: 44, fontWeight: 800, fontFamily: mono, letterSpacing: "-0.03em" }}>${plan.price}</span>
                     <span style={{ fontSize: 14, color: T.textDim }}>/mo</span>
                   </div>
-                  {billingCycle === "annual" ? <p style={{ fontSize: 12, color: T.accent, margin: "0 0 20px" }}>Billed ${price * 12}/year (save ${(plan.monthlyPrice - plan.annualPrice) * 12}/yr)</p> : <div style={{ height: 20, marginBottom: 20 }} />}
                   <button onClick={() => navigate(user ? "/pricing" : "/signup")} style={{ ...btn(isPro), width: "100%", justifyContent: "center", marginBottom: 24, fontSize: 14, padding: "13px 24px" }}>{user ? "Choose Plan" : plan.cta} <ArrowRight size={16} /></button>
                   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                     {plan.features.map((feat, j) => (

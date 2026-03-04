@@ -201,13 +201,19 @@ AIM is the performance intelligence layer that sits on top of all athlete health
 - **Icons:** Lucide React
 
 ### Pricing
-| Plan | Monthly | Annual |
-|------|---------|--------|
-| Starter | $19/mo | $15/mo ($180/yr) |
-| Pro | $49/mo | $39/mo ($468/yr) |
-| Elite | $99/mo | $79/mo ($948/yr) |
+| Plan | Price |
+|------|-------|
+| Starter | $19/mo |
+| Pro | $49/mo |
+| Elite | $99/mo |
 
-All plans include 14-day free trial, no credit card required.
+All plans include 14-day free trial, no credit card required. Monthly billing only (annual billing planned for future release).
+
+**Tier Features (defined in `src/lib/entitlements.js`):**
+- **Free:** Dashboard, activities, basic analysis (3 AI/day, 2 integrations, 30-day history)
+- **Starter:** + Sleep, Health Lab, Workout DB, Nutrition Logger, Check-in, Boosters (10 AI/day, 4 integrations, full history)
+- **Pro:** + CP Model, Durability, Adaptive Zones, Segments, Similar Sessions, Race Intelligence, Prescriptions, SMS Coach (unlimited AI, unlimited integrations)
+- **Elite:** + Data Export, API Access, Priority Support, Custom Models, Coach Dashboard
 
 ## Integrations
 

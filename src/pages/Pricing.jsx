@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, ArrowRight, Zap, ChevronDown, ChevronUp, Menu, X } from "lucide-react";
+import { Check, ArrowRight, Zap, ChevronDown, ChevronUp, Menu, X, Loader } from "lucide-react";
 import { T, font, mono } from "../theme/tokens";
-import { btn } from "../theme/styles";
+import { btn, inputStyle } from "../theme/styles";
 import { useAuth } from "../context/AuthContext";
 import { useResponsive } from "../hooks/useResponsive";
 import { apiFetch } from "../lib/api";
@@ -12,8 +12,7 @@ const PLANS = [
   {
     key: "starter",
     name: "Starter",
-    monthlyPrice: 19,
-    annualPrice: 15,
+    price: 19,
     desc: "For athletes ready to get serious about their data",
     features: [
       "Up to 4 app connections",
@@ -29,8 +28,7 @@ const PLANS = [
   {
     key: "pro",
     name: "Pro",
-    monthlyPrice: 49,
-    annualPrice: 39,
+    price: 49,
     badge: "MOST POPULAR",
     desc: "For competitive athletes who want every edge",
     features: [
@@ -50,8 +48,7 @@ const PLANS = [
   {
     key: "elite",
     name: "Elite",
-    monthlyPrice: 99,
-    annualPrice: 79,
+    price: 99,
     badge: "COMPLETE",
     desc: "The full platform — every feature, unlimited",
     features: [
@@ -92,7 +89,6 @@ const FAQ = [
   { q: "Is there really no credit card required?", a: "Correct. Start your 14-day free trial with just an email. You'll only be asked for payment details when you choose to subscribe." },
   { q: "Can I change plans later?", a: "Yes. Upgrade, downgrade, or cancel anytime from your Settings page. Changes take effect at the next billing cycle." },
   { q: "What happens when my trial ends?", a: "Your account drops to the Free tier. All your data is preserved — you just lose access to premium features until you subscribe." },
-  { q: "Do annual plans really save 20%?", a: "Yes. Annual billing is discounted — for example, Pro is $39/mo billed annually vs $49/mo billed monthly. That's a $120/year saving." },
   { q: "Can I get a refund?", a: "We offer a 30-day money-back guarantee on your first subscription. Contact us at hello@aimfitness.ai." },
 ];
 
@@ -100,11 +96,14 @@ export default function Pricing() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
   const { isMobile, isTablet } = useResponsive();
-  const [billingCycle, setBillingCycle] = useState("annual");
   const [loadingPlan, setLoadingPlan] = useState(null);
   const [openFaq, setOpenFaq] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
+  const [showInvite, setShowInvite] = useState(false);
+  const [inviteCode, setInviteCode] = useState("");
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteResult, setInviteResult] = useState(null);
 
   const currentTier = profile?.subscription_tier || "free";
 
@@ -114,12 +113,11 @@ export default function Pricing() {
       return;
     }
 
-    const priceKey = `${planKey}_${billingCycle === "annual" ? "annual" : "monthly"}`;
     setLoadingPlan(planKey);
     try {
       const { url } = await apiFetch("/payments/create-checkout", {
         method: "POST",
-        body: JSON.stringify({ priceKey }),
+        body: JSON.stringify({ priceKey: planKey }),
       });
       window.location.href = url;
     } catch (err) {
@@ -141,11 +139,29 @@ export default function Pricing() {
     return currentTier === planKey;
   }
 
+  async function handleRedeemInvite() {
+    if (!inviteCode.trim() || !user) return;
+    setInviteLoading(true);
+    setInviteResult(null);
+    try {
+      const data = await apiFetch("/invite/redeem", {
+        method: "POST",
+        body: JSON.stringify({ code: inviteCode.trim() }),
+      });
+      setInviteResult({ success: true, message: data.message });
+      setInviteCode("");
+    } catch (err) {
+      setInviteResult({ error: err.message || "Failed to redeem invite code" });
+    } finally {
+      setInviteLoading(false);
+    }
+  }
+
   return (
     <div style={{ minHeight: "100vh", background: T.bg, fontFamily: font, color: T.text }}>
       <SEO
         title="Pricing — AIM"
-        description="AI-powered performance intelligence. Plans starting at $15/mo."
+        description="AI-powered performance intelligence. Plans starting at $19/mo."
         path="/pricing"
       />
 
@@ -197,31 +213,6 @@ export default function Pricing() {
           <p style={{ fontSize: isMobile ? 15 : 17, color: T.textSoft, margin: "0 0 32px", lineHeight: 1.6 }}>
             Less than a single coaching session per month. More actionable than a year of guessing.
           </p>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 0, padding: 4, background: T.card, borderRadius: 12, border: `1px solid ${T.border}` }}>
-            {["monthly", "annual"].map(cycle => (
-              <button
-                key={cycle}
-                onClick={() => setBillingCycle(cycle)}
-                style={{
-                  padding: "8px 20px",
-                  borderRadius: 9,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  fontFamily: font,
-                  cursor: "pointer",
-                  border: "none",
-                  transition: "all 0.2s",
-                  background: billingCycle === cycle ? T.accent : "transparent",
-                  color: billingCycle === cycle ? T.bg : T.textDim,
-                }}
-              >
-                {cycle === "monthly" ? "Monthly" : "Annual"}
-                {cycle === "annual" && (
-                  <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 700, color: billingCycle === "annual" ? T.bg : T.accent }}>(Save 20%)</span>
-                )}
-              </button>
-            ))}
-          </div>
         </div>
       </section>
 
@@ -229,7 +220,6 @@ export default function Pricing() {
       <section style={{ padding: isMobile ? "0 16px 60px" : "0 40px 80px" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: isMobile ? 16 : 20, alignItems: "start" }}>
           {PLANS.map((plan) => {
-            const price = billingCycle === "annual" ? plan.annualPrice : plan.monthlyPrice;
             const isPro = plan.key === "pro";
             const isCurrent = isCurrentPlan(plan.key);
             return (
@@ -250,17 +240,10 @@ export default function Pricing() {
                 )}
                 <h3 style={{ fontSize: 20, fontWeight: 800, margin: "0 0 4px", letterSpacing: "-0.02em" }}>{plan.name}</h3>
                 <p style={{ fontSize: 13, color: T.textDim, margin: "0 0 20px", lineHeight: 1.5 }}>{plan.desc}</p>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 4 }}>
-                  <span style={{ fontSize: 44, fontWeight: 800, fontFamily: mono, letterSpacing: "-0.03em" }}>${price}</span>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 24 }}>
+                  <span style={{ fontSize: 44, fontWeight: 800, fontFamily: mono, letterSpacing: "-0.03em" }}>${plan.price}</span>
                   <span style={{ fontSize: 14, color: T.textDim }}>/mo</span>
                 </div>
-                {billingCycle === "annual" ? (
-                  <p style={{ fontSize: 12, color: T.accent, margin: "0 0 20px" }}>
-                    Billed ${price * 12}/year (save ${(plan.monthlyPrice - plan.annualPrice) * 12}/yr)
-                  </p>
-                ) : (
-                  <div style={{ height: 20, marginBottom: 20 }} />
-                )}
                 <button
                   onClick={() => !isCurrent && handleSubscribe(plan.key)}
                   disabled={isCurrent || loadingPlan === plan.key}
@@ -292,6 +275,52 @@ export default function Pricing() {
         <p style={{ textAlign: "center", fontSize: 13, color: T.textDim, marginTop: 24 }}>
           All plans include a 14-day free trial. Cancel anytime. No credit card required to start.
         </p>
+        <p style={{ textAlign: "center", fontSize: 13, color: T.textDim, marginTop: 8 }}>
+          Have a promo code? You can enter it on the checkout page.
+        </p>
+
+        {/* Invite code section */}
+        {user && (
+          <div style={{ textAlign: "center", marginTop: 16 }}>
+            {!showInvite ? (
+              <button
+                onClick={() => setShowInvite(true)}
+                style={{ background: "none", border: "none", color: T.accent, fontSize: 13, fontWeight: 500, fontFamily: font, cursor: "pointer", textDecoration: "underline" }}
+              >
+                Have an invite code?
+              </button>
+            ) : (
+              <div style={{ maxWidth: 400, margin: "0 auto", display: "flex", gap: 10, alignItems: "center" }}>
+                <input
+                  type="text"
+                  placeholder="Enter invite code"
+                  value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => e.key === "Enter" && handleRedeemInvite()}
+                  style={{ ...inputStyle, flex: 1, fontFamily: mono, letterSpacing: "0.04em", textTransform: "uppercase", textAlign: "center" }}
+                />
+                <button
+                  onClick={handleRedeemInvite}
+                  disabled={inviteLoading || !inviteCode.trim()}
+                  style={{ ...btn(true), fontSize: 13, padding: "10px 20px", opacity: inviteLoading || !inviteCode.trim() ? 0.6 : 1 }}
+                >
+                  {inviteLoading ? <Loader size={14} style={{ animation: "spin 1s linear infinite" }} /> : "Redeem"}
+                </button>
+              </div>
+            )}
+            {inviteResult?.success && (
+              <p style={{ fontSize: 13, color: T.accent, marginTop: 10, fontWeight: 500 }}>
+                <Check size={14} style={{ verticalAlign: "middle", marginRight: 4 }} />
+                {inviteResult.message}
+              </p>
+            )}
+            {inviteResult?.error && (
+              <p style={{ fontSize: 13, color: T.error || "#ef4444", marginTop: 10, fontWeight: 500 }}>
+                {inviteResult.error}
+              </p>
+            )}
+          </div>
+        )}
       </section>
 
       {/* ── FEATURE COMPARISON TABLE ── */}

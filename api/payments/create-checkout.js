@@ -4,13 +4,17 @@ import { stripe, PRICE_IDS, findOrCreateCustomer } from "../_lib/stripe.js";
 
 /**
  * POST /api/payments/create-checkout
- * Body: { priceKey: "starter_monthly" | "pro_annual" | etc. }
+ * Body: { priceKey: "starter" | "pro" | "elite" }
  * Returns: { url: "https://checkout.stripe.com/..." }
  */
 export default async function handler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+
+  if (process.env.PAYMENTS_ENABLED !== "true") {
+    return res.status(403).json({ error: "Payments are not enabled" });
+  }
 
   const session = await verifySession(req);
   if (!session) return res.status(401).json({ error: "Unauthorized" });
@@ -43,8 +47,6 @@ export default async function handler(req, res) {
       .update({ stripe_customer_id: customerId })
       .eq("id", session.userId);
   }
-
-  const isAnnual = priceKey.endsWith("_annual");
 
   const checkoutSession = await stripe.checkout.sessions.create({
     customer: customerId,

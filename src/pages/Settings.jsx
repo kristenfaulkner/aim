@@ -53,6 +53,11 @@ export default function Settings() {
   const [portalLoading, setPortalLoading] = useState(false);
   const checkoutSuccess = searchParams.get("checkout") === "success";
 
+  // Invite code state
+  const [inviteCode, setInviteCode] = useState("");
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteResult, setInviteResult] = useState(null); // { success, message } or { error }
+
   // Preferences form state
   const [timezone, setTimezone] = useState("");
   const [zonePreference, setZonePreference] = useState("auto");
@@ -150,6 +155,27 @@ export default function Settings() {
       window.location.href = url;
     } catch {
       setPortalLoading(false);
+    }
+  };
+
+  const handleRedeemInvite = async () => {
+    if (!inviteCode.trim()) return;
+    setInviteLoading(true);
+    setInviteResult(null);
+    try {
+      const data = await apiFetch("/invite/redeem", {
+        method: "POST",
+        body: JSON.stringify({ code: inviteCode.trim() }),
+      });
+      setInviteResult({ success: true, message: data.message });
+      setInviteCode("");
+      // Refresh subscription status
+      const status = await apiFetch("/payments/status");
+      setSubStatus(status);
+    } catch (err) {
+      setInviteResult({ error: err.message || "Failed to redeem invite code" });
+    } finally {
+      setInviteLoading(false);
     }
   };
 
@@ -764,67 +790,136 @@ export default function Settings() {
                   <Loader size={20} color={T.accent} style={{ animation: "spin 1s linear infinite" }} />
                 </div>
               ) : (
-                <div style={{ padding: 24, background: T.card, borderRadius: 16, border: `1px solid ${T.border}`, marginBottom: 24 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-                    <CreditCard size={18} color={T.accent} />
-                    <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Current Plan</h3>
-                  </div>
+                <>
+                  <div style={{ padding: 24, background: T.card, borderRadius: 16, border: `1px solid ${T.border}`, marginBottom: 24 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+                      <CreditCard size={18} color={T.accent} />
+                      <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Current Plan</h3>
+                    </div>
 
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-                    <span style={{
-                      padding: "6px 16px",
-                      borderRadius: 8,
-                      fontSize: 14,
-                      fontWeight: 700,
-                      fontFamily: font,
-                      background: (subStatus?.tier || "free") === "free" ? T.surface : T.accentDim,
-                      color: (subStatus?.tier || "free") === "free" ? T.textSoft : T.accent,
-                      border: `1px solid ${(subStatus?.tier || "free") === "free" ? T.border : T.accentMid}`,
-                      textTransform: "capitalize",
-                    }}>
-                      {subStatus?.tierLabel || "Free"}
-                    </span>
-                    {subStatus?.subscription?.status === "trialing" && subStatus.subscription.trialEnd && (
-                      <span style={{ fontSize: 13, color: T.warn, fontWeight: 500 }}>
-                        Trial ends {new Date(subStatus.subscription.trialEnd * 1000).toLocaleDateString()}
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+                      <span style={{
+                        padding: "6px 16px",
+                        borderRadius: 8,
+                        fontSize: 14,
+                        fontWeight: 700,
+                        fontFamily: font,
+                        background: (subStatus?.tier || "free") === "free" ? T.surface : T.accentDim,
+                        color: (subStatus?.tier || "free") === "free" ? T.textSoft : T.accent,
+                        border: `1px solid ${(subStatus?.tier || "free") === "free" ? T.border : T.accentMid}`,
+                        textTransform: "capitalize",
+                      }}>
+                        {subStatus?.tierLabel || "Free"}
                       </span>
-                    )}
-                    {subStatus?.subscription?.status === "active" && (
-                      <span style={{ fontSize: 13, color: T.accent, fontWeight: 500 }}>
-                        Active — {subStatus.subscription.interval === "year" ? "Annual" : "Monthly"} billing
-                      </span>
-                    )}
-                    {subStatus?.subscription?.cancelAtPeriodEnd && (
-                      <span style={{ fontSize: 13, color: T.warn, fontWeight: 500 }}>
-                        Cancels {new Date(subStatus.subscription.currentPeriodEnd * 1000).toLocaleDateString()}
-                      </span>
-                    )}
-                  </div>
+                      {subStatus?.accessSource === "invite" && (
+                        <span style={{ fontSize: 13, color: T.accent, fontWeight: 500 }}>
+                          via invite
+                        </span>
+                      )}
+                      {subStatus?.subscription?.status === "trialing" && subStatus.subscription.trialEnd && (
+                        <span style={{ fontSize: 13, color: T.warn, fontWeight: 500 }}>
+                          Trial ends {new Date(subStatus.subscription.trialEnd * 1000).toLocaleDateString()}
+                        </span>
+                      )}
+                      {subStatus?.subscription?.status === "active" && subStatus?.accessSource !== "invite" && (
+                        <span style={{ fontSize: 13, color: T.accent, fontWeight: 500 }}>
+                          Active — Monthly billing
+                        </span>
+                      )}
+                      {subStatus?.subscription?.cancelAtPeriodEnd && (
+                        <span style={{ fontSize: 13, color: T.warn, fontWeight: 500 }}>
+                          Cancels {new Date(subStatus.subscription.currentPeriodEnd * 1000).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
 
-                  {subStatus?.subscription?.currentPeriodEnd && !subStatus.subscription.cancelAtPeriodEnd && (
-                    <p style={{ fontSize: 13, color: T.textSoft, margin: "0 0 20px" }}>
-                      Next billing date: {new Date(subStatus.subscription.currentPeriodEnd * 1000).toLocaleDateString()}
-                    </p>
-                  )}
+                    {/* Invite access info */}
+                    {subStatus?.accessSource === "invite" && (
+                      <p style={{ fontSize: 13, color: T.textSoft, margin: "0 0 20px", lineHeight: 1.5 }}>
+                        {subStatus.inviteExpiresAt
+                          ? `Your complimentary ${subStatus.tierLabel} access expires on ${new Date(subStatus.inviteExpiresAt).toLocaleDateString()}.`
+                          : `Your complimentary ${subStatus.tierLabel} access has no expiration.`}
+                      </p>
+                    )}
 
-                  <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                    {(subStatus?.tier === "free" || !subStatus?.subscription) ? (
-                      <button onClick={() => navigate("/pricing")} style={{ ...btn(true), fontSize: 13, padding: "10px 24px" }}>
-                        <CreditCard size={14} /> Choose a Plan
-                      </button>
-                    ) : (
-                      <>
-                        <button onClick={handleManageSubscription} disabled={portalLoading} style={{ ...btn(true), fontSize: 13, padding: "10px 24px", opacity: portalLoading ? 0.6 : 1 }}>
-                          {portalLoading ? <Loader size={14} style={{ animation: "spin 1s linear infinite" }} /> : <ExternalLink size={14} />}
-                          {portalLoading ? "Loading..." : "Manage Subscription"}
-                        </button>
+                    {/* Pending downgrade notice */}
+                    {subStatus?.subscription?.pendingDowngrade && (
+                      <div style={{ padding: "10px 14px", marginBottom: 16, background: "rgba(245,158,11,0.06)", border: `1px solid rgba(245,158,11,0.15)`, borderRadius: 10, fontSize: 13, color: T.warn, lineHeight: 1.5 }}>
+                        Your plan will change to {subStatus.subscription.pendingDowngrade.tierLabel} on {new Date(subStatus.subscription.pendingDowngrade.effectiveDate * 1000).toLocaleDateString()}. You'll keep {subStatus.tierLabel} features until then.
+                      </div>
+                    )}
+
+                    {/* Paused subscription notice */}
+                    {subStatus?.subscription?.pausedUntil && (
+                      <div style={{ padding: "10px 14px", marginBottom: 16, background: "rgba(59,130,246,0.06)", border: `1px solid rgba(59,130,246,0.15)`, borderRadius: 10, fontSize: 13, color: T.blue || "#3b82f6", lineHeight: 1.5 }}>
+                        Subscription paused — resumes on {new Date(subStatus.subscription.pausedUntil * 1000).toLocaleDateString()}.
+                      </div>
+                    )}
+
+                    {subStatus?.subscription?.currentPeriodEnd && !subStatus.subscription.cancelAtPeriodEnd && !subStatus.subscription.pausedUntil && subStatus?.accessSource !== "invite" && (
+                      <p style={{ fontSize: 13, color: T.textSoft, margin: "0 0 20px" }}>
+                        Next billing date: {new Date(subStatus.subscription.currentPeriodEnd * 1000).toLocaleDateString()}
+                      </p>
+                    )}
+
+                    <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                      {subStatus?.accessSource === "invite" ? (
                         <button onClick={() => navigate("/pricing")} style={{ ...btn(false), fontSize: 13, padding: "10px 24px" }}>
-                          Change Plan
+                          View Plans
                         </button>
-                      </>
-                    )}
+                      ) : (subStatus?.tier === "free" || !subStatus?.subscription) ? (
+                        <button onClick={() => navigate("/pricing")} style={{ ...btn(true), fontSize: 13, padding: "10px 24px" }}>
+                          <CreditCard size={14} /> Choose a Plan
+                        </button>
+                      ) : (
+                        <>
+                          <button onClick={handleManageSubscription} disabled={portalLoading} style={{ ...btn(true), fontSize: 13, padding: "10px 24px", opacity: portalLoading ? 0.6 : 1 }}>
+                            {portalLoading ? <Loader size={14} style={{ animation: "spin 1s linear infinite" }} /> : <ExternalLink size={14} />}
+                            {portalLoading ? "Loading..." : "Manage Subscription"}
+                          </button>
+                          <button onClick={() => navigate("/pricing")} style={{ ...btn(false), fontSize: 13, padding: "10px 24px" }}>
+                            Change Plan
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
+
+                  {/* Invite code input — visible for free/trial users and invite users */}
+                  {(subStatus?.tier === "free" || !subStatus?.subscription || subStatus?.accessSource === "invite") && (
+                    <div style={{ padding: 24, background: T.card, borderRadius: 16, border: `1px solid ${T.border}` }}>
+                      <h3 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 12px" }}>Have an invite code?</h3>
+                      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                        <input
+                          type="text"
+                          placeholder="Enter code"
+                          value={inviteCode}
+                          onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                          onKeyDown={(e) => e.key === "Enter" && handleRedeemInvite()}
+                          style={{ ...inputStyle, flex: 1, fontFamily: mono, letterSpacing: "0.04em", textTransform: "uppercase" }}
+                        />
+                        <button
+                          onClick={handleRedeemInvite}
+                          disabled={inviteLoading || !inviteCode.trim()}
+                          style={{ ...btn(true), fontSize: 13, padding: "10px 20px", opacity: inviteLoading || !inviteCode.trim() ? 0.6 : 1 }}
+                        >
+                          {inviteLoading ? <Loader size={14} style={{ animation: "spin 1s linear infinite" }} /> : "Redeem"}
+                        </button>
+                      </div>
+                      {inviteResult?.success && (
+                        <p style={{ fontSize: 13, color: T.accent, margin: "10px 0 0", fontWeight: 500 }}>
+                          <Check size={14} style={{ verticalAlign: "middle", marginRight: 4 }} />
+                          {inviteResult.message}
+                        </p>
+                      )}
+                      {inviteResult?.error && (
+                        <p style={{ fontSize: 13, color: T.error || "#ef4444", margin: "10px 0 0", fontWeight: 500 }}>
+                          {inviteResult.error}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}

@@ -1,6 +1,6 @@
 import { verifySession, cors } from "../_lib/auth.js";
 import { supabaseAdmin } from "../_lib/supabase.js";
-import { stripe, TIER_LABELS } from "../_lib/stripe.js";
+import { stripe, TIER_LABELS, tierFromPriceId } from "../_lib/stripe.js";
 
 /**
  * GET /api/payments/status
@@ -16,7 +16,7 @@ export default async function handler(req, res) {
 
   const { data: profile } = await supabaseAdmin
     .from("profiles")
-    .select("subscription_tier, stripe_customer_id, stripe_subscription_id")
+    .select("subscription_tier, stripe_customer_id, stripe_subscription_id, access_source, invite_access_expires_at")
     .eq("id", session.userId)
     .single();
 
@@ -25,6 +25,8 @@ export default async function handler(req, res) {
   const result = {
     tier: profile.subscription_tier || "free",
     tierLabel: TIER_LABELS[profile.subscription_tier || "free"],
+    accessSource: profile.access_source || "stripe",
+    inviteExpiresAt: profile.invite_access_expires_at || null,
     subscription: null,
   };
 
@@ -38,7 +40,25 @@ export default async function handler(req, res) {
         cancelAtPeriodEnd: sub.cancel_at_period_end,
         trialEnd: sub.trial_end,
         interval: sub.items.data[0]?.price?.recurring?.interval, // month or year
+        pausedUntil: sub.pause_collection?.resumes_at || null,
       };
+
+      // Check for pending downgrade
+      if (sub.pending_update) {
+        try {
+          const pendingItems = sub.pending_update.subscription_items;
+          if (pendingItems?.[0]?.price) {
+            const pendingTier = tierFromPriceId(pendingItems[0].price);
+            result.subscription.pendingDowngrade = {
+              tier: pendingTier,
+              tierLabel: TIER_LABELS[pendingTier],
+              effectiveDate: sub.current_period_end,
+            };
+          }
+        } catch {
+          // pending_update format may vary — ignore errors
+        }
+      }
     } catch {
       // Subscription may have been deleted — treat as free
       result.subscription = null;

@@ -3,11 +3,12 @@ import { Lock, ArrowRight } from "lucide-react";
 import { T, font, mono } from "../theme/tokens";
 import { useAuth } from "../context/AuthContext";
 import { hasFeature, requiredTier, FEATURE_LABELS } from "../lib/entitlements";
+import { PAYMENTS_ENABLED } from "../lib/featureFlags";
 
 const TIER_PRICES = {
-  starter: { monthly: 19, annual: 15 },
-  pro: { monthly: 49, annual: 39 },
-  elite: { monthly: 99, annual: 79 },
+  starter: 19,
+  pro: 49,
+  elite: 99,
 };
 
 /**
@@ -22,6 +23,9 @@ export default function PaywallGate({ feature, children, blur = true }) {
   const { profile } = useAuth();
   const navigate = useNavigate();
   const userTier = profile?.subscription_tier || "free";
+
+  // During closed beta, everything is unlocked
+  if (!PAYMENTS_ENABLED) return children;
 
   if (hasFeature(userTier, feature)) {
     return children;
@@ -83,7 +87,7 @@ export default function PaywallGate({ feature, children, blur = true }) {
           maxWidth: 320,
         }}>
           {label} is available on the {needed.charAt(0).toUpperCase() + needed.slice(1)} plan
-          {price ? ` starting at $${price.annual}/mo` : ""}.
+          {price ? ` starting at $${price}/mo` : ""}.
         </p>
         <button
           onClick={() => navigate("/pricing")}

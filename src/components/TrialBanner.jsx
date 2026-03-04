@@ -4,6 +4,7 @@ import { Zap, X, ArrowRight } from "lucide-react";
 import { T, font } from "../theme/tokens";
 import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "../lib/api";
+import { PAYMENTS_ENABLED } from "../lib/featureFlags";
 
 /**
  * TrialBanner — persistent banner during free trial period.
@@ -32,7 +33,7 @@ export default function TrialBanner() {
     return () => { cancelled = true; };
   }, []);
 
-  if (!loaded || dismissed) return null;
+  if (!PAYMENTS_ENABLED || !loaded || dismissed) return null;
 
   const tier = profile?.subscription_tier || "free";
   const sub = subscription?.subscription;
