@@ -11,9 +11,9 @@ vi.mock("stripe", () => ({ default: MockStripe }));
 
 // Set env vars before import
 process.env.STRIPE_SECRET_KEY = "sk_test_fake";
-process.env.STRIPE_PRICE_STARTER = "price_starter";
-process.env.STRIPE_PRICE_PRO = "price_pro";
-process.env.STRIPE_PRICE_ELITE = "price_elite";
+process.env.STRIPE_PRICE_STARTER_MONTHLY = "price_starter";
+process.env.STRIPE_PRICE_PRO_MONTHLY = "price_pro";
+process.env.STRIPE_PRICE_ELITE_MONTHLY = "price_elite";
 
 const { tierFromPriceId, PRICE_IDS, TIER_ORDER, TIER_LABELS, findOrCreateCustomer } = await import("./stripe.js");
 

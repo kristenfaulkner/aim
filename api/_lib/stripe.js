@@ -7,9 +7,9 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
  * Price IDs are configured in env vars from Stripe Dashboard.
  */
 export const PRICE_IDS = {
-  starter: process.env.STRIPE_PRICE_STARTER,
-  pro: process.env.STRIPE_PRICE_PRO,
-  elite: process.env.STRIPE_PRICE_ELITE,
+  starter: process.env.STRIPE_PRICE_STARTER_MONTHLY,
+  pro: process.env.STRIPE_PRICE_PRO_MONTHLY,
+  elite: process.env.STRIPE_PRICE_ELITE_MONTHLY,
 };
 
 /**

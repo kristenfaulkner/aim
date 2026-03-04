@@ -7,7 +7,6 @@
  * 2. Finalize mode: { finalize: true, csvData?, metricsCsvData?, stats? } — CSV enrichment + wrap-up
  * 3. Legacy mode: { zipPath, csvData?, metricsCsvData? } — ZIP via Supabase Storage (backward compat)
  */
-import AdmZip from "adm-zip";
 import { parse as csvParse } from "csv-parse/sync";
 import { parseFitFile } from "../../_lib/fit.js";
 import { parseTcxFile } from "../../_lib/tcx.js";
@@ -17,20 +16,19 @@ import { updateDailyMetrics, updatePowerProfile } from "../../_lib/training-load
 import { supabaseAdmin } from "../../_lib/supabase.js";
 import { verifySession, cors } from "../../_lib/auth.js";
 import { isHigherPriority } from "../../_lib/source-priority.js";
-import { backfillUserMetrics } from "../../_lib/backfill.js";
 import { buildLapsPayload } from "../../_lib/intervals.js";
-import { resolveActivityTimezone } from "../../_lib/timezone.js";
 import { detectAllTags, persistTags } from "../../_lib/tags.js";
-import { fetchActivityWeather, extractLocationFromActivity } from "../../_lib/weather-enrich.js";
-import { analyzeActivity } from "../../_lib/ai.js";
+
+// Heavy modules lazy-loaded to reduce cold start memory:
+// - ai.js (imports @anthropic-ai/sdk + 8 analysis libs) — only used fire-and-forget
+// - timezone.js (imports geo-tz, 69MB geojson data) — only used for new activities
+// - weather-enrich.js — only used fire-and-forget
+// - backfill.js — only used fire-and-forget in finalize
+// - adm-zip — only used in legacy mode
 
 export const config = {
   maxDuration: 300, // 5 minutes for large imports
-  api: {
-    bodyParser: {
-      sizeLimit: "50mb", // batch files + CSVs sent as base64
-    },
-  },
+  memory: 3009, // max Pro plan memory for heavy import chain
 };
 
 export default async function handler(req, res) {
@@ -165,8 +163,10 @@ async function handleFinalize(res, session, csvData, metricsCsvData, stats) {
     },
   }, { onConflict: "user_id,provider" });
 
-  // Backfill derived metrics (fire-and-forget)
-  backfillUserMetrics(session.userId).catch(err =>
+  // Backfill derived metrics (fire-and-forget, lazy-loaded)
+  import("../../_lib/backfill.js").then(({ backfillUserMetrics }) =>
+    backfillUserMetrics(session.userId)
+  ).catch(err =>
     console.error(`Backfill after TP import failed:`, err.message)
   );
 
@@ -189,6 +189,7 @@ async function handleZipImport(res, session, zipPath, csvData, metricsCsvData) {
   }
 
   const zipBuffer = Buffer.from(await zipBlob.arrayBuffer());
+  const AdmZip = (await import("adm-zip")).default;
   const zip = new AdmZip(zipBuffer);
   const entries = zip.getEntries().filter(e => {
     if (e.isDirectory) return false;
@@ -273,8 +274,10 @@ async function handleZipImport(res, session, zipPath, csvData, metricsCsvData) {
   // Clean up uploaded ZIP from storage
   await supabaseAdmin.storage.from("import-files").remove([zipPath]).catch(() => {});
 
-  // Backfill derived metrics (fire-and-forget)
-  backfillUserMetrics(session.userId).catch(err =>
+  // Backfill derived metrics (fire-and-forget, lazy-loaded)
+  import("../../_lib/backfill.js").then(({ backfillUserMetrics }) =>
+    backfillUserMetrics(session.userId)
+  ).catch(err =>
     console.error(`Backfill after TP import failed:`, err.message)
   );
 
@@ -444,8 +447,10 @@ async function processEntries(session, entries, csvRows, profile, existing) {
           await updatePowerProfile(session.userId, metrics.power_curve, weightKg);
         }
 
-        // Re-analyze with enriched TP metrics (fire-and-forget)
-        analyzeActivity(session.userId, duplicate.id).catch(err =>
+        // Re-analyze with enriched TP metrics (fire-and-forget, lazy-loaded)
+        import("../../_lib/ai.js").then(({ analyzeActivity }) =>
+          analyzeActivity(session.userId, duplicate.id)
+        ).catch(err =>
           console.error(`AI re-analysis failed for TP upgrade ${duplicate.id}:`, err.message)
         );
 
@@ -481,8 +486,10 @@ async function processEntries(session, entries, csvRows, profile, existing) {
           .update(mergeData)
           .eq("id", duplicate.id);
 
-        // Re-analyze with new coach notes / metadata (fire-and-forget)
-        analyzeActivity(session.userId, duplicate.id).catch(err =>
+        // Re-analyze with new coach notes / metadata (fire-and-forget, lazy-loaded)
+        import("../../_lib/ai.js").then(({ analyzeActivity }) =>
+          analyzeActivity(session.userId, duplicate.id)
+        ).catch(err =>
           console.error(`AI re-analysis failed for TP enrich ${duplicate.id}:`, err.message)
         );
 
@@ -490,10 +497,16 @@ async function processEntries(session, entries, csvRows, profile, existing) {
         continue;
       }
 
-      // Resolve timezone from GPS
-      const tz = resolveActivityTimezone(
-        metadata.started_at, metadata.start_lat, metadata.start_lng, profileTimezone
-      );
+      // Resolve timezone from GPS (lazy-load geo-tz to avoid 69MB cold start)
+      let tz = { timezone_iana: profileTimezone, start_time_local: metadata.started_at };
+      try {
+        const { resolveActivityTimezone } = await import("../../_lib/timezone.js");
+        tz = resolveActivityTimezone(
+          metadata.started_at, metadata.start_lat, metadata.start_lng, profileTimezone
+        );
+      } catch (tzErr) {
+        console.error(`Timezone resolution failed, using profile fallback:`, tzErr.message);
+      }
 
       // Build new activity record
       const record = {
@@ -572,10 +585,11 @@ async function processEntries(session, entries, csvRows, profile, existing) {
 
       results.imported++;
 
-      // Fire-and-forget: tag detection + weather enrichment
+      // Fire-and-forget: tag detection + weather enrichment (weather lazy-loaded)
       if (upserted?.id) {
         (async () => {
           try {
+            const { fetchActivityWeather, extractLocationFromActivity } = await import("../../_lib/weather-enrich.js");
             const location = extractLocationFromActivity(record);
             if (location && record.started_at) {
               try {
@@ -597,9 +611,11 @@ async function processEntries(session, entries, csvRows, profile, existing) {
         })();
       }
 
-      // Fire-and-forget: AI analysis (runs after weather/tags so context is richer)
+      // Fire-and-forget: AI analysis (lazy-loaded)
       if (upserted?.id) {
-        analyzeActivity(session.userId, upserted.id).catch(err =>
+        import("../../_lib/ai.js").then(({ analyzeActivity }) =>
+          analyzeActivity(session.userId, upserted.id)
+        ).catch(err =>
           console.error(`AI analysis failed for TP import ${upserted.id}:`, err.message)
         );
       }

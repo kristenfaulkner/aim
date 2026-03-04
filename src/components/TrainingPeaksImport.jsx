@@ -12,7 +12,7 @@ import { useResponsive } from "../hooks/useResponsive";
 
 const MAX_ZIP_MB = 2000; // Effectively unlimited — ZIP is extracted client-side
 const MAX_CSV_MB = 10;
-const MAX_BATCH_BYTES = 3 * 1024 * 1024; // 3MB raw per batch (~4MB base64, under Vercel's 4.5MB payload limit)
+const MAX_BATCH_BASE64 = 3.5 * 1024 * 1024; // 3.5MB base64 per batch — total JSON body ~3.6MB, under Vercel's 4.5MB limit
 const WORKOUT_EXTENSIONS = /\.(fit|fit\.gz|gz|tcx|tcx\.gz|gpx|gpx\.gz)$/i;
 
 export default function TrainingPeaksImport({ onClose, onComplete }) {
@@ -107,22 +107,24 @@ export default function TrainingPeaksImport({ onClose, onComplete }) {
         setFileProgress({ current: 0, total: totalFiles });
         setProgress(`Extracting ${totalFiles} workout files...`);
 
-        // Group files into batches by size
+        // Group files into batches by base64 size (what actually gets sent)
         const batches = [];
         let currentBatch = [];
         let currentSize = 0;
 
         for (const { name, entry } of workoutEntries) {
           const data = await entry.async("base64");
-          const rawSize = Math.ceil(data.length * 0.75); // approximate decoded size
+          const b64Size = data.length;
 
-          if (currentSize + rawSize > MAX_BATCH_BYTES && currentBatch.length > 0) {
+          // If adding this file would exceed batch limit AND batch isn't empty, start a new batch
+          if (currentSize + b64Size > MAX_BATCH_BASE64 && currentBatch.length > 0) {
             batches.push(currentBatch);
             currentBatch = [];
             currentSize = 0;
           }
+          // If a single file exceeds the batch limit, send it alone (Vercel will handle up to 4.5MB)
           currentBatch.push({ name, data });
-          currentSize += rawSize;
+          currentSize += b64Size;
         }
         if (currentBatch.length > 0) batches.push(currentBatch);
 
