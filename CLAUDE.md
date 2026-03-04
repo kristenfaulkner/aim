@@ -351,6 +351,7 @@ See `docs/build-status.md` for the full detailed log. Summary of what's built:
 
 #### P5 — Polish & Infrastructure
 15. **Onboarding improvements** — reduce friction, improve data connection guidance
+22. **Demo video** — create a product demo video for the landing page (re-add "Watch Demo" button once video is ready)
 16. **Mascot design & integration** — brand mascot for UI (loading states, empty states, AI chat)
 17. **Twilio toll-free verification** — update opt-in proof URL to `https://aimfitness.ai`
 18. **Apple OAuth** — configure in Apple Developer + Supabase

@@ -315,7 +315,6 @@ export default function Landing() {
           </p>
           <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "center", gap: isMobile ? 12 : 16 }}>
             <button onClick={() => navigate(user ? "/dashboard" : "/signup")} style={{ ...btn(true), fontSize: isMobile ? 15 : 16, padding: isMobile ? "14px 24px" : "16px 36px", justifyContent: "center" }}>{user ? "Go to Dashboard" : "Start Your Free Trial"} <ArrowRight size={18} /></button>
-            <button style={{ ...btn(false), fontSize: isMobile ? 15 : 16, padding: isMobile ? "14px 24px" : "16px 36px", justifyContent: "center" }}>Watch Demo</button>
           </div>
           <div style={{ marginTop: isMobile ? 32 : 48, display: "flex", flexWrap: "wrap", justifyContent: "center", gap: isMobile ? "8px 20px" : 32, alignItems: "center" }}>
             {["Strava", "Wahoo", "Garmin", "Oura", "Whoop", "Withings"].map(n => (
