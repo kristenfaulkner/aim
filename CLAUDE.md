@@ -113,6 +113,9 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 - `checkin/` — daily subjective check-in: submit (POST, upserts life_stress/motivation/soreness/mood to daily_metrics), status (GET, today's check-in or null)
 - `cross-training/` — non-cycling activity logger: log (POST, computes recovery_impact + estimated_tss), list (GET, recent entries with ?days=N filter)
 - `dashboard/intelligence.js` — adaptive AI dashboard: 3 modes (POST_RIDE/PRE_RIDE_PLANNED/DAILY_COACH), returns structured action items + insights
+- `races/` — race management: parse (AI natural language → structured races), upsert, list, detail, analyze (AI demands vs athlete profile), training-plan (generate), protocol (generate/update race-day checklist), weather (fetch/refresh)
+- `segments/` — Strava segment comparison: list, detail with all efforts + adjusted scores, compare (side-by-side), sync (re-import from Strava)
+- `profile/` — progressive profiling: question (save answer), next-question (context-aware next unanswered)
 
 **API pattern**: Every endpoint calls `cors(res)`, checks `req.method`, calls `verifySession(req)` for auth, returns `{ error: "message" }` on failure.
 
@@ -124,7 +127,7 @@ See `docs/data-flows.md` for detailed pipeline documentation (Strava sync, Train
 
 ### Database (Supabase)
 
-Core tables (16): `profiles`, `integrations`, `activities`, `daily_metrics`, `power_profiles`, `blood_panels`, `dexa_scans`, `user_settings`, `ai_conversations`, `ai_messages`, `training_calendar`, `working_goals`, `nutrition_logs`, `travel_events`, `cross_training_log`, `ai_feedback`
+Core tables (21): `profiles`, `integrations`, `activities`, `daily_metrics`, `power_profiles`, `blood_panels`, `dexa_scans`, `user_settings`, `ai_conversations`, `ai_messages`, `training_calendar`, `working_goals`, `nutrition_logs`, `travel_events`, `cross_training_log`, `ai_feedback`, `hr_source_config`, `races`, `athlete_profile_questions`, `segments`, `segment_efforts`
 
 - All tables reference `profiles.id` (UUID from Supabase Auth) with CASCADE delete
 - RLS policies scope all client-side queries to the authenticated user
@@ -307,19 +310,24 @@ See `docs/build-status.md` for the full detailed log. Summary of what's built:
 5. **Similar Session Finder & Comparison** — auto-find comparable past rides, side-by-side metrics, AI explains what changed using cross-domain data. *[Task 47]*
 6. **Training prescription engine** — workout recommendations from power profile gaps and CP/W' weaknesses
 
-#### P2 — Integrations & Data Sources
+#### P2 — New Features (detailed specs in `AIM-FEATURE-SPECS-BATCH-1.md`)
+27. **HR Source Prioritization Engine** — 3-context priority system (exercise/sleep/resting HR), smart defaults based on device accuracy research, power user overrides in Settings, source badge on all HR metrics, `hr_source_config` table, extends existing `source-priority.js` pattern. Foundational — build first. *[AIM-FEATURE-SPECS-BATCH-1.md → Feature 1]*
+28. **Calendar + Race Intelligence + AI Race Strategist** — Full calendar view (month/week/list) showing activities + planned workouts + races. AI natural language race parser ("I'm racing Amstel Gold and Liège" → structured race data with auto gender/edition resolution). Dedicated Race Hub page per race with AI demands analysis, gap identification vs athlete's power profile, weather forecasting (Open-Meteo, updating on schedule as race approaches), training plan generator (two modes: detailed day-by-day OR weekly focus guidance), race-day protocol builder with booster integration (links to existing Boosters library, safety disclaimers, "have you tried this before?" flow, test-in-training recommendations). Progressive profiling sidebar (contextual questions, max 1/session). Dashboard countdown widget. `races` and `athlete_profile_questions` tables. 5 implementation phases. *[AIM-FEATURE-SPECS-BATCH-1.md → Feature 2]*
+29. **Segment Comparison with Cross-Domain Adjusted Performance** — Import Strava segments during activity sync, compare efforts across multiple attempts with AI-powered adjusted performance scoring. Reuses existing conditional performance models (heat penalty, sleep→execution, HRV readiness, fatigue) as adjustment factors. Both cycling (power:HR) and running (pace:HR) from day one. Source badge integration from Feature 1. New AI insight Category 23 (Segment Performance Analysis). `segments` and `segment_efforts` tables with denormalized context. 5 implementation phases. *[AIM-FEATURE-SPECS-BATCH-1.md → Feature 3]*
+
+#### P3 — Integrations & Data Sources
 7. ~~**Garmin Connect** — sync logic~~ — scaffolding complete (OAuth 1.0a, webhook, sync, data mappers, 24 tests). Waiting for API keys from Garmin approval.
 8. ~~**Oura / Whoop / Withings** — sync logic~~ — ✅ DONE (full sync + 365-day backfill + hourly cron for all 3)
 9. **Remaining Tier 3 integrations** — Apple Health, Supersapiens/Lingo, MyFitnessPal, Cronometer, TrainerRoad, Intervals.icu, Zwift, Hammerhead, Hexis, Noom
 
-#### P3 — Platform & Business
+#### P4 — Platform & Business
 10. **Stripe payments** — 3-tier subscription + feature gating
 11. **Coach Platform & Multi-Athlete Management** — coach dashboard, athlete invitations, granular permissions. *[Task 48]*
 12. **Historical Performance Timeline (5-Year)** — long-range metrics, season summaries, year-over-year overlays. *[Task 50]*
 13. **Torque Analysis** — calculate from power+cadence streams, fatigue-induced torque shifts. *[Task 45]*
 14. **Menstrual cycle intelligence** — Oura temperature-based phase detection, cycle-aware training recommendations
 
-#### P4 — Polish & Infrastructure
+#### P5 — Polish & Infrastructure
 15. **Onboarding improvements** — reduce friction, improve data connection guidance
 16. **Mascot design & integration** — brand mascot for UI (loading states, empty states, AI chat)
 17. **Twilio toll-free verification** — update opt-in proof URL to `https://aimfitness.ai`
@@ -404,6 +412,9 @@ Detailed specifications archived in `docs/`:
 
 Design bible & specifications:
 - `docs/AIM-DESIGN-BIBLE.md` — **comprehensive design reference**: brand identity, design tokens, layout patterns, component library, page-by-page specs, unbuilt feature designs, accessibility guidelines. **MUST be referenced before building any new UI feature or page.**
+
+Feature specifications:
+- `AIM-FEATURE-SPECS-BATCH-1.md` — Detailed specs for: HR Source Prioritization Engine, Calendar + Race Intelligence + AI Race Strategist, Segment Comparison with Cross-Domain Adjusted Performance. Read the relevant feature section fully before building any of these.
 
 Dashboard design specifications:
 - `AIM-ADAPTIVE-DASHBOARD-SPEC.md` — 3 dashboard modes (POST_RIDE/PRE_RIDE_PLANNED/DAILY_COACH), AI prompt templates, weather integration, fueling intelligence

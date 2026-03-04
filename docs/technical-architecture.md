@@ -1304,6 +1304,141 @@ ALTER TABLE activities ADD COLUMN IF NOT EXISTS perceived_recovery_pre SMALLINT 
 -- Cross-training log table (see Core Tables section for full CREATE TABLE)
 ```
 
+```sql
+-- ============================================================
+-- NEW FEATURES (Batch 1) — See AIM-FEATURE-SPECS-BATCH-1.md
+-- ============================================================
+
+-- HR Source Priority Configuration (Feature 1)
+CREATE TABLE hr_source_config (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  context TEXT NOT NULL CHECK (context IN ('exercise', 'sleep', 'resting')),
+  provider_priority TEXT[] NOT NULL,
+  is_custom BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, context)
+);
+
+-- HR source tracking on existing tables (Feature 1)
+-- ALTER TABLE activities ADD COLUMN IF NOT EXISTS hr_source TEXT;
+-- ALTER TABLE activities ADD COLUMN IF NOT EXISTS hr_source_confidence TEXT DEFAULT 'high';
+-- ALTER TABLE daily_metrics ADD COLUMN IF NOT EXISTS rhr_source TEXT;
+-- ALTER TABLE daily_metrics ADD COLUMN IF NOT EXISTS sleep_hr_source TEXT;
+-- ALTER TABLE daily_metrics ADD COLUMN IF NOT EXISTS hrv_source TEXT;
+
+-- Races (Feature 2)
+CREATE TABLE races (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  race_name TEXT NOT NULL,
+  race_name_official TEXT,
+  race_date DATE NOT NULL,
+  race_end_date DATE,
+  race_type TEXT,
+  race_series TEXT,
+  priority TEXT DEFAULT 'B' CHECK (priority IN ('A', 'B', 'C')),
+  distance_km NUMERIC,
+  elevation_gain_m NUMERIC,
+  race_profile TEXT,
+  key_demands TEXT[],
+  course_description TEXT,
+  location_city TEXT,
+  location_country TEXT,
+  location_lat NUMERIC,
+  location_lng NUMERIC,
+  weather_forecast JSONB,
+  weather_historical_avg JSONB,
+  ai_race_analysis JSONB,
+  ai_analysis_generated_at TIMESTAMPTZ,
+  training_plan_type TEXT,
+  training_plan JSONB,
+  training_plan_generated_at TIMESTAMPTZ,
+  race_day_protocol JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_races_user_date ON races(user_id, race_date);
+
+-- Progressive Profiling (Feature 2)
+CREATE TABLE athlete_profile_questions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  question_key TEXT NOT NULL,
+  answer JSONB NOT NULL,
+  asked_at TIMESTAMPTZ DEFAULT NOW(),
+  answered_at TIMESTAMPTZ,
+  source TEXT DEFAULT 'sidebar',
+  UNIQUE(user_id, question_key)
+);
+
+-- Strava Segments (Feature 3)
+CREATE TABLE segments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  strava_segment_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  sport TEXT NOT NULL CHECK (sport IN ('cycling', 'running')),
+  distance_m NUMERIC,
+  average_grade_pct NUMERIC,
+  maximum_grade_pct NUMERIC,
+  elevation_gain_m NUMERIC,
+  start_lat NUMERIC,
+  start_lng NUMERIC,
+  end_lat NUMERIC,
+  end_lng NUMERIC,
+  climb_category INTEGER,
+  city TEXT,
+  state TEXT,
+  country TEXT,
+  polyline TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, strava_segment_id)
+);
+CREATE INDEX idx_segments_user ON segments(user_id);
+
+-- Segment Efforts (Feature 3)
+CREATE TABLE segment_efforts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  segment_id UUID REFERENCES segments(id) ON DELETE CASCADE,
+  activity_id UUID REFERENCES activities(id) ON DELETE CASCADE,
+  strava_effort_id TEXT,
+  started_at TIMESTAMPTZ NOT NULL,
+  elapsed_time_seconds INTEGER NOT NULL,
+  moving_time_seconds INTEGER,
+  avg_power_watts NUMERIC,
+  normalized_power_watts NUMERIC,
+  avg_hr_bpm NUMERIC,
+  max_hr_bpm NUMERIC,
+  avg_cadence_rpm NUMERIC,
+  avg_speed_mps NUMERIC,
+  avg_pace_min_km NUMERIC,
+  efficiency_factor NUMERIC,
+  pace_hr_ratio NUMERIC,
+  power_hr_ratio NUMERIC,
+  temperature_c NUMERIC,
+  humidity_pct NUMERIC,
+  wind_speed_mps NUMERIC,
+  wind_direction_deg NUMERIC,
+  hrv_morning_ms NUMERIC,
+  rhr_morning_bpm NUMERIC,
+  sleep_score INTEGER,
+  sleep_duration_seconds INTEGER,
+  ctl NUMERIC,
+  atl NUMERIC,
+  tsb NUMERIC,
+  hr_source TEXT,
+  adjusted_score NUMERIC,
+  ai_comparison_notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, strava_effort_id)
+);
+CREATE INDEX idx_segment_efforts_segment ON segment_efforts(segment_id, started_at DESC);
+CREATE INDEX idx_segment_efforts_user ON segment_efforts(user_id, started_at DESC);
+```
+
 ### `activities.laps` JSONB Structure
 
 The `laps` column already exists (migration 001) but is currently unpopulated. Structure:
