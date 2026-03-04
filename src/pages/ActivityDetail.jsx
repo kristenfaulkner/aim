@@ -16,6 +16,8 @@ import WbalChart from "../components/WbalChart.jsx";
 import { useWbalData } from "../hooks/useWbalData.js";
 import SimilarSessionsPanel from "../components/SimilarSessionsPanel.jsx";
 import { useSimilarSessions } from "../hooks/useSimilarSessions.js";
+import SegmentComparisonPanel from "../components/SegmentComparisonPanel.jsx";
+import { useSegmentEfforts } from "../hooks/useSegmentEfforts.js";
 import SourceBadge from "../components/SourceBadge";
 
 function formatDuration(seconds) {
@@ -867,6 +869,7 @@ export default function ActivityDetail() {
   const { units } = usePreferences();
   const { data: wbalData, loading: wbalLoading } = useWbalData(id);
   const { data: similarData, loading: similarLoading } = useSimilarSessions(id);
+  const { data: segmentData, loading: segmentsLoading } = useSegmentEfforts(id);
   const handleSignout = async () => { await signout(); navigate("/"); };
 
   const fetchActivity = useCallback(async () => {
@@ -1196,6 +1199,11 @@ export default function ActivityDetail() {
 
             {/* Planned vs Actual */}
             <PlannedVsActual data={a.planned_vs_actual} isMobile={isMobile} />
+
+            {/* Segments */}
+            {(segmentData || segmentsLoading) && (
+              <SegmentComparisonPanel data={segmentData} loading={segmentsLoading} isMobile={isMobile} />
+            )}
 
             {/* Similar Sessions */}
             {(similarData || similarLoading) && (

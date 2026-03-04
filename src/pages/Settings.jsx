@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { T, font, mono } from "../theme/tokens";
 import { btn, inputStyle } from "../theme/styles";
 import { useAuth } from "../context/AuthContext";
 import { usePreferences } from "../context/PreferencesContext";
 import { useResponsive } from "../hooks/useResponsive";
 import { supabase } from "../lib/supabase";
-import { User, Bell, Ruler, Palette, LogOut, MessageSquare, Check, Loader, Shield, Download, Trash2, AlertTriangle, Menu, X, Mail, Lock, Settings as SettingsIcon, Globe, RefreshCw, Activity, ChevronUp, ChevronDown, RotateCcw } from "lucide-react";
+import { User, Bell, Ruler, Palette, LogOut, MessageSquare, Check, Loader, Shield, Download, Trash2, AlertTriangle, Menu, X, Mail, Lock, Settings as SettingsIcon, Globe, RefreshCw, Activity, ChevronUp, ChevronDown, RotateCcw, CreditCard, ExternalLink } from "lucide-react";
 import { apiFetch } from "../lib/api";
 
 const COMMON_TIMEZONES = [
@@ -38,12 +38,20 @@ function toE164(value) {
 
 export default function Settings() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, profile, signout, updateProfile, resetPassword } = useAuth();
   const { units, setUnits } = usePreferences();
   const { isMobile, isTablet } = useResponsive();
-  const [activeTab, setActiveTab] = useState("units");
+  const initialTab = searchParams.get("tab") || "units";
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+  // Subscription state
+  const [subStatus, setSubStatus] = useState(null);
+  const [subLoading, setSubLoading] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const checkoutSuccess = searchParams.get("checkout") === "success";
 
   // Preferences form state
   const [timezone, setTimezone] = useState("");
@@ -125,7 +133,25 @@ export default function Settings() {
       } catch (e) { /* ignore — feature may not be deployed yet */ }
     }
     loadPrefs();
+    // Load subscription status
+    if (user) {
+      setSubLoading(true);
+      apiFetch("/payments/status")
+        .then(data => setSubStatus(data))
+        .catch(() => {})
+        .finally(() => setSubLoading(false));
+    }
   }, [profile, user]);
+
+  const handleManageSubscription = async () => {
+    setPortalLoading(true);
+    try {
+      const { url } = await apiFetch("/payments/portal", { method: "POST", body: JSON.stringify({}) });
+      window.location.href = url;
+    } catch {
+      setPortalLoading(false);
+    }
+  };
 
   const handlePasswordReset = async () => {
     setResetSending(true);
@@ -205,6 +231,7 @@ export default function Settings() {
     { id: "preferences", label: "Preferences", icon: <Globe size={16} /> },
     { id: "datasources", label: "Data Sources", icon: <Activity size={16} /> },
     { id: "notifications", label: "Notifications", icon: <Bell size={16} /> },
+    { id: "subscription", label: "Subscription", icon: <CreditCard size={16} /> },
     { id: "password", label: "Password", icon: <Lock size={16} /> },
     { id: "appearance", label: "Appearance", icon: <Palette size={16} /> },
     { id: "account", label: "Account & Data", icon: <Shield size={16} /> },
@@ -718,6 +745,87 @@ export default function Settings() {
                   {resetSending ? "Sending..." : resetSent ? "Reset Link Sent" : "Send Password Reset Email"}
                 </button>
               </div>
+            </div>
+          )}
+
+          {activeTab === "subscription" && (
+            <div>
+              <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 8px", letterSpacing: "-0.02em" }}>Subscription</h2>
+              <p style={{ fontSize: 14, color: T.textSoft, margin: "0 0 32px" }}>Manage your plan and billing.</p>
+
+              {checkoutSuccess && (
+                <div style={{ padding: "12px 16px", marginBottom: 20, background: T.accentDim, border: `1px solid ${T.accentMid}`, borderRadius: 12, display: "flex", alignItems: "center", gap: 10, fontSize: 14, color: T.accent, fontWeight: 600 }}>
+                  <Check size={16} /> Subscription activated successfully!
+                </div>
+              )}
+
+              {subLoading ? (
+                <div style={{ padding: 40, textAlign: "center" }}>
+                  <Loader size={20} color={T.accent} style={{ animation: "spin 1s linear infinite" }} />
+                </div>
+              ) : (
+                <div style={{ padding: 24, background: T.card, borderRadius: 16, border: `1px solid ${T.border}`, marginBottom: 24 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+                    <CreditCard size={18} color={T.accent} />
+                    <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Current Plan</h3>
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+                    <span style={{
+                      padding: "6px 16px",
+                      borderRadius: 8,
+                      fontSize: 14,
+                      fontWeight: 700,
+                      fontFamily: font,
+                      background: (subStatus?.tier || "free") === "free" ? T.surface : T.accentDim,
+                      color: (subStatus?.tier || "free") === "free" ? T.textSoft : T.accent,
+                      border: `1px solid ${(subStatus?.tier || "free") === "free" ? T.border : T.accentMid}`,
+                      textTransform: "capitalize",
+                    }}>
+                      {subStatus?.tierLabel || "Free"}
+                    </span>
+                    {subStatus?.subscription?.status === "trialing" && subStatus.subscription.trialEnd && (
+                      <span style={{ fontSize: 13, color: T.warn, fontWeight: 500 }}>
+                        Trial ends {new Date(subStatus.subscription.trialEnd * 1000).toLocaleDateString()}
+                      </span>
+                    )}
+                    {subStatus?.subscription?.status === "active" && (
+                      <span style={{ fontSize: 13, color: T.accent, fontWeight: 500 }}>
+                        Active — {subStatus.subscription.interval === "year" ? "Annual" : "Monthly"} billing
+                      </span>
+                    )}
+                    {subStatus?.subscription?.cancelAtPeriodEnd && (
+                      <span style={{ fontSize: 13, color: T.warn, fontWeight: 500 }}>
+                        Cancels {new Date(subStatus.subscription.currentPeriodEnd * 1000).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+
+                  {subStatus?.subscription?.currentPeriodEnd && !subStatus.subscription.cancelAtPeriodEnd && (
+                    <p style={{ fontSize: 13, color: T.textSoft, margin: "0 0 20px" }}>
+                      Next billing date: {new Date(subStatus.subscription.currentPeriodEnd * 1000).toLocaleDateString()}
+                    </p>
+                  )}
+
+                  <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                    {(subStatus?.tier === "free" || !subStatus?.subscription) ? (
+                      <button onClick={() => navigate("/pricing")} style={{ ...btn(true), fontSize: 13, padding: "10px 24px" }}>
+                        <CreditCard size={14} /> Choose a Plan
+                      </button>
+                    ) : (
+                      <>
+                        <button onClick={handleManageSubscription} disabled={portalLoading} style={{ ...btn(true), fontSize: 13, padding: "10px 24px", opacity: portalLoading ? 0.6 : 1 }}>
+                          {portalLoading ? <Loader size={14} style={{ animation: "spin 1s linear infinite" }} /> : <ExternalLink size={14} />}
+                          {portalLoading ? "Loading..." : "Manage Subscription"}
+                        </button>
+                        <button onClick={() => navigate("/pricing")} style={{ ...btn(false), fontSize: 13, padding: "10px 24px" }}>
+                          Change Plan
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

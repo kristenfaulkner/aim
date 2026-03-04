@@ -24,6 +24,7 @@ import TravelStatusCard from "../components/dashboard/TravelStatusCard";
 import CheckInModal, { CheckInSummaryCard } from "../components/dashboard/CheckInModal";
 import CrossTrainingLogger from "../components/dashboard/CrossTrainingLogger";
 import PrescriptionCard from "../components/dashboard/PrescriptionCard";
+import TrialBanner from "../components/TrialBanner";
 import { usePrescription } from "../hooks/usePrescription";
 
 // ── HELPERS ──
@@ -475,6 +476,7 @@ export default function Dashboard() {
   return (
     <div style={{ minHeight: "100vh", background: T.bg, color: T.text, fontFamily: font }}>
       <NavBar profile={profile} isMobile={isMobile} menuOpen={menuOpen} setMenuOpen={setMenuOpen} userMenuOpen={userMenuOpen} setUserMenuOpen={setUserMenuOpen} onSignout={handleSignout} navigate={navigate} />
+      <TrialBanner />
 
       <div style={{ maxWidth: 1400, margin: "0 auto", padding: isMobile ? 16 : "20px 24px" }}>
         {/* Header */}

@@ -19,6 +19,7 @@ import ActivityDetail from "./pages/ActivityDetail";
 import Activities from "./pages/Activities";
 import WorkoutDatabase from "./pages/WorkoutDatabase";
 import MyStats from "./pages/MyStats";
+import Pricing from "./pages/Pricing";
 import ResetPassword from "./pages/ResetPassword";
 import AcceptTerms from "./pages/AcceptTerms";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -45,6 +46,7 @@ export default function App() {
       <Route path="/health-lab" element={<ProtectedRoute><HealthLab /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+      <Route path="/pricing" element={<Pricing />} />
       <Route path="/contact" element={<Contact />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/terms" element={<Terms />} />

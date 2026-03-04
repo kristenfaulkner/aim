@@ -485,7 +485,7 @@ export default function Landing() {
                     <span style={{ fontSize: 14, color: T.textDim }}>/mo</span>
                   </div>
                   {billingCycle === "annual" ? <p style={{ fontSize: 12, color: T.accent, margin: "0 0 20px" }}>Billed ${price * 12}/year (save ${(plan.monthlyPrice - plan.annualPrice) * 12}/yr)</p> : <div style={{ height: 20, marginBottom: 20 }} />}
-                  <button onClick={() => navigate(user ? "/dashboard" : "/signup")} style={{ ...btn(isPro), width: "100%", justifyContent: "center", marginBottom: 24, fontSize: 14, padding: "13px 24px" }}>{user ? "Go to Dashboard" : plan.cta} <ArrowRight size={16} /></button>
+                  <button onClick={() => navigate(user ? "/pricing" : "/signup")} style={{ ...btn(isPro), width: "100%", justifyContent: "center", marginBottom: 24, fontSize: 14, padding: "13px 24px" }}>{user ? "Choose Plan" : plan.cta} <ArrowRight size={16} /></button>
                   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                     {plan.features.map((feat, j) => (
                       <div key={j} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>

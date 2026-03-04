@@ -16,6 +16,7 @@ import { detectTravel } from "../../_lib/travel.js";
 import { computeDurabilityData } from "../../_lib/durability.js";
 import { computeWbalStream } from "../../_lib/wbal.js";
 import { detectDeviceType } from "../../_lib/hr-source-priority.js";
+import { enrichEffortContext, computeAdjustedScore, computeAthleteBaselines, detectPR } from "../../_lib/segment-scoring.js";
 
 /**
  * Sync a single Strava activity by ID.
@@ -281,6 +282,14 @@ export async function syncStravaActivity(userId, stravaActivityId, options = {})
             console.error(`Travel detection failed for ${upserted.id}:`, travelErr.message);
           }
         }
+        // Segment effort extraction + scoring
+        if (activity.segment_efforts?.length > 0) {
+          try {
+            await importSegmentEfforts(userId, upserted.id, activity, record);
+          } catch (segErr) {
+            console.error(`Segment import failed for ${upserted.id}:`, segErr.message);
+          }
+        }
       } catch (err) {
         console.error(`Weather/tag enrichment failed for ${upserted.id}:`, err.message);
       }
@@ -486,6 +495,144 @@ export async function backfillStravaSync(userId, days = 90) {
   })().catch(err => console.error(`Post-backfill analysis error:`, err.message));
 
   return { results, errors };
+}
+
+/**
+ * Import segment efforts from a Strava activity.
+ * Upserts segment metadata + individual efforts with denormalized context.
+ */
+async function importSegmentEfforts(userId, activityId, stravaActivity, record) {
+  const segEfforts = stravaActivity.segment_efforts;
+  if (!segEfforts || segEfforts.length === 0) return;
+
+  // Fetch daily metrics for effort date (for context denormalization)
+  const effortDate = record.started_at
+    ? new Date(record.started_at).toISOString().split("T")[0]
+    : null;
+
+  let dailyMetrics = null;
+  if (effortDate) {
+    const { data } = await supabaseAdmin
+      .from("daily_metrics")
+      .select("hrv_ms, hrv_overnight_avg_ms, resting_hr_bpm, sleep_score, total_sleep_seconds, ctl, atl, tsb, life_stress_score, motivation_score")
+      .eq("user_id", userId)
+      .eq("date", effortDate)
+      .single();
+    dailyMetrics = data;
+  }
+
+  // Fetch 30-day baselines for adjusted scoring
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().split("T")[0];
+  const { data: recentMetrics } = await supabaseAdmin
+    .from("daily_metrics")
+    .select("hrv_ms, hrv_overnight_avg_ms, sleep_score, tsb")
+    .eq("user_id", userId)
+    .gte("date", thirtyDaysAgo);
+
+  const baselines = computeAthleteBaselines(recentMetrics || []);
+  const trainingLoad = dailyMetrics ? { ctl: dailyMetrics.ctl, atl: dailyMetrics.atl, tsb: dailyMetrics.tsb } : null;
+  const activityWeather = record.activity_weather || null;
+
+  for (const se of segEfforts) {
+    try {
+      const seg = se.segment;
+      if (!seg || !seg.id) continue;
+
+      // Determine sport from activity type
+      const sport = (record.activity_type || "ride").includes("run") ? "running" : "cycling";
+
+      // Upsert segment metadata
+      const { data: segRecord } = await supabaseAdmin
+        .from("segments")
+        .upsert({
+          user_id: userId,
+          strava_segment_id: String(seg.id),
+          name: seg.name || "Unknown Segment",
+          sport,
+          distance_m: seg.distance || null,
+          average_grade_pct: seg.average_grade || null,
+          maximum_grade_pct: seg.maximum_grade || null,
+          elevation_gain_m: seg.elevation_high != null && seg.elevation_low != null
+            ? seg.elevation_high - seg.elevation_low : null,
+          start_lat: seg.start_latlng?.[0] || null,
+          start_lng: seg.start_latlng?.[1] || null,
+          end_lat: seg.end_latlng?.[0] || null,
+          end_lng: seg.end_latlng?.[1] || null,
+          climb_category: seg.climb_category ?? null,
+          city: seg.city || null,
+          state: seg.state || null,
+          country: seg.country || null,
+        }, { onConflict: "user_id,strava_segment_id" })
+        .select("id")
+        .single();
+
+      if (!segRecord?.id) continue;
+
+      // Build raw effort data
+      const rawEffort = {
+        elapsed_time_seconds: se.elapsed_time,
+        moving_time_seconds: se.moving_time || se.elapsed_time,
+        avg_power_watts: se.average_watts || null,
+        normalized_power_watts: null, // Strava doesn't provide NP per segment
+        avg_hr_bpm: se.average_heartrate || null,
+        max_hr_bpm: se.max_heartrate || null,
+        avg_cadence_rpm: se.average_cadence || null,
+        avg_speed_mps: se.distance && se.elapsed_time
+          ? se.distance / se.elapsed_time : null,
+        avg_pace_min_km: sport === "running" && se.distance && se.elapsed_time
+          ? (se.elapsed_time / 60) / (se.distance / 1000) : null,
+      };
+
+      // Enrich with context
+      const enriched = enrichEffortContext(rawEffort, dailyMetrics, activityWeather, trainingLoad);
+
+      // Fetch historical efforts on this segment to compute PR + adjusted score
+      const { data: historicalEfforts } = await supabaseAdmin
+        .from("segment_efforts")
+        .select("elapsed_time_seconds, started_at, strava_effort_id, adjustment_factors, power_hr_ratio")
+        .eq("segment_id", segRecord.id)
+        .eq("user_id", userId)
+        .order("started_at", { ascending: false })
+        .limit(50);
+
+      const prInfo = detectPR(enriched, historicalEfforts || []);
+      const prTime = prInfo.pr_time || enriched.elapsed_time_seconds;
+      const scoreResult = computeAdjustedScore(enriched, prTime, baselines);
+
+      // Upsert effort
+      await supabaseAdmin
+        .from("segment_efforts")
+        .upsert({
+          user_id: userId,
+          segment_id: segRecord.id,
+          activity_id: activityId,
+          strava_effort_id: String(se.id),
+          started_at: se.start_date || record.started_at,
+          ...enriched,
+          adjusted_score: scoreResult.adjusted_score,
+          adjustment_factors: {
+            adjusted_time: scoreResult.adjusted_time,
+            adjustments: scoreResult.adjustments,
+            total_adjustment_seconds: scoreResult.total_adjustment_seconds,
+          },
+          is_pr: prInfo.is_raw_pr,
+          hr_source: record.hr_source || null,
+        }, { onConflict: "user_id,strava_effort_id" });
+
+      // If this is a new PR, clear the old PR flag
+      if (prInfo.is_raw_pr && historicalEfforts?.length > 0) {
+        await supabaseAdmin
+          .from("segment_efforts")
+          .update({ is_pr: false })
+          .eq("segment_id", segRecord.id)
+          .eq("user_id", userId)
+          .eq("is_pr", true)
+          .neq("strava_effort_id", String(se.id));
+      }
+    } catch (effortErr) {
+      console.error(`Segment effort ${se.id} failed:`, effortErr.message);
+    }
+  }
 }
 
 /**

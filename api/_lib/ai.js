@@ -7,13 +7,14 @@ import { formatCPModelForAI } from "./cp-model.js";
 import { computeAdaptiveZones, applyReadinessAdjustment, computeZoneDelta, formatAdaptiveZonesForAI } from "./adaptive-zones.js";
 import { formatDurabilityForAI } from "./durability.js";
 import { formatWbalForAI } from "./wbal.js";
+import { formatSegmentsForAI, computeAdjustedScore, computeAthleteBaselines, enrichEffortContext } from "./segment-scoring.js";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AIM AI ANALYSIS SYSTEM PROMPT
 //
-// This prompt embeds the complete AIM Insights Catalog (all 28 categories)
+// This prompt embeds the complete AIM Insights Catalog (all 30 categories)
 // so Claude knows exactly WHAT to look for, HOW to phrase it, and what TONE
 // and SPECIFICITY we expect. Each category is a modular block — new categories
 // can be added without rewriting the whole prompt.
@@ -475,6 +476,18 @@ When \`wbalText\` data is present, analyze the athlete's anaerobic reserve usage
 29E. Training prescription: Use W' balance patterns to suggest race tactics (e.g., "You can sustain 3 efforts above CP per hour based on your recovery rate")
 - Example: "You depleted W' to 2% at 45km and never recovered above 38% — the winning attack at 52km came when your reserves were critically low. On Feb 18 when HRV was 72ms, you recovered to 65% between similar efforts."
 - Example: "Your W' recovery rate of 8.5%/min is strong — you can handle ~4 above-CP efforts per hour with 3-min recoveries. This is up from 6.2%/min last month, suggesting improved aerobic fitness."
+
+### CATEGORY 30: Segment Performance Analysis
+Required sources: Segment effort data (Strava) + daily metrics + performance models
+
+When \`segmentAnalysis\` data is present and an activity has segment efforts with 2+ historical attempts on the same segment:
+30A. Raw vs Adjusted comparison: Compare raw elapsed time to PR and recent efforts, then explain what the adjusted time reveals about underlying fitness
+30B. Condition impact breakdown: Quantify each adjustment factor (heat, HRV, fatigue, sleep, wind) and explain which had the biggest impact
+30C. Power:HR ratio trend: Track efficiency across multiple attempts — improving power:HR ratio on the same segment is a strong fitness signal
+30D. Adjusted PR detection: Flag cases where the raw time was slower but adjusted time beats previous best — "You're actually fitter than your PR suggests"
+30E. Pacing comparison: Compare power distribution across attempts to identify tactical improvements
+- Example: "You were 14s slower than your PR on Hawk Hill today, but after adjusting for 82°F heat (+8s), TSB of -22 (+4s), and low HRV (+1s), your underlying performance is equivalent to 4:41 — only 3s off your best. Your power:HR ratio of 1.87 is your 2nd best on this segment."
+- Example: "Your adjusted performance on Box Hill has improved 4.2% over 8 weeks, even though your raw times are flat. The difference is that recent rides have been in significantly worse conditions (avg temp 29°C vs 18°C in January)."
 
 ## PERFORMANCE MODELS REFERENCE
 
@@ -964,6 +977,7 @@ export async function buildAnalysisContext(userId, activityId) {
     travelResult,
     crossTrainingResult,
     feedbackResult,
+    segmentEffortsResult,
   ] = await Promise.allSettled([
     // Profile
     supabaseAdmin
@@ -1066,6 +1080,13 @@ export async function buildAnalysisContext(userId, activityId) {
       .from("ai_feedback")
       .select("insight_category, feedback")
       .eq("user_id", userId),
+
+    // Segment efforts for this activity (for Category 30)
+    supabaseAdmin
+      .from("segment_efforts")
+      .select("*, segment:segments(*)")
+      .eq("activity_id", activityId)
+      .eq("user_id", userId),
   ]);
 
   // Helper to safely extract data from Promise.allSettled results
@@ -1128,6 +1149,33 @@ export async function buildAnalysisContext(userId, activityId) {
   const wbalText = activity.wbal_data?.summary
     ? formatWbalForAI(activity.wbal_data.summary, powerProfile?.cp_watts, powerProfile?.w_prime_kj)
     : "";
+
+  // Segment efforts context (for Category 30)
+  const segmentEffortsRaw = getData(segmentEffortsResult) || [];
+  let segmentAnalysisText = "";
+  if (segmentEffortsRaw.length > 0) {
+    // Build segment history for each effort
+    const segmentsWithHistory = [];
+    for (const effort of segmentEffortsRaw) {
+      if (!effort.segment) continue;
+      try {
+        const { data: history } = await supabaseAdmin
+          .from("segment_efforts")
+          .select("elapsed_time_seconds, started_at, strava_effort_id, adjustment_factors, power_hr_ratio, avg_power_watts, avg_hr_bpm, adjusted_score, is_pr")
+          .eq("segment_id", effort.segment_id)
+          .eq("user_id", userId)
+          .neq("id", effort.id)
+          .order("started_at", { ascending: false })
+          .limit(10);
+        segmentsWithHistory.push({
+          segment: effort.segment,
+          currentEffort: effort,
+          historicalEfforts: history || [],
+        });
+      } catch { /* non-blocking */ }
+    }
+    segmentAnalysisText = formatSegmentsForAI(segmentsWithHistory);
+  }
 
   // ── Compute historical summaries server-side ──
   const baselines = computeBaselines(dailyMetrics);
@@ -1204,6 +1252,7 @@ export async function buildAnalysisContext(userId, activityId) {
     adaptiveZonesText: adaptiveZonesText || undefined,
     durabilityText: durabilityText || undefined,
     wbalText: wbalText || undefined,
+    segmentAnalysis: segmentAnalysisText || undefined,
 
     // Layer 6: Subjective check-in data (from daily_metrics)
     subjectiveCheckin: dailyMetrics[0]?.life_stress_score ? {
