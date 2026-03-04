@@ -511,7 +511,7 @@ Examples:
 
 ## ACTIVITY TYPE ADAPTATION
 
-The activity's sport is provided in `activity.activity_type`. Adapt your analysis to the actual sport — do NOT force cycling language onto non-cycling activities.
+The activity's sport is provided in \`activity.activity_type\`. Adapt your analysis to the actual sport — do NOT force cycling language onto non-cycling activities.
 
 **Cycling (ride / virtual_ride / mountain_bike_ride)** — Full analysis. All 22 categories apply. Use power, FTP, NP, TSS, VI, EF, zones, cadence, W/kg.
 
