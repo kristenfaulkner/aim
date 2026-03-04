@@ -73,6 +73,7 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
   - `travel.js` — Travel detection pure functions: haversine distance, timezone/altitude shift detection, jet lag recovery estimation, altitude power penalty
   - `cross-training.js` — Cross-training utilities: recovery impact estimation (none/minor/moderate/major), TSS approximation from intensity + duration
   - `wahoo.js` — Wahoo API client (OAuth token refresh, workout type mapping, activity field mapping, FIT file download) + shared mapWahooToActivity used by webhook + sync
+  - `garmin.js` — Garmin Health API client (OAuth 1.0a HMAC-SHA1 signing, 3-legged token flow, signed API requests, FIT file download, 8 data mappers: activity/daily/sleep/bodyBattery/bodyComp/pulseOx/extended/date)
   - `strava.js` — Strava API client with token refresh
   - `oura.js` — Oura Ring API v2 client (OAuth token refresh with single-use refresh tokens, sleep/readiness/activity/SpO2 data fetching and mapping)
   - `whoop.js` — Whoop API v2 client (OAuth token refresh, recovery/sleep/body measurement data fetching and mapping)
@@ -90,7 +91,7 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 - `integrations/import/` — file-based imports (TrainingPeaks: client-side JSZip extraction → batched base64 upload, 3 API modes: batch/finalize/legacy; CSV-only enrichment also supported)
 - `cron/sync-eightsleep.js` — hourly Vercel Cron syncs last 2 days of Eight Sleep data; skips users synced in last 6 hours
 - `cron/sync-recovery.js` — hourly Vercel Cron syncs last 2 days of Oura/Whoop/Withings data; skips users synced in last 6 hours
-- `webhooks/` — inbound webhooks (strava activity events, wahoo workout summaries, whoop recovery/sleep, withings body comp/sleep)
+- `webhooks/` — inbound webhooks (strava activity events, wahoo workout summaries, garmin activities/dailies/sleep/stress/body, whoop recovery/sleep, withings body comp/sleep)
 - `activities/` — list, detail (includes activity_tags + planned_vs_actual data), annotate (saves user_notes/rating/RPE/tags + name; auto-extracts tags from notes via keyword matching; normalizes all tags to canonical form via `TAG_ALIASES` — e.g. "S&E"→"low cadence", "TT"→"time trial"), analyze, search (tag-based), query (advanced tag/filter/grouping search), smart-chips (AI-suggested query chips), wbal (GET, lazy-load W'bal stream + summary), backfill-intervals, backfill-metrics, backfill-cp, backfill-wbal endpoints
 - `tags/` — tag dictionary endpoint
 - `health/` — blood panel upload (Claude AI extraction from PDF/image), DEXA scan upload (Claude AI extraction of body composition/regional data), and panel management
@@ -196,7 +197,7 @@ All plans include 14-day free trial, no credit card required.
 ### Tier 1 — Cycling Core (launch priority)
 - **Strava** ✅ — OAuth + full sync + backfill + metrics + streams + webhook (activity create/update/delete) + auto 365-day backfill on first connect
 - **Wahoo** ✅ — OAuth + full sync + backfill + webhook (FIT file download + full stream processing: computed metrics, intervals, durability, W'bal, power profile updates), auto 365-day backfill on first connect, token refresh
-- **Garmin Connect** — activities, body battery, stress, daily HR (not yet started)
+- **Garmin Connect** — activities, body battery, stress, daily HR (scaffolding complete — OAuth 1.0a flow, webhook handler, sync pipeline, data mappers — waiting for API keys from Garmin approval)
 - **TrainingPeaks** ✅ — file import: ZIP extracted client-side with JSZip → batched base64 upload (.fit/.tcx/.gpx with full metrics computation, no file size limit). ZIP optional for CSV-only enrichment. + workouts CSV (titles/RPE/comments/body weight) + metrics CSV (daily RHR/HRV/sleep/SpO2/body fat/Whoop recovery)
 
 ### Tier 2 — Recovery & Body
@@ -284,7 +285,7 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 See `docs/build-status.md` for the full detailed log. Summary of what's built:
 
 **Core**: Auth (email/password/Google SSO/magic link), onboarding, Vercel deployment, mobile-responsive, testing (289 tests), SEO, legal compliance, account management
-**Integrations**: Strava (full), EightSleep (full + hourly cron), Wahoo (full sync + backfill + webhook + FIT stream processing), TrainingPeaks (file import), Twilio SMS, Resend email, Oura (full + hourly cron), Whoop (full + hourly cron), Withings (full + hourly cron)
+**Integrations**: Strava (full), EightSleep (full + hourly cron), Wahoo (full sync + backfill + webhook + FIT stream processing), Garmin (scaffolded — OAuth 1.0a, webhook, sync, data mappers, awaiting API keys), TrainingPeaks (file import), Twilio SMS, Resend email, Oura (full + hourly cron), Whoop (full + hourly cron), Withings (full + hourly cron)
 **AI (11 features)**: Post-ride analysis, email summaries, SMS coach, chat coach, sleep summary, blood panel OCR, nutrition parsing, dashboard intelligence, adaptive 3-mode AI, athlete bio generation, insight feedback loop (thumbs up/down + personalized AI prompt injection)
 **Pages**: Dashboard V2, Sleep Intelligence, ActivityDetail, HealthLab, Boosters, ConnectApps, Settings, WorkoutDatabase, Landing, Legal pages
 **Structured Workouts (5 phases)**: Interval extraction, canonical tagging (32+14 tags), weather enrichment, interval execution coaching, performance models (heat/sleep/HRV/fueling/durability), searchable workout database
@@ -307,7 +308,7 @@ See `docs/build-status.md` for the full detailed log. Summary of what's built:
 6. **Training prescription engine** — workout recommendations from power profile gaps and CP/W' weaknesses
 
 #### P2 — Integrations & Data Sources
-7. **Garmin Connect** — sync logic (activities, body battery, stress, daily HR)
+7. ~~**Garmin Connect** — sync logic~~ — scaffolding complete (OAuth 1.0a, webhook, sync, data mappers, 24 tests). Waiting for API keys from Garmin approval.
 8. ~~**Oura / Whoop / Withings** — sync logic~~ — ✅ DONE (full sync + 365-day backfill + hourly cron for all 3)
 9. **Remaining Tier 3 integrations** — Apple Health, Supersapiens/Lingo, MyFitnessPal, Cronometer, TrainerRoad, Intervals.icu, Zwift, Hammerhead, Hexis, Noom
 

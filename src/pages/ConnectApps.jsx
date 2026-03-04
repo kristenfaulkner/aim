@@ -16,6 +16,7 @@ const OAUTH_APPS = {
   Whoop: "/api/auth/connect/whoop",
   "Oura Ring": "/api/auth/connect/oura",
   Withings: "/api/auth/connect/withings",
+  Garmin: "/api/auth/connect/garmin",
 };
 
 // Apps that use email/password credentials instead of OAuth
@@ -29,7 +30,7 @@ const FILE_IMPORT_APPS = {
 };
 
 // Map display names to provider keys in the database
-const NAME_TO_PROVIDER = { Strava: "strava", Whoop: "whoop", "Oura Ring": "oura", Withings: "withings", EightSleep: "eightsleep", TrainingPeaks: "trainingpeaks" };
+const NAME_TO_PROVIDER = { Strava: "strava", Whoop: "whoop", "Oura Ring": "oura", Withings: "withings", EightSleep: "eightsleep", TrainingPeaks: "trainingpeaks", Garmin: "garmin" };
 
 // ── APP CARD COMPONENT ──
 function AppCard({ app, isConnected, onToggle }) {

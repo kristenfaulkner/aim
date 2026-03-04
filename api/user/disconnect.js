@@ -30,6 +30,33 @@ export default async function handler(req, res) {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({ access_token: integration.access_token }),
       });
+    } else if (provider === "garmin") {
+      // Garmin requires calling the deregistration endpoint to remove user permissions
+      // This also stops webhook pushes for this user
+      const { createHmac } = await import("crypto");
+      const OAuth = (await import("oauth-1.0a")).default;
+      const oauth = new OAuth({
+        consumer: { key: process.env.GARMIN_CONSUMER_KEY, secret: process.env.GARMIN_CONSUMER_SECRET },
+        signature_method: "HMAC-SHA1",
+        hash_function(baseString, key) { return createHmac("sha1", key).update(baseString).digest("base64"); },
+      });
+      const url = "https://apis.garmin.com/wellness-api/rest/user/registration";
+      const token = { key: integration.access_token, secret: "" };
+      // Try to get token secret from metadata
+      try {
+        const { decrypt } = await import("../_lib/crypto.js");
+        const fullInt = await supabaseAdmin.from("integrations").select("metadata").eq("user_id", session.userId).eq("provider", "garmin").single();
+        if (fullInt.data?.metadata?.token_secret_encrypted) {
+          token.secret = decrypt(fullInt.data.metadata.token_secret_encrypted);
+        } else if (fullInt.data?.metadata?.token_secret) {
+          token.secret = fullInt.data.metadata.token_secret;
+        }
+      } catch {}
+      const requestData = { url, method: "DELETE" };
+      await fetch(url, {
+        method: "DELETE",
+        headers: oauth.toHeader(oauth.authorize(requestData, token)),
+      });
     }
     // Other providers: Whoop, Oura, Withings don't have simple revoke endpoints
   } catch {
