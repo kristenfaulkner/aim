@@ -46,22 +46,22 @@ export default async function handler(req, res) {
 
     // ── Mode 1: Batch files (client-side ZIP extraction) ──
     if (files && Array.isArray(files) && files.length > 0) {
-      return handleBatchFiles(res, session, files);
+      return await handleBatchFiles(res, session, files);
     }
 
     // ── Mode 2: Finalize (CSV enrichment + wrap-up) ──
     if (finalize) {
-      return handleFinalize(res, session, csvData, metricsCsvData, stats);
+      return await handleFinalize(res, session, csvData, metricsCsvData, stats);
     }
 
     // ── Mode 3: Legacy ZIP via Supabase Storage ──
     if (zipPath) {
-      return handleZipImport(res, session, zipPath, csvData, metricsCsvData);
+      return await handleZipImport(res, session, zipPath, csvData, metricsCsvData);
     }
 
     // ── Mode 4: CSV-only (no ZIP, no batch) ──
     if (csvData || metricsCsvData) {
-      return handleFinalize(res, session, csvData, metricsCsvData, null);
+      return await handleFinalize(res, session, csvData, metricsCsvData, null);
     }
 
     return res.status(400).json({ error: "No files provided" });

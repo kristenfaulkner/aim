@@ -1,8 +1,8 @@
--- Migration 016: Strava Segments & Segment Efforts
+-- Migration 016: Strava Segments & Segment Efforts (idempotent)
 -- Segment comparison with cross-domain adjusted performance scoring
 
 -- Strava Segments — metadata about segments the athlete has ridden
-CREATE TABLE segments (
+CREATE TABLE IF NOT EXISTS segments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
   strava_segment_id TEXT NOT NULL,
@@ -25,29 +25,29 @@ CREATE TABLE segments (
   UNIQUE(user_id, strava_segment_id)
 );
 
-CREATE INDEX idx_segments_user ON segments(user_id);
+CREATE INDEX IF NOT EXISTS idx_segments_user ON segments(user_id);
 
--- RLS for segments
 ALTER TABLE segments ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view own segments"
-  ON segments FOR SELECT
-  USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert own segments"
-  ON segments FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update own segments"
-  ON segments FOR UPDATE
-  USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can delete own segments"
-  ON segments FOR DELETE
-  USING (auth.uid() = user_id);
+DO $$ BEGIN
+  CREATE POLICY "Users can view own segments" ON segments FOR SELECT USING (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  CREATE POLICY "Users can insert own segments" ON segments FOR INSERT WITH CHECK (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  CREATE POLICY "Users can update own segments" ON segments FOR UPDATE USING (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  CREATE POLICY "Users can delete own segments" ON segments FOR DELETE USING (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Segment Efforts — each time the athlete rides/runs a segment
-CREATE TABLE segment_efforts (
+CREATE TABLE IF NOT EXISTS segment_efforts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
   segment_id UUID REFERENCES segments(id) ON DELETE CASCADE NOT NULL,
@@ -94,25 +94,25 @@ CREATE TABLE segment_efforts (
   UNIQUE(user_id, strava_effort_id)
 );
 
-CREATE INDEX idx_segment_efforts_segment ON segment_efforts(segment_id, started_at DESC);
-CREATE INDEX idx_segment_efforts_user ON segment_efforts(user_id, started_at DESC);
-CREATE INDEX idx_segment_efforts_activity ON segment_efforts(activity_id);
+CREATE INDEX IF NOT EXISTS idx_segment_efforts_segment ON segment_efforts(segment_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_segment_efforts_user ON segment_efforts(user_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_segment_efforts_activity ON segment_efforts(activity_id);
 
--- RLS for segment_efforts
 ALTER TABLE segment_efforts ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view own segment efforts"
-  ON segment_efforts FOR SELECT
-  USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert own segment efforts"
-  ON segment_efforts FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update own segment efforts"
-  ON segment_efforts FOR UPDATE
-  USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can delete own segment efforts"
-  ON segment_efforts FOR DELETE
-  USING (auth.uid() = user_id);
+DO $$ BEGIN
+  CREATE POLICY "Users can view own segment efforts" ON segment_efforts FOR SELECT USING (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  CREATE POLICY "Users can insert own segment efforts" ON segment_efforts FOR INSERT WITH CHECK (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  CREATE POLICY "Users can update own segment efforts" ON segment_efforts FOR UPDATE USING (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  CREATE POLICY "Users can delete own segment efforts" ON segment_efforts FOR DELETE USING (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;

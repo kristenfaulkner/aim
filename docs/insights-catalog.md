@@ -7,7 +7,7 @@ This is the living catalog of every AI-powered feature in AIM. It documents both
 ### Document Structure
 
 1. **Part 1: Active AI Prompts** — Every system prompt currently deployed, organized by feature
-2. **Part 2: Insight Categories** — The complete 35-category catalog of cross-domain insight patterns (Categories 1-29 active in production; 30-32 P2 future; 33-35 P3 future)
+2. **Part 2: Insight Categories** — The complete 35-category catalog of cross-domain insight patterns (Categories 1-30 active in production; 31-33 P2 future; 34-36 P3 future)
 3. **Part 3: Quality Standards** — Rules, confidence levels, and the no-medical-advice policy
 
 ---
@@ -1333,38 +1333,55 @@ The 34-category catalog below defines what patterns AIM looks for in athlete dat
 
 ---
 
-## CATEGORY 30: Periodization & Season Intelligence (P2 — future, was Cat 29)
+## CATEGORY 30: Segment Performance Analysis
 
-**Required sources:** Phase data + training history
-**When to run:** Weekly summary, phase transitions
+**Required sources:** Segment effort data (Strava) + daily metrics + performance models
+**When to run:** Post-ride analysis when activity has segment efforts with 2+ historical attempts
 
-### 30A. Phase Compliance Tracking
+### 30A. Raw vs Adjusted Comparison
 
-**What to look for:** Whether actual training matches prescribed phase goals (volume, intensity distribution)
+**What to look for:** Compare raw elapsed time to PR and recent efforts, then explain what the adjusted time reveals about underlying fitness
 **Example insights:**
-- "You're in a base phase but 32% of your TSS came from Z4+ this week (target: <15%). Consider shifting 2 sessions to Z2 endurance."
+- "You were 14s slower than your PR on Hawk Hill today, but after adjusting for 82°F heat (+8s), TSB of -22 (+4s), and low HRV (+1s), your underlying performance is equivalent to 4:41 — only 3s off your best."
 
-**Confidence:** High (deterministic comparison to plan)
+**Confidence:** Medium-High (depends on available context data)
 
-### 30B. Phase Transition Recommendations
+### 30B. Condition Impact Breakdown
 
-**What to look for:** Readiness signals for moving between training phases
+**What to look for:** Quantify each adjustment factor (heat, HRV, fatigue, sleep, wind) and explain which had the biggest impact
 **Example insights:**
-- "Your CTL plateau at 78 for 3 weeks plus improving aerobic decoupling suggests you're ready to transition from base to build."
+- "Heat was the dominant factor today — at 31°C your estimated time penalty is +8s. On your PR day it was 18°C. Consider targeting this segment on cooler days for your best chance at a new PR."
 
 **Confidence:** Medium
 
-### 30C. Taper Anxiety Management
+### 30C. Power:HR Ratio Trend
 
-**What to look for:** Performance anxiety signals during taper (excessive training, sleep disruption)
+**What to look for:** Track efficiency across multiple attempts — improving power:HR ratio on the same segment is a strong fitness signal
 **Example insights:**
-- "Your training volume dropped 40% this week (taper), but sleep quality also dropped 15%. This is common — your CTL will stabilize, and the freshness gain from TSB +15 will outweigh any small fitness loss."
+- "Your power:HR ratio of 1.87 is your 2nd best on Hawk Hill across 12 attempts. The trend over 8 weeks shows a 4.2% improvement — genuine aerobic fitness gains."
+
+**Confidence:** High (direct measurement)
+
+### 30D. Adjusted PR Detection
+
+**What to look for:** Cases where the raw time was slower but adjusted time beats previous best
+**Example insights:**
+- "Your adjusted performance on Box Hill has improved 4.2% over 8 weeks, even though your raw times are flat. The difference is that recent rides have been in significantly worse conditions."
 
 **Confidence:** Medium
 
 ---
 
-## CATEGORY 31: Personal Model Insights (P2 — future)
+## CATEGORY 31: Periodization & Season Intelligence (P2 — future)
+
+**Required sources:** Phase data + training history
+**When to run:** Weekly summary, phase transitions
+
+(Moved from Cat 30 — implementation deferred to P2)
+
+---
+
+## CATEGORY 32: Personal Model Insights (P2 — future)
 
 **Required sources:** Personal models (accumulated data)
 **When to run:** When model confidence thresholds are crossed
