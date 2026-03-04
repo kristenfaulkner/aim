@@ -26,15 +26,21 @@ async function syncDay(userId, date, whoopData) {
     whoop_extended: extended,
   };
 
+  // Tag HR fields with Whoop as source
+  const hrSourceFields = {};
+  if (mapped.resting_hr_bpm != null) hrSourceFields.rhr_source = 'whoop';
+  if (mapped.hrv_ms != null) hrSourceFields.hrv_source = 'whoop';
+  if (mapped.total_sleep_seconds != null) hrSourceFields.sleep_hr_source = 'whoop';
+
   if (existing) {
     await supabaseAdmin
       .from("daily_metrics")
-      .update({ ...mapped, source_data: sourceData })
+      .update({ ...mapped, ...hrSourceFields, source_data: sourceData })
       .eq("id", existing.id);
   } else {
     await supabaseAdmin
       .from("daily_metrics")
-      .insert({ user_id: userId, date, ...mapped, source_data: sourceData });
+      .insert({ user_id: userId, date, ...mapped, ...hrSourceFields, source_data: sourceData });
   }
 
   return { date, recovery_score: mapped.recovery_score, sleep_score: mapped.sleep_score };

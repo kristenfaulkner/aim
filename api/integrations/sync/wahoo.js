@@ -160,6 +160,12 @@ export async function syncWahooWorkout(userId, workout, options = {}) {
     record.wbal_empty_events = wbalEmptyEvents;
   }
 
+  // Tag HR source — Wahoo device file (typically paired with chest strap)
+  if (record.avg_hr_bpm != null) {
+    record.hr_source = 'device_file';
+    record.hr_source_confidence = 'high';
+  }
+
   // Upsert activity
   const { data: upserted, error: upsertError } = await supabaseAdmin
     .from("activities")

@@ -26,15 +26,21 @@ async function syncDay(userId, date, ouraData) {
     oura_extended: extended,
   };
 
+  // Tag HR fields with Oura as source
+  const hrSourceFields = {};
+  if (mapped.resting_hr_bpm != null) hrSourceFields.rhr_source = 'oura';
+  if (mapped.hrv_ms != null) hrSourceFields.hrv_source = 'oura';
+  if (mapped.total_sleep_seconds != null) hrSourceFields.sleep_hr_source = 'oura';
+
   if (existing) {
     await supabaseAdmin
       .from("daily_metrics")
-      .update({ ...mapped, source_data: sourceData })
+      .update({ ...mapped, ...hrSourceFields, source_data: sourceData })
       .eq("id", existing.id);
   } else {
     await supabaseAdmin
       .from("daily_metrics")
-      .insert({ user_id: userId, date, ...mapped, source_data: sourceData });
+      .insert({ user_id: userId, date, ...mapped, ...hrSourceFields, source_data: sourceData });
   }
 
   return { date, sleep_score: mapped.sleep_score, readiness_score: mapped.readiness_score };

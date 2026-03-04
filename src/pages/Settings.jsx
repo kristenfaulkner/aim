@@ -6,7 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { usePreferences } from "../context/PreferencesContext";
 import { useResponsive } from "../hooks/useResponsive";
 import { supabase } from "../lib/supabase";
-import { User, Bell, Ruler, Palette, LogOut, MessageSquare, Check, Loader, Shield, Download, Trash2, AlertTriangle, Menu, X, Mail, Lock, Settings as SettingsIcon, Globe, RefreshCw } from "lucide-react";
+import { User, Bell, Ruler, Palette, LogOut, MessageSquare, Check, Loader, Shield, Download, Trash2, AlertTriangle, Menu, X, Mail, Lock, Settings as SettingsIcon, Globe, RefreshCw, Activity, ChevronUp, ChevronDown, RotateCcw } from "lucide-react";
 import { apiFetch } from "../lib/api";
 
 const COMMON_TIMEZONES = [
@@ -74,6 +74,12 @@ export default function Settings() {
   const [reprocessing, setReprocessing] = useState(false);
   const [reprocessResult, setReprocessResult] = useState(null);
 
+  // HR source priority state
+  const [hrConfigs, setHrConfigs] = useState(null);
+  const [hrConnectedProviders, setHrConnectedProviders] = useState([]);
+  const [hrSaving, setHrSaving] = useState(false);
+  const [hrSaved, setHrSaved] = useState(false);
+
   const [smsPrefs, setSmsPrefs] = useState({
     sms_workout_summary: true,
     sms_morning_readiness: true,
@@ -109,6 +115,14 @@ export default function Settings() {
           }
         }
       } catch (e) { /* use defaults */ }
+      // Load HR priority config
+      try {
+        const hrRes = await apiFetch("/api/settings/hr-priority");
+        if (hrRes?.configs) {
+          setHrConfigs(hrRes.configs);
+          setHrConnectedProviders(hrRes.connectedProviders || []);
+        }
+      } catch (e) { /* ignore — feature may not be deployed yet */ }
     }
     loadPrefs();
   }, [profile, user]);
@@ -189,6 +203,7 @@ export default function Settings() {
   const tabs = [
     { id: "units", label: "Units & Display", icon: <Ruler size={16} /> },
     { id: "preferences", label: "Preferences", icon: <Globe size={16} /> },
+    { id: "datasources", label: "Data Sources", icon: <Activity size={16} /> },
     { id: "notifications", label: "Notifications", icon: <Bell size={16} /> },
     { id: "password", label: "Password", icon: <Lock size={16} /> },
     { id: "appearance", label: "Appearance", icon: <Palette size={16} /> },
@@ -408,6 +423,118 @@ export default function Settings() {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {activeTab === "datasources" && (
+            <div>
+              <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 8px", letterSpacing: "-0.02em" }}>Data Sources</h2>
+              <p style={{ fontSize: 14, color: T.textSoft, margin: "0 0 32px" }}>
+                Customize which device AIM prefers for heart rate data. Defaults are based on device accuracy research.
+              </p>
+
+              {hrConnectedProviders.length < 2 ? (
+                <div style={{ background: T.surface, borderRadius: 12, padding: 20, color: T.textSoft, fontSize: 14 }}>
+                  Connect 2 or more HR-capable devices (Strava, Wahoo, Oura, Whoop, etc.) to customize source priority.
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                  {['exercise', 'sleep', 'resting'].map(ctx => {
+                    const config = hrConfigs?.[ctx];
+                    if (!config) return null;
+                    const priority = [...(config.priority || [])];
+
+                    const contextLabels = { exercise: 'Exercise HR', sleep: 'Sleep HR', resting: 'Resting HR' };
+                    const contextDesc = {
+                      exercise: 'Used for zone calculation, cardiac drift, EF, and decoupling during workouts.',
+                      sleep: 'Used for overnight HR trends, HRV calculation, and sleep stage detection.',
+                      resting: 'Used for daily RHR trends, readiness scoring, and fitness tracking.',
+                    };
+
+                    const moveItem = async (idx, dir) => {
+                      const newIdx = idx + dir;
+                      if (newIdx < 0 || newIdx >= priority.length) return;
+                      const newPriority = [...priority];
+                      [newPriority[idx], newPriority[newIdx]] = [newPriority[newIdx], newPriority[idx]];
+                      // Optimistic update
+                      setHrConfigs(prev => ({ ...prev, [ctx]: { ...prev[ctx], priority: newPriority, is_custom: true } }));
+                      setHrSaving(true);
+                      try {
+                        await apiFetch("/api/settings/hr-priority", { method: "PUT", body: JSON.stringify({ context: ctx, priority: newPriority }) });
+                        setHrSaved(true);
+                        setTimeout(() => setHrSaved(false), 2000);
+                      } catch (e) {
+                        // Revert on failure
+                        setHrConfigs(prev => ({ ...prev, [ctx]: { ...prev[ctx], priority, is_custom: config.is_custom } }));
+                      } finally { setHrSaving(false); }
+                    };
+
+                    const resetToDefaults = async () => {
+                      setHrSaving(true);
+                      try {
+                        await apiFetch("/api/settings/hr-priority", { method: "DELETE", body: JSON.stringify({ context: ctx }) });
+                        // Re-fetch
+                        const hrRes = await apiFetch("/api/settings/hr-priority");
+                        if (hrRes?.configs) setHrConfigs(hrRes.configs);
+                        setHrSaved(true);
+                        setTimeout(() => setHrSaved(false), 2000);
+                      } catch (e) { /* ignore */ }
+                      finally { setHrSaving(false); }
+                    };
+
+                    const SOURCE_LABELS = {
+                      chest_strap: 'Chest Strap', device_file: 'Device File', strava_stream: 'Strava',
+                      wrist_optical: 'Wrist Optical', ring: 'Ring', oura: 'Oura Ring',
+                      eightsleep: 'Eight Sleep', whoop: 'Whoop', garmin_watch: 'Garmin Watch',
+                      apple_watch: 'Apple Watch',
+                    };
+
+                    return (
+                      <div key={ctx} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: isMobile ? 14 : 18 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                          <div style={{ fontSize: 15, fontWeight: 700 }}>{contextLabels[ctx]}</div>
+                          {config.is_custom && (
+                            <button onClick={resetToDefaults} disabled={hrSaving}
+                              style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", color: T.textSoft, fontSize: 11, fontWeight: 500, padding: 0 }}>
+                              <RotateCcw size={11} /> Reset
+                            </button>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 12, color: T.textSoft, marginBottom: 12 }}>{contextDesc[ctx]}</div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                          {priority.map((src, idx) => (
+                            <div key={src} style={{
+                              display: "flex", alignItems: "center", justifyContent: "space-between",
+                              background: T.surface, borderRadius: 8, padding: "8px 10px",
+                            }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <span style={{ fontFamily: mono, fontSize: 11, color: T.textDim, width: 16, textAlign: "center" }}>{idx + 1}</span>
+                                <span style={{ fontSize: 13, fontWeight: 500 }}>{SOURCE_LABELS[src] || src}</span>
+                              </div>
+                              <div style={{ display: "flex", gap: 2 }}>
+                                <button onClick={() => moveItem(idx, -1)} disabled={idx === 0 || hrSaving}
+                                  style={{ background: "none", border: "none", cursor: idx === 0 ? "default" : "pointer", padding: 4, color: idx === 0 ? T.border : T.textSoft, borderRadius: 4, display: "flex" }}>
+                                  <ChevronUp size={14} />
+                                </button>
+                                <button onClick={() => moveItem(idx, 1)} disabled={idx === priority.length - 1 || hrSaving}
+                                  style={{ background: "none", border: "none", cursor: idx === priority.length - 1 ? "default" : "pointer", padding: 4, color: idx === priority.length - 1 ? T.border : T.textSoft, borderRadius: 4, display: "flex" }}>
+                                  <ChevronDown size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {hrSaved && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: T.accent }}>
+                      <Check size={14} /> Priority saved
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

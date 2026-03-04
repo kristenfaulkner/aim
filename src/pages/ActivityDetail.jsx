@@ -14,6 +14,9 @@ import { formatActivityDate, formatActivityTime, getActivityTimezoneAbbrev } fro
 import SessionNotes from "../components/SessionNotes.jsx";
 import WbalChart from "../components/WbalChart.jsx";
 import { useWbalData } from "../hooks/useWbalData.js";
+import SimilarSessionsPanel from "../components/SimilarSessionsPanel.jsx";
+import { useSimilarSessions } from "../hooks/useSimilarSessions.js";
+import SourceBadge from "../components/SourceBadge";
 
 function formatDuration(seconds) {
   if (!seconds) return "--";
@@ -863,6 +866,7 @@ export default function ActivityDetail() {
   const { signout, profile } = useAuth();
   const { units } = usePreferences();
   const { data: wbalData, loading: wbalLoading } = useWbalData(id);
+  const { data: similarData, loading: similarLoading } = useSimilarSessions(id);
   const handleSignout = async () => { await signout(); navigate("/"); };
 
   const fetchActivity = useCallback(async () => {
@@ -1170,6 +1174,7 @@ export default function ActivityDetail() {
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
                   <Heart size={14} style={{ color: T.danger }} /> Heart Rate
+                  {a.hr_source && <SourceBadge source={a.hr_source} confidence={a.hr_source_confidence} context="exercise" />}
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(3, 1fr)", gap: 10 }}>
                   <MetricCard icon={<Heart size={14} />} label="Avg HR" value={Math.round(a.avg_hr_bpm)} unit="bpm" color={T.danger} />
@@ -1191,6 +1196,11 @@ export default function ActivityDetail() {
 
             {/* Planned vs Actual */}
             <PlannedVsActual data={a.planned_vs_actual} isMobile={isMobile} />
+
+            {/* Similar Sessions */}
+            {(similarData || similarLoading) && (
+              <SimilarSessionsPanel data={similarData} loading={similarLoading} isMobile={isMobile} />
+            )}
 
             {/* Intervals */}
             <IntervalsTable laps={a.laps} isMobile={isMobile} />

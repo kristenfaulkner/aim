@@ -32,15 +32,21 @@ async function syncDay(userId, date, accessToken, eightSleepUserId, timezone) {
     eightsleep_extended: extended,     // Structured extended metrics
   };
 
+  // Tag HR fields with Eight Sleep as source
+  const hrSourceFields = {};
+  if (mapped.resting_hr_bpm != null) hrSourceFields.rhr_source = 'eightsleep';
+  if (mapped.hrv_ms != null) hrSourceFields.hrv_source = 'eightsleep';
+  if (mapped.total_sleep_seconds != null) hrSourceFields.sleep_hr_source = 'eightsleep';
+
   if (existing) {
     await supabaseAdmin
       .from("daily_metrics")
-      .update({ ...mapped, source_data: sourceData })
+      .update({ ...mapped, ...hrSourceFields, source_data: sourceData })
       .eq("id", existing.id);
   } else {
     await supabaseAdmin
       .from("daily_metrics")
-      .insert({ user_id: userId, date, ...mapped, source_data: sourceData });
+      .insert({ user_id: userId, date, ...mapped, ...hrSourceFields, source_data: sourceData });
   }
 
   return { date, score: dayData.score };

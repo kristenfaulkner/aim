@@ -16,6 +16,8 @@ export function useDashboardData(selectedActivityId = null) {
   const [powerProfile, setPowerProfile] = useState(null);
   const [recentActivities, setRecentActivities] = useState([]);
   const [connectedIntegrations, setConnectedIntegrations] = useState([]);
+  const [checkinStatus, setCheckinStatus] = useState(null);
+  const [activeTravel, setActiveTravel] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -52,6 +54,8 @@ export function useDashboardData(selectedActivityId = null) {
         powerProfileResult,
         recentResult,
         integrationsResult,
+        checkinResult,
+        travelResult,
       ] = await Promise.allSettled([
         // Query 1: Activity (latest or selected)
         activityQuery,
@@ -96,6 +100,18 @@ export function useDashboardData(selectedActivityId = null) {
           .select("provider")
           .eq("user_id", user.id)
           .eq("is_active", true),
+
+        // Query 7: Today's check-in status
+        apiFetch("/checkin/status"),
+
+        // Query 8: Most recent travel event (last 30 days)
+        supabase
+          .from("travel_events")
+          .select("id, detected_at, origin_timezone, dest_timezone, dest_altitude_m, distance_km, timezone_shift_hours, altitude_change_m, travel_type")
+          .eq("user_id", user.id)
+          .gte("detected_at", new Date(Date.now() - 30 * 86400000).toISOString())
+          .order("detected_at", { ascending: false })
+          .limit(1),
       ]);
 
       // Process results — use data if fulfilled, null/[] if rejected
@@ -134,6 +150,18 @@ export function useDashboardData(selectedActivityId = null) {
       } else {
         setConnectedIntegrations([]);
       }
+
+      if (checkinResult.status === "fulfilled") {
+        setCheckinStatus(checkinResult.value.checkin);
+      } else {
+        setCheckinStatus(null);
+      }
+
+      if (travelResult.status === "fulfilled" && travelResult.value.data?.[0]) {
+        setActiveTravel(travelResult.value.data[0]);
+      } else {
+        setActiveTravel(null);
+      }
     } catch (err) {
       console.error("Dashboard data fetch error:", err);
       setError(err.message || "Failed to load dashboard data");
@@ -164,6 +192,9 @@ export function useDashboardData(selectedActivityId = null) {
     powerProfile,
     recentActivities,
     connectedIntegrations,
+    checkinStatus,
+    setCheckinStatus,
+    activeTravel,
     loading,
     error,
     refetch: fetchData,

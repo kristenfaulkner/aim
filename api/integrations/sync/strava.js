@@ -15,6 +15,7 @@ import { resolveActivityTimezone, parseStravaTimezone } from "../../_lib/timezon
 import { detectTravel } from "../../_lib/travel.js";
 import { computeDurabilityData } from "../../_lib/durability.js";
 import { computeWbalStream } from "../../_lib/wbal.js";
+import { detectDeviceType } from "../../_lib/hr-source-priority.js";
 
 /**
  * Sync a single Strava activity by ID.
@@ -169,6 +170,13 @@ export async function syncStravaActivity(userId, stravaActivityId, options = {})
     start_time_local: startTimeLocal,
     source_data: activity,
   };
+
+  // Detect HR source from device metadata
+  if (record.avg_hr_bpm != null) {
+    const hrDevice = detectDeviceType(record);
+    record.hr_source = hrDevice.type;
+    record.hr_source_confidence = hrDevice.confidence;
+  }
 
   // Check for cross-source duplicates from higher-priority sources.
   // Strava is lowest priority — if the same workout exists from TP or a

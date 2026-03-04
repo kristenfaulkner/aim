@@ -2,6 +2,7 @@ import React from "react";
 import { T, mono } from "../../theme/tokens";
 import { formatDistance, formatElevation, elevationUnit } from "../../lib/units";
 import { formatActivityDate } from "../../lib/formatTime";
+import SourceBadge from "../SourceBadge";
 
 // ── Helpers ──
 
@@ -18,7 +19,7 @@ function formatDuration(seconds) {
 
 // ── Metric Box ──
 
-function MetricBox({ label, value, unit }) {
+function MetricBox({ label, value, unit, badge }) {
   return (
     <div
       style={{
@@ -30,17 +31,20 @@ function MetricBox({ label, value, unit }) {
         gap: 2,
       }}
     >
-      <span
-        style={{
-          fontSize: 9,
-          fontWeight: 600,
-          color: T.textDim,
-          textTransform: "uppercase",
-          letterSpacing: "0.08em",
-        }}
-      >
-        {label}
-      </span>
+      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <span
+          style={{
+            fontSize: 9,
+            fontWeight: 600,
+            color: T.textDim,
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+          }}
+        >
+          {label}
+        </span>
+        {badge}
+      </div>
       <div style={{ display: "flex", alignItems: "baseline" }}>
         <span
           style={{
@@ -65,7 +69,7 @@ function MetricBox({ label, value, unit }) {
 
 // ── Last Ride Card ──
 
-export default function LastRideCard({ activity, onViewDetails, isMobile, units = "imperial" }) {
+export default function LastRideCard({ activity, onViewDetails, onCompareSimilar, isMobile, units = "imperial" }) {
   if (!activity) return null;
 
   const a = activity;
@@ -213,6 +217,7 @@ export default function LastRideCard({ activity, onViewDetails, isMobile, units 
           label="Avg HR"
           value={a.avg_hr_bpm != null ? Math.round(a.avg_hr_bpm) : null}
           unit="bpm"
+          badge={a.hr_source ? <SourceBadge source={a.hr_source} confidence={a.hr_source_confidence} context="exercise" compact /> : null}
         />
         <MetricBox
           label="Max HR"
@@ -230,6 +235,26 @@ export default function LastRideCard({ activity, onViewDetails, isMobile, units 
           unit="kJ"
         />
       </div>
+
+      {/* Compare link */}
+      {onCompareSimilar && (
+        <div style={{ marginTop: 10, textAlign: "right" }}>
+          <button
+            onClick={onCompareSimilar}
+            style={{
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              fontSize: 11,
+              fontWeight: 600,
+              color: T.textSoft,
+            }}
+          >
+            vs similar sessions &rarr;
+          </button>
+        </div>
+      )}
     </div>
   );
 }

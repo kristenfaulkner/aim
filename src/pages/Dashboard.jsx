@@ -20,6 +20,11 @@ import WorkingGoals from "../components/dashboard/WorkingGoals";
 import NutritionLogger from "../components/dashboard/NutritionLogger";
 import PerformanceModels from "../components/dashboard/PerformanceModels";
 import AthleteBio from "../components/dashboard/AthleteBio";
+import TravelStatusCard from "../components/dashboard/TravelStatusCard";
+import CheckInModal, { CheckInSummaryCard } from "../components/dashboard/CheckInModal";
+import CrossTrainingLogger from "../components/dashboard/CrossTrainingLogger";
+import PrescriptionCard from "../components/dashboard/PrescriptionCard";
+import { usePrescription } from "../hooks/usePrescription";
 
 // ── HELPERS ──
 
@@ -100,7 +105,7 @@ function SkeletonCard({ height = 80 }) {
 }
 
 // ── ACTION ITEMS PANEL ──
-function ActionItems({ activity, dailyMetrics, computed, isMobile, onOpenNutrition }) {
+function ActionItems({ activity, dailyMetrics, computed, isMobile, onOpenNutrition, onOpenCrossTraining }) {
   const [tab, setTab] = useState("today");
   const tabs = [
     { id: "today", label: "Today" },
@@ -112,6 +117,7 @@ function ActionItems({ activity, dailyMetrics, computed, isMobile, onOpenNutriti
   if (activity && computed?.fuel) {
     todayItems.push({ icon: "\u26FD", cat: "NUTRITION", title: "Log post-ride nutrition", desc: `Estimated ${computed.fuel.carbGrams}g carbs burned — replenish within 30min`, action: onOpenNutrition });
   }
+  todayItems.push({ icon: "\uD83C\uDFCB\uFE0F", cat: "TRAINING", title: "Log cross-training", desc: "Track strength, yoga, swimming, or other sessions", action: onOpenCrossTraining });
   if (dailyMetrics?.recovery_score != null && dailyMetrics.recovery_score < 50) {
     todayItems.push({ icon: "\uD83D\uDECF\uFE0F", cat: "RECOVERY", title: "Prioritize recovery today", desc: `Recovery score ${Math.round(dailyMetrics.recovery_score)}/100 — consider rest or easy spin` });
   }
@@ -260,9 +266,12 @@ export default function Dashboard() {
   const browserTriggerRef = useRef(null);
   const { isMobile, isTablet } = useResponsive();
   const { units } = usePreferences();
-  const { activity, profile, dailyMetrics, fitnessHistory, powerProfile, recentActivities, connectedIntegrations, loading, error } = useDashboardData(selectedActivityId);
+  const { activity, profile, dailyMetrics, fitnessHistory, powerProfile, recentActivities, connectedIntegrations, checkinStatus, setCheckinStatus, activeTravel, loading, error, refetch } = useDashboardData(selectedActivityId);
 
   const handleSignout = async () => { await signout(); navigate("/"); };
+
+  // ── Prescription ──
+  const { prescription: rxData, gaps: rxGaps, readiness: rxReadiness, loading: rxLoading, error: rxError, refetch: rxRefetch, addToCalendar: rxAddToCalendar } = usePrescription();
 
   // ── AI Analysis ──
   const [analysisLoading, setAnalysisLoading] = useState(false);
@@ -270,9 +279,25 @@ export default function Dashboard() {
   const [liveAnalysis, setLiveAnalysis] = useState(null);
   const effectiveAiAnalysis = liveAnalysis || activity?.ai_analysis || null;
 
-  // ── Goals + Nutrition Logger ──
+  // ── Check-In Modal ──
+  const [showCheckIn, setShowCheckIn] = useState(false);
+  const [checkInEditing, setCheckInEditing] = useState(false);
+  const checkInShownRef = useRef(false);
+
+  useEffect(() => {
+    // Show modal 500ms after dashboard loads when check-in not completed
+    if (!loading && checkinStatus === null && !checkInShownRef.current) {
+      checkInShownRef.current = true;
+      const timer = setTimeout(() => setShowCheckIn(true), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, checkinStatus]);
+
+  // ── Goals + Nutrition Logger + Cross-Training Logger ──
   const [goals, setGoals] = useState(null);
   const [nutritionOpen, setNutritionOpen] = useState(false);
+  const [crossTrainingOpen, setCrossTrainingOpen] = useState(false);
+  const [crossTrainingEntries, setCrossTrainingEntries] = useState([]);
   const goalsFetchedRef = useRef(false);
 
   useEffect(() => {
@@ -282,12 +307,18 @@ export default function Dashboard() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
-        const res = await fetch("/api/goals/list", {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
+        const headers = { Authorization: `Bearer ${session.access_token}` };
+        const [goalsRes, crossRes] = await Promise.all([
+          fetch("/api/goals/list", { headers }),
+          fetch("/api/cross-training/list?days=7", { headers }),
+        ]);
+        if (goalsRes.ok) {
+          const data = await goalsRes.json();
           setGoals(data.goals || []);
+        }
+        if (crossRes.ok) {
+          const data = await crossRes.json();
+          setCrossTrainingEntries(data.entries || []);
         }
       } catch {}
     })();
@@ -464,24 +495,50 @@ export default function Dashboard() {
             {/* Athlete Bio */}
             <AthleteBio profile={profile} onUpdateProfile={updateProfile} isMobile={isMobile} />
 
+            {/* Check-In Summary (shown after completion) */}
+            {checkinStatus && (
+              <CheckInSummaryCard
+                checkin={checkinStatus}
+                onEdit={() => {
+                  setCheckInEditing(true);
+                  setShowCheckIn(true);
+                }}
+              />
+            )}
+
             {/* Readiness Card */}
-            <ReadinessCard dailyMetrics={dailyMetrics} isMobile={isMobile} />
+            <ReadinessCard dailyMetrics={dailyMetrics} checkinData={checkinStatus} isMobile={isMobile} />
+
+            {/* Travel Status (conditional — auto-dismisses when recovery complete) */}
+            <TravelStatusCard travelEvent={activeTravel} isMobile={isMobile} />
+
+            {/* Today's Workout Prescription */}
+            <PrescriptionCard
+              prescription={rxData}
+              gaps={rxGaps}
+              readiness={rxReadiness}
+              loading={rxLoading}
+              error={rxError}
+              onRefresh={rxRefetch}
+              onAddToCalendar={rxAddToCalendar}
+              isMobile={isMobile}
+            />
 
             {/* Action Items */}
-            <ActionItems activity={activity} dailyMetrics={dailyMetrics} computed={computed} isMobile={isMobile} onOpenNutrition={() => setNutritionOpen(true)} />
+            <ActionItems activity={activity} dailyMetrics={dailyMetrics} computed={computed} isMobile={isMobile} onOpenNutrition={() => setNutritionOpen(true)} onOpenCrossTraining={() => setCrossTrainingOpen(true)} />
 
             {/* Activity Browser + Last Ride */}
             <div style={{ position: "relative" }}>
               <ActivityBrowserTrigger isOpen={browserOpen} onClick={() => setBrowserOpen(!browserOpen)} triggerRef={browserTriggerRef} />
               <ActivityBrowser isOpen={browserOpen} onClose={() => setBrowserOpen(false)} selectedActivityId={selectedActivityId} onSelectActivity={id => setSelectedActivityId(id)} anchorRef={browserTriggerRef} />
             </div>
-            <LastRideCard activity={activity} onViewDetails={() => navigate(`/activity/${activity.id}`)} isMobile={isMobile} units={units} />
+            <LastRideCard activity={activity} onViewDetails={() => navigate(`/activity/${activity.id}`)} onCompareSimilar={() => navigate(`/activity/${activity.id}#similar`)} isMobile={isMobile} units={units} />
 
             {/* Training Week + Fitness Chart Row */}
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
               <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: 18 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Weekly Training Load</div>
-                <TrainingWeekChart recentActivities={recentActivities} />
+                <TrainingWeekChart recentActivities={recentActivities} crossTrainingEntries={crossTrainingEntries} />
               </div>
               <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: 18 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Fitness, Fatigue & Form</div>
@@ -566,6 +623,49 @@ export default function Dashboard() {
         rideDurationHours={activity?.duration_seconds ? activity.duration_seconds / 3600 : null}
         isMobile={isMobile}
       />
+
+      {/* Cross-Training Logger Modal */}
+      <CrossTrainingLogger
+        isOpen={crossTrainingOpen}
+        onClose={() => {
+          setCrossTrainingOpen(false);
+          // Refresh cross-training entries for chart
+          (async () => {
+            try {
+              const { data: { session } } = await supabase.auth.getSession();
+              if (!session) return;
+              const res = await fetch("/api/cross-training/list?days=7", {
+                headers: { Authorization: `Bearer ${session.access_token}` },
+              });
+              if (res.ok) {
+                const data = await res.json();
+                setCrossTrainingEntries(data.entries || []);
+              }
+            } catch {}
+          })();
+        }}
+        isMobile={isMobile}
+      />
+
+      {/* Daily Check-In Modal */}
+      {showCheckIn && (
+        <CheckInModal
+          athleteName={profile?.full_name?.split(" ")[0] || "there"}
+          initialValues={checkInEditing ? checkinStatus : null}
+          isFirstTime={!checkinStatus && !checkInShownRef.current}
+          isMobile={isMobile}
+          onComplete={(checkin) => {
+            setShowCheckIn(false);
+            setCheckInEditing(false);
+            setCheckinStatus(checkin);
+            refetch();
+          }}
+          onSkip={() => {
+            setShowCheckIn(false);
+            setCheckInEditing(false);
+          }}
+        />
+      )}
     </div>
   );
 }

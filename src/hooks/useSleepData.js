@@ -24,7 +24,7 @@ export function useSleepData(period = "30d") {
     try {
       let query = supabase
         .from("daily_metrics")
-        .select("date, sleep_score, total_sleep_seconds, deep_sleep_seconds, rem_sleep_seconds, light_sleep_seconds, sleep_latency_seconds, sleep_efficiency_pct, sleep_onset_time, wake_time, bed_temperature_celsius, hrv_ms, hrv_overnight_avg_ms, resting_hr_bpm, respiratory_rate, blood_oxygen_pct, recovery_score, readiness_score, source_data")
+        .select("date, sleep_score, total_sleep_seconds, deep_sleep_seconds, rem_sleep_seconds, light_sleep_seconds, sleep_latency_seconds, sleep_efficiency_pct, sleep_onset_time, wake_time, bed_temperature_celsius, hrv_ms, hrv_overnight_avg_ms, resting_hr_bpm, respiratory_rate, blood_oxygen_pct, recovery_score, readiness_score, source_data, hrv_source, rhr_source, sleep_hr_source")
         .eq("user_id", user.id)
         .order("date", { ascending: true });
 

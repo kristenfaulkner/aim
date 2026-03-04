@@ -1,5 +1,6 @@
 import React from "react";
 import { T, mono } from "../../theme/tokens";
+import SourceBadge from "../SourceBadge";
 
 // ── Readiness Ring ──
 // SVG circular progress showing recovery score 0-100
@@ -88,7 +89,7 @@ function ReadinessRing({ score }) {
 }
 
 // ── Metric Pill ──
-function MetricPill({ label, value, unit }) {
+function MetricPill({ label, value, unit, badge }) {
   return (
     <div
       style={{
@@ -100,17 +101,20 @@ function MetricPill({ label, value, unit }) {
         gap: 2,
       }}
     >
-      <span
-        style={{
-          fontSize: 9,
-          fontWeight: 600,
-          color: T.textDim,
-          textTransform: "uppercase",
-          letterSpacing: "0.05em",
-        }}
-      >
-        {label}
-      </span>
+      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <span
+          style={{
+            fontSize: 9,
+            fontWeight: 600,
+            color: T.textDim,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+          }}
+        >
+          {label}
+        </span>
+        {badge}
+      </div>
       <div style={{ display: "flex", alignItems: "baseline", gap: 3 }}>
         <span
           style={{
@@ -129,14 +133,38 @@ function MetricPill({ label, value, unit }) {
   );
 }
 
+// ── Subjective score computation ──
+function computeSubjectiveScore(checkin) {
+  if (!checkin) return null;
+  const { life_stress_score, motivation_score, muscle_soreness_score, mood_score } = checkin;
+  const values = [];
+  if (life_stress_score != null) values.push(6 - life_stress_score); // invert
+  if (motivation_score != null) values.push(motivation_score);
+  if (muscle_soreness_score != null) values.push(6 - muscle_soreness_score); // invert
+  if (mood_score != null) values.push(mood_score);
+  if (values.length === 0) return null;
+  const avg = values.reduce((a, b) => a + b, 0) / values.length; // 1-5
+  return Math.round(((avg - 1) / 4) * 100); // 0-100
+}
+
+function blendReadiness(deviceScore, subjectiveScore) {
+  if (deviceScore == null && subjectiveScore == null) return null;
+  if (subjectiveScore == null) return deviceScore;
+  if (deviceScore == null) return subjectiveScore;
+  return Math.round(deviceScore * 0.7 + subjectiveScore * 0.3);
+}
+
 // ── Readiness Card ──
-export default function ReadinessCard({ dailyMetrics, isMobile }) {
+export default function ReadinessCard({ dailyMetrics, checkinData, isMobile }) {
   const m = dailyMetrics || {};
 
   const deepSleepMin =
     m.deep_sleep_seconds != null
       ? Math.round(m.deep_sleep_seconds / 60)
       : null;
+
+  const subjectiveScore = computeSubjectiveScore(checkinData);
+  const blendedScore = blendReadiness(m.recovery_score, subjectiveScore);
 
   return (
     <div
@@ -147,7 +175,7 @@ export default function ReadinessCard({ dailyMetrics, isMobile }) {
         padding: isMobile ? 16 : 20,
       }}
     >
-      {/* Ring */}
+      {/* Ring — use blended score if available */}
       <div
         style={{
           display: "flex",
@@ -155,10 +183,10 @@ export default function ReadinessCard({ dailyMetrics, isMobile }) {
           marginBottom: 18,
         }}
       >
-        <ReadinessRing score={m.recovery_score} />
+        <ReadinessRing score={blendedScore ?? m.recovery_score} />
       </div>
 
-      {/* Metric pills 2x2 grid */}
+      {/* Metric pills */}
       <div
         style={{
           display: "grid",
@@ -166,14 +194,20 @@ export default function ReadinessCard({ dailyMetrics, isMobile }) {
           gap: 8,
         }}
       >
-        <MetricPill label="HRV" value={m.hrv_ms} unit="ms" />
-        <MetricPill label="RHR" value={m.resting_hr_bpm} unit="bpm" />
+        <MetricPill label="HRV" value={m.hrv_ms} unit="ms"
+          badge={m.hrv_source ? <SourceBadge source={m.hrv_source} context="resting" compact /> : null} />
+        <MetricPill label="RHR" value={m.resting_hr_bpm} unit="bpm"
+          badge={m.rhr_source ? <SourceBadge source={m.rhr_source} context="resting" compact /> : null} />
         <MetricPill
           label="Sleep Score"
           value={m.sleep_score}
           unit="/100"
         />
-        <MetricPill label="Deep Sleep" value={deepSleepMin} unit="min" />
+        {subjectiveScore != null ? (
+          <MetricPill label="Subjective" value={subjectiveScore} unit="/100" />
+        ) : (
+          <MetricPill label="Deep Sleep" value={deepSleepMin} unit="min" />
+        )}
       </div>
     </div>
   );

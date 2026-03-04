@@ -8,6 +8,7 @@ import { useResponsive } from "../hooks/useResponsive";
 import { AreaChart, Area, LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
 import { LogOut, Settings, Menu, X, Moon, ChevronDown, ChevronUp, User } from "lucide-react";
 import SEO from "../components/SEO";
+import SourceBadge from "../components/SourceBadge";
 import SleepAIPanel from "../components/sleep/SleepAIPanel";
 import { FormattedText } from "../lib/formatText.jsx";
 
@@ -71,11 +72,11 @@ function Sparkline({ data, width = 80, height = 28, color = T.accent }) {
 
 // ── Summary Card ──
 
-function SummaryCard({ label, value, unit, color = T.text, sparkData, sparkColor }) {
+function SummaryCard({ label, value, unit, color = T.text, sparkData, sparkColor, badge }) {
   return (
     <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "14px 16px", position: "relative", overflow: "hidden" }}>
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, transparent, ${color}40, transparent)` }} />
-      <div style={{ fontSize: 10, color: T.textSoft, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 7 }}>{label}</div>
+      <div style={{ fontSize: 10, color: T.textSoft, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 7, display: "flex", alignItems: "center", gap: 5 }}>{label}{badge}</div>
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
           <span style={{ fontSize: 26, fontWeight: 700, fontFamily: mono, color }}>{value}</span>
@@ -469,6 +470,7 @@ export default function Sleep() {
                 unit="ms"
                 color={T.accent}
                 sparkData={hrvSparkData.length > 1 ? hrvSparkData : null}
+                badge={latestNight?.hrv_source ? <SourceBadge source={latestNight.hrv_source} context="sleep" compact /> : null}
               />
             </div>
 

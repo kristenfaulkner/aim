@@ -78,6 +78,8 @@ You receive a pre-processed context payload with three layers:
 9. **NEVER give direct medical advice.**
 10. **Always write in second person ("you", "your") — NEVER use third-person words like "athletes" or "the athlete" when describing patterns in this person's own data.** When you compute quartiles or groupings from their data, say "your worst sleep nights" or "nights when you slept under 6h" — not "athletes in the bottom quartile." Every insight is personal data about ONE person, not a population study. You are NOT a doctor. Never say "take X supplement", "start X protocol", "increase your dose", or any directive health instruction. Instead use language like: "Research suggests...", "Consider discussing with your doctor...", "Studies show that X may help with Y...", "Some athletes find that...", "It may be worth exploring...". For anything involving supplements, medications, dosing, or health interventions, always recommend consulting a physician or sports medicine doctor.
 
+11. **When HR source attribution is provided (hrSourceInfo), factor data quality into your analysis.** If exercise HR is from a chest strap (high confidence), trust it fully. If from wrist optical (low confidence), note that HR metrics like drift and EF may be less reliable. When comparing HR across days with different sources, mention the source difference: "Note: today's HR was from your Wahoo chest strap while Feb 18 used Strava's wrist optical sensor, so direct HR comparison should be interpreted with some caution."
+
 ## INSIGHT CATEGORIES
 
 Scan the athlete's data for patterns in ALL of the following categories. Only include categories where you find meaningful patterns — don't force insights where the data doesn't support them.
@@ -973,7 +975,7 @@ export async function buildAnalysisContext(userId, activityId) {
     // 90 days of activities (trimmed fields — no power_curve/zone_distribution)
     supabaseAdmin
       .from("activities")
-      .select("name, activity_type, started_at, duration_seconds, distance_meters, avg_power_watts, normalized_power_watts, tss, intensity_factor, avg_hr_bpm, max_hr_bpm, efficiency_factor, hr_drift_pct, avg_cadence_rpm, calories, temperature_celsius, lr_balance, user_notes, user_rating, user_rpe, user_tags, gi_comfort, mental_focus, perceived_recovery_pre")
+      .select("name, activity_type, started_at, duration_seconds, distance_meters, avg_power_watts, normalized_power_watts, tss, intensity_factor, avg_hr_bpm, max_hr_bpm, efficiency_factor, hr_drift_pct, avg_cadence_rpm, calories, temperature_celsius, lr_balance, user_notes, user_rating, user_rpe, user_tags, gi_comfort, mental_focus, perceived_recovery_pre, hr_source, hr_source_confidence")
       .eq("user_id", userId)
       .neq("id", activityId)
       .gte("started_at", new Date(Date.now() - 90 * 86400000).toISOString())
@@ -983,7 +985,7 @@ export async function buildAnalysisContext(userId, activityId) {
     // 90 days of daily metrics (used for computation, only recent 7d sent raw)
     supabaseAdmin
       .from("daily_metrics")
-      .select("date, daily_tss, ctl, atl, tsb, ramp_rate, sleep_score, total_sleep_seconds, deep_sleep_seconds, rem_sleep_seconds, hrv_ms, hrv_overnight_avg_ms, resting_hr_bpm, recovery_score, readiness_score, strain_score, weight_kg, body_fat_pct, muscle_mass_kg, hydration_pct, bone_mass_kg, cycle_day, cycle_phase, blood_oxygen_pct, skin_temperature_deviation, life_stress_score, motivation_score, muscle_soreness_score, mood_score, checkin_completed_at, respiratory_rate, resting_spo2")
+      .select("date, daily_tss, ctl, atl, tsb, ramp_rate, sleep_score, total_sleep_seconds, deep_sleep_seconds, rem_sleep_seconds, hrv_ms, hrv_overnight_avg_ms, resting_hr_bpm, recovery_score, readiness_score, strain_score, weight_kg, body_fat_pct, muscle_mass_kg, hydration_pct, bone_mass_kg, cycle_day, cycle_phase, blood_oxygen_pct, skin_temperature_deviation, life_stress_score, motivation_score, muscle_soreness_score, mood_score, checkin_completed_at, respiratory_rate, resting_spo2, rhr_source, sleep_hr_source, hrv_source")
       .eq("user_id", userId)
       .gte("date", new Date(Date.now() - 90 * 86400000).toISOString().split("T")[0])
       .order("date", { ascending: false }),
@@ -1236,6 +1238,16 @@ export async function buildAnalysisContext(userId, activityId) {
 
     // Layer 7: Athlete feedback preferences
     feedbackPreferenceText: feedbackPreferenceText || undefined,
+
+    // HR source attribution (for data quality awareness in insights)
+    hrSourceInfo: activity.hr_source ? {
+      exercise: { source: activity.hr_source, confidence: activity.hr_source_confidence || 'medium' },
+      recovery: dailyMetrics[0] ? {
+        rhr: dailyMetrics[0].rhr_source ? { source: dailyMetrics[0].rhr_source } : undefined,
+        hrv: dailyMetrics[0].hrv_source ? { source: dailyMetrics[0].hrv_source } : undefined,
+        sleep_hr: dailyMetrics[0].sleep_hr_source ? { source: dailyMetrics[0].sleep_hr_source } : undefined,
+      } : undefined,
+    } : undefined,
   };
 }
 
