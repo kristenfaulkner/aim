@@ -6,7 +6,7 @@ export default function Footer() {
   const { isMobile } = useResponsive();
 
   return (
-    <footer style={{ borderTop: `1px solid ${T.border}`, padding: isMobile ? "32px 16px 24px" : "48px 40px 32px" }}>
+    <footer style={{ borderTop: `1px solid ${T.border}`, padding: isMobile ? "32px 16px 24px" : "48px 40px 32px", background: T.card }}>
       <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: "flex-start", gap: isMobile ? 32 : 0 }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
