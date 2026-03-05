@@ -144,6 +144,36 @@ Body: "Your Dec 20 ride in LA was nearly identical in structure (3:15, threshold
 
 **Why this is gold-standard:** It finds a structurally matched session in different conditions, quantifies each environmental factor using the athlete's PERSONAL model coefficients (not generic estimates), then strips away the conditions to reveal the true underlying fitness. This is the ultimate AIM insight — telling the athlete something NO other app can calculate.
 
+**Example 7: Heat Adaptation Tracking**
+Title: "Heat Adaptation Nearly Complete"
+Body: "Power:HR at 95°F today was 1.79 W/bpm vs. 1.45 at 68°F three weeks ago — only a 2% gap. Early summer, heat caused a 21% drop. Your plasma volume expansion is nearly complete. For your race, if temps exceed 90°F, you'll lose <3% power vs. cooler conditions."
+
+**Why this is gold-standard:** It tracks the athlete's personal heat adaptation curve over time with specific numbers, quantifies the improvement (21% → 2% gap), identifies the physiological mechanism (plasma volume expansion), and gives a concrete race-day prediction.
+
+**Example 8: Power Profile Gap Analysis**
+Title: "VO2max Power: Cat 3 — Your Weakest Link"
+Body: "Your 5-min power of 355W (3.99 W/kg) classifies as Cat 3, while your 20-min threshold is Cat 2 at 3.35 W/kg. That's a 2-tier gap. Your VO2/FTP ratio is 1.19 — well below the 1.25 target. You need +19W at 5-min to reach Cat 2. Consider adding 2× per week VO2 sessions for 6-8 weeks."
+
+**Why this is gold-standard:** It identifies the specific weakness in the power profile relative to other durations, quantifies the gap with a precise wattage target (+19W), gives a concrete protocol (2× VO2/week for 6-8 weeks), and frames it in familiar cycling categories so the athlete immediately understands the significance.
+
+**Example 9: Recovery-Adjusted EF Analysis**
+Title: "Efficiency Factor: 1.79 W/bpm"
+Body: "Your EF (NP/avg HR) of 1.79 is your second-highest this season, despite poor recovery. On well-rested days, you've hit 1.84. This confirms your aerobic base is strong — the drift today was recovery-driven, not fitness-driven. Your 14.5 hrs/week of Z2 over the past month is paying off."
+
+**Why this is gold-standard:** It separates the recovery signal from the fitness signal — instead of just reporting EF, it explains that the high EF despite poor recovery proves underlying fitness gains. It attributes the cause (14.5 hrs/week Z2) and frames the drift as recovery-driven rather than fitness-driven.
+
+**Example 10: Multi-Night HRV → Power Correlation**
+Title: "3-Night HRV Decline → Power Fade Pattern"
+Body: "Your overnight HRV has declined 74ms → 62ms → 38ms over 3 nights. Historically, when HRV drops below 45ms for 2+ consecutive days, your NP drops 8-14% on comparable efforts. Today's NP was 272W vs. your 285W average — a 4.6% drop. Consider keeping tomorrow to Z1/Z2."
+
+**Why this is gold-standard:** It identifies a multi-day trend (not just a single data point), connects it to a personal statistical pattern (8-14% NP drop when HRV < 45ms for 2+ days), confirms the pattern is playing out today (4.6% drop), and gives a specific recovery prescription.
+
+**Example 11: Cross-Domain Hydration → Drift Diagnosis**
+Title: "Hydration Was Low Before This Ride"
+Body: "Your Withings hydration reading this morning was 62% — below your 65% baseline. In hot conditions (today was 35°C), starting under-hydrated compounds cardiac drift. Your 8.1% drift today vs. 3.2% on a similar effort when you weighed in at 65% hydration suggests ~2-3% of today's drift was hydration-related, not fitness."
+
+**Why this is gold-standard:** It connects THREE data sources (Withings hydration, weather temperature, cardiac drift), quantifies the hydration-specific contribution to drift (2-3%), compares to a matched effort with better hydration, and separates the hydration signal from the fitness signal.
+
 **Patterns to follow in every insight:**
 1. Ground in a specific number from today
 2. Compare to the athlete's own history with dates and values

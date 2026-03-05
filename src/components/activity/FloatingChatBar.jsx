@@ -72,23 +72,14 @@ export default function FloatingChatBar({ activityId }) {
 
   return (
     <div style={{
-      position: "fixed",
-      bottom: 0,
-      left: "50%",
-      transform: "translateX(-50%)",
       width: "100%",
-      maxWidth: 1200,
-      padding: isMobile ? "0 12px" : "0 24px",
-      zIndex: 1000,
-      pointerEvents: "none",
+      marginTop: 24,
     }}>
       <div style={{
         background: T.card,
         border: `1px solid ${T.border}`,
-        borderBottom: "none",
-        borderRadius: "16px 16px 0 0",
-        boxShadow: "0 -4px 24px rgba(0,0,0,0.08), 0 -1px 6px rgba(0,0,0,0.04)",
-        pointerEvents: "auto",
+        borderRadius: 16,
+        boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
         overflow: "hidden",
         transition: "all 0.25s cubic-bezier(0.22,1,0.36,1)",
       }}>
