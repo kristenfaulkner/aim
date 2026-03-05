@@ -81,6 +81,8 @@ You receive a pre-processed context payload with three layers:
 
 11. **When HR source attribution is provided (hrSourceInfo), factor data quality into your analysis.** If exercise HR is from a chest strap (high confidence), trust it fully. If from wrist optical (low confidence), note that HR metrics like drift and EF may be less reliable. When comparing HR across days with different sources, mention the source difference: "Note: today's HR was from your Wahoo chest strap while Feb 18 used Strava's wrist optical sensor, so direct HR comparison should be interpreted with some caution."
 
+12. **NEVER HALLUCINATE. This is the most important rule.** Every number, date, metric, comparison, and claim you make MUST come directly from the data provided in the context payload. Do NOT invent numbers, fabricate past activities, make up dates, or create fictional data points. If a metric is not present in the data, do NOT guess or approximate it — either skip that insight entirely or explicitly state what data is missing. If you are unsure about a value, do NOT include it. It is far better to generate fewer insights than to include a single fabricated data point. The athlete trusts these insights to make real training decisions — a hallucinated number could lead to injury, overtraining, or dangerous choices. If you cannot find specific data to support an insight, leave it out.
+
 ## INSIGHT CATEGORIES
 
 Scan the athlete's data for patterns in ALL of the following categories. Only include categories where you find meaningful patterns — don't force insights where the data doesn't support them.
@@ -262,7 +264,9 @@ Example insights:
 - "Your heat acclimation protocol calls for 30-min sauna sessions 3×/week. You've done 1 in the last 2 weeks. Your heat tolerance gains will start reversing after ~2 weeks without stimulus."
 
 ### CATEGORY 12: Blood Work → Training Impact
-Required sources: Blood panels (uploaded) + training data + power profile
+Required sources: Blood panels (uploaded, < 6 months old) + training data + power profile
+
+**IMPORTANT: Blood work data is only included in the context if it is less than 6 months old.** If \`bloodWork\` is null but \`staleHealthData\` contains a \`blood_work\` entry, the athlete has old blood work that was excluded. Do NOT reference blood panel values that are not present in the context. Instead, suggest uploading a new panel in \`dataGaps\`.
 
 Look for:
 - Ferritin levels correlated with VO2max/endurance (athlete-optimal >50 ng/mL, not clinical >12)
@@ -278,7 +282,9 @@ Example insights:
 - "Your testosterone-to-cortisol ratio has dropped 15% since your last panel — associated with accumulated training stress."
 
 ### CATEGORY 13: DEXA Scan → Power & Body Composition
-Required sources: DEXA scans (uploaded) + training data + Withings data
+Required sources: DEXA scans (uploaded, < 12 months old) + training data + Withings data
+
+**IMPORTANT: DEXA body composition data is only included if the scan is less than 12 months old.** If \`dexa\` is null but \`staleHealthData\` contains a \`dexa_scan\` entry, the athlete has an old scan that was excluded. Do NOT reference stale DEXA body comp values. However, if \`dexaAsymmetryCorroborated\` is present, this means an old DEXA showed a significant L/R leg lean mass asymmetry AND recent L/R power data confirms the imbalance persists. You may reference this asymmetry, but MUST note the scan age and recommend a new scan to confirm.
 
 Look for:
 - Lean mass provides the most accurate W/kg denominator — compare to scale-based estimates
@@ -509,6 +515,10 @@ Examples:
 - If no cycle tracking: "If you opt into cycle tracking with Oura, we could identify your personal performance windows across your cycle — research shows 4-8% power variation is common."
 - If no nutrition: "Connect MyFitnessPal to analyze whether under-fueling is causing your hour 3 power fade."
 
+**Stale health data**: When \`staleHealthData\` is present, include a specific nudge in \`dataGaps\` for each stale item. These nudges should mention the age and encourage uploading fresh data:
+- If stale blood work: "Your last blood panel was from [age]. Upload a new one for more accurate insights — ferritin, vitamin D, and inflammation markers can change significantly over a few months."
+- If stale DEXA: "Your last DEXA scan was from [age]. A new scan would give us accurate body composition data for W/kg calculations and lean mass tracking."
+
 ## ACTIVITY TYPE ADAPTATION
 
 The activity's sport is provided in \`activity.activity_type\`. Adapt your analysis to the actual sport — do NOT force cycling language onto non-cycling activities.
@@ -535,7 +545,7 @@ When writing insights for non-cycling activities, replace "ride" with "run", "sw
 - Use "type" to indicate the nature: "positive" for good news, "warning" for concerns, "action" for prescriptions, "insight" for observations.
 - Assign "confidence" based on data quality: "high" if strong data supports it, "medium" if reasonable inference, "low" if speculative.
 - If menstrual cycle data is present and the athlete has opted in (uses_cycle_tracking = true), include cycle-aware insights. Otherwise, never mention it.
-- Reference boosters, blood work, and DEXA when that data is available and relevant.
+- Reference boosters, blood work, and DEXA when that data is present in the context and fresh. NEVER reference blood work or DEXA values that are not in the context — if they were excluded due to staleness, the \`staleHealthData\` field will explain why. Use \`dataGaps\` to nudge the athlete to upload fresh data instead.
 - Build on personal models — the longer the data history, the more personalized insights should be (e.g., "based on your last 60 rides" or "over your last 5 cycles").
 
 ## ATHLETE NOTES & SUBJECTIVE DATA
@@ -547,6 +557,130 @@ When the athlete has provided session notes, ratings, RPE, or tags, use this sub
 - **Cross-reference user_rating trends with training load** (CTL/ATL/TSB) to gauge training tolerance. Consistently low ratings during high ATL periods suggest the athlete is struggling with the load.
 - **Use tags to contextualize performance** — indoor vs outdoor, solo vs group ride, race vs training. Group rides often show higher NP due to surges; indoor rides may show lower HR at same power due to cooling.
 - **Validate subjective data against objective metrics** — when they align, confidence is high. When they diverge, that's often the most interesting insight.`;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HEALTH DATA STALENESS
+//
+// Blood work and DEXA scans become stale over time. Rather than presenting
+// old data as current fact, we suppress it from AI context and nudge the user
+// to upload fresh data. Exception: DEXA regional asymmetry is slow to change,
+// so we keep it available when corroborated by recent L/R power imbalances.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const BLOOD_WORK_MAX_AGE_MS = 6 * 30 * 86400000;  // ~6 months
+const DEXA_MAX_AGE_MS = 12 * 30 * 86400000;        // ~12 months
+
+function getDataAgeMs(dateStr) {
+  if (!dateStr) return Infinity;
+  return Date.now() - new Date(dateStr).getTime();
+}
+
+function formatDataAge(dateStr) {
+  const months = Math.round(getDataAgeMs(dateStr) / (30 * 86400000));
+  if (months < 1) return "less than a month ago";
+  if (months === 1) return "1 month ago";
+  return `${months} months ago`;
+}
+
+/**
+ * Check if recent activities show a meaningful L/R power imbalance.
+ * Returns the average imbalance magnitude if >= 2% off 50/50, else null.
+ */
+function detectLRImbalance(currentActivity, recentActivities) {
+  const balances = [currentActivity, ...recentActivities]
+    .map(a => a.lr_balance)
+    .filter(Boolean)
+    .slice(0, 20);
+  if (balances.length < 3) return null;
+  const avgBalance = balances.reduce((s, v) => s + v, 0) / balances.length;
+  const imbalance = Math.abs(avgBalance - 50);
+  return imbalance >= 2 ? Math.round(imbalance * 10) / 10 : null;
+}
+
+/**
+ * Extract regional asymmetry data from a DEXA scan.
+ * Returns a minimal object with just the asymmetry info + scan age, or null.
+ */
+function extractDexaAsymmetry(dexa) {
+  if (!dexa?.regional_data) return null;
+  const rd = dexa.regional_data;
+  const leftLeg = rd.left_leg_lean_kg || rd.left_leg_lean_mass_kg;
+  const rightLeg = rd.right_leg_lean_kg || rd.right_leg_lean_mass_kg;
+  if (!leftLeg || !rightLeg) return null;
+  const diff = Math.abs(leftLeg - rightLeg);
+  if (diff < 0.2) return null; // <200g difference is negligible
+  return {
+    left_leg_lean_kg: leftLeg,
+    right_leg_lean_kg: rightLeg,
+    difference_kg: Math.round(diff * 100) / 100,
+    scan_date: dexa.scan_date,
+    scan_age: formatDataAge(dexa.scan_date),
+  };
+}
+
+/**
+ * Build the health snapshot for AI context with staleness filtering.
+ *
+ * - Blood work: included only if < 6 months old
+ * - DEXA body comp: included only if < 12 months old
+ * - DEXA asymmetry: included regardless of age IF recent L/R power data corroborates
+ * - Stale data generates dataGap nudges instead
+ */
+function buildHealthSnapshot(bloodWork, dexa, currentActivity, recentActivities) {
+  const result = {
+    bloodWork: null,
+    dexa: null,
+    dexaAsymmetryCorroborated: undefined,
+    staleHealthData: undefined,
+  };
+
+  const staleItems = [];
+
+  // Blood work: suppress if > 6 months old
+  if (bloodWork?.test_date) {
+    if (getDataAgeMs(bloodWork.test_date) <= BLOOD_WORK_MAX_AGE_MS) {
+      result.bloodWork = bloodWork;
+    } else {
+      staleItems.push({
+        type: "blood_work",
+        lastDate: bloodWork.test_date,
+        age: formatDataAge(bloodWork.test_date),
+      });
+    }
+  }
+
+  // DEXA: suppress body comp if > 12 months old
+  if (dexa?.scan_date) {
+    if (getDataAgeMs(dexa.scan_date) <= DEXA_MAX_AGE_MS) {
+      result.dexa = dexa;
+    } else {
+      staleItems.push({
+        type: "dexa_scan",
+        lastDate: dexa.scan_date,
+        age: formatDataAge(dexa.scan_date),
+      });
+
+      // Even if body comp is stale, check for asymmetry corroborated by recent L/R data
+      const asymmetry = extractDexaAsymmetry(dexa);
+      const lrImbalance = asymmetry
+        ? detectLRImbalance(currentActivity, recentActivities)
+        : null;
+      if (asymmetry && lrImbalance) {
+        result.dexaAsymmetryCorroborated = {
+          ...asymmetry,
+          recent_lr_imbalance_pct: lrImbalance,
+          note: `DEXA scan from ${asymmetry.scan_age} showed ${asymmetry.difference_kg}kg L/R leg lean mass difference. Recent rides confirm a persistent ${lrImbalance}% L/R power imbalance. This structural asymmetry may still be relevant, but a new DEXA scan would confirm whether it has changed.`,
+        };
+      }
+    }
+  }
+
+  if (staleItems.length > 0) {
+    result.staleHealthData = staleItems;
+  }
+
+  return result;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SMART CONTEXT HELPERS
@@ -1234,9 +1368,13 @@ export async function buildAnalysisContext(userId, activityId) {
     powerProfile,
     activityVsBests,
 
-    // Layer 3: Health snapshot
-    bloodWork: getData(bloodWorkResult) || null,
-    dexa: getData(dexaResult) || null,
+    // Layer 3: Health snapshot (with staleness filtering)
+    ...buildHealthSnapshot(
+      getData(bloodWorkResult),
+      getData(dexaResult),
+      activityClean,
+      allActivities
+    ),
 
     // Layer 4: Structured workout data
     activityTags: activityTags.length > 0 ? activityTags : undefined,
