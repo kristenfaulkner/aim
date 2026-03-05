@@ -6,6 +6,7 @@ import {
   getSourcePriority,
   isHigherPriority,
   findCrossSourceDuplicate,
+  findDuplicate,
 } from './source-priority.js';
 
 describe('getSourcePriority', () => {
@@ -66,24 +67,26 @@ describe('findCrossSourceDuplicate', () => {
     expect(match.id).toBe('act-1');
   });
 
-  it('skips activities from the same source', () => {
+  it('now matches same-source duplicates (delegates to findDuplicate)', () => {
     const match = findCrossSourceDuplicate(
       existingActivities,
       '2025-03-01T08:00:00Z',
       3600,
-      'strava' // same source as act-1
+      'strava' // same source as act-1 — now matches
     );
-    expect(match).toBeNull();
+    expect(match).not.toBeNull();
+    expect(match.id).toBe('act-1');
   });
 
-  it('returns null when time difference > 2 minutes', () => {
+  it('matches within 5-min window (widened from 2 min)', () => {
     const match = findCrossSourceDuplicate(
       existingActivities,
-      '2025-03-01T08:05:00Z', // 5 min off
+      '2025-03-01T08:04:00Z', // 4 min off but within ±5min
       3600,
       'wahoo'
     );
-    expect(match).toBeNull();
+    expect(match).not.toBeNull();
+    expect(match.id).toBe('act-1');
   });
 
   it('returns null when duration difference > 5%', () => {
@@ -104,5 +107,104 @@ describe('findCrossSourceDuplicate', () => {
       'wahoo'
     );
     expect(match).toBeNull();
+  });
+});
+
+describe('findDuplicate', () => {
+  const existing = [
+    {
+      id: 'a1', source: 'strava', source_id: '111',
+      started_at: '2025-03-01T08:00:00Z', duration_seconds: 3600, distance_meters: 40000,
+    },
+    {
+      id: 'a2', source: 'wahoo', source_id: '222',
+      started_at: '2025-02-28T14:00:00Z', duration_seconds: 5400, distance_meters: 70000,
+    },
+  ];
+
+  // Layer 1: exact source_id match
+  it('matches exact same source + source_id regardless of time', () => {
+    const match = findDuplicate(existing, '2025-06-01T00:00:00Z', 9999, 'strava', '111');
+    expect(match?.id).toBe('a1');
+  });
+
+  // Layer 2: same-source fuzzy match with different source_id (key fix!)
+  it('catches same-source duplicate with different source_id', () => {
+    const match = findDuplicate(
+      existing, '2025-03-01T08:00:30Z', 3620, 'strava', '999', { distanceMeters: 40100 }
+    );
+    expect(match?.id).toBe('a1');
+  });
+
+  // Cross-source match by time + duration (tight window)
+  it('finds cross-source duplicate within 2min by duration alone', () => {
+    const match = findDuplicate(existing, '2025-03-01T08:01:00Z', 3650, 'wahoo');
+    expect(match?.id).toBe('a1');
+  });
+
+  // Cross-source match in wider window needs both signals
+  it('matches at 3min offset when duration AND distance both confirm', () => {
+    const match = findDuplicate(
+      existing, '2025-03-01T08:03:00Z', 3620, 'wahoo', null, { distanceMeters: 40200 }
+    );
+    expect(match?.id).toBe('a1');
+  });
+
+  // Wider window with only one signal available still works (min(2,1)=1)
+  it('matches at 3min offset when only duration available (1 signal)', () => {
+    const noDist = [{ id: 'a1', source: 'strava', source_id: '111', started_at: '2025-03-01T08:00:00Z', duration_seconds: 3600 }];
+    const match = findDuplicate(noDist, '2025-03-01T08:03:00Z', 3620, 'wahoo');
+    expect(match?.id).toBe('a1');
+  });
+
+  // Wider window with two signals available but only one matches → reject
+  it('rejects at 3min offset when both signals available but only duration matches', () => {
+    const match = findDuplicate(
+      existing, '2025-03-01T08:03:00Z', 3620, 'wahoo', null, { distanceMeters: 20000 }
+    );
+    expect(match).toBeNull(); // distance >30% different = hard reject
+  });
+
+  // Hard rejection: duration >30% different
+  it('rejects when duration differs by >30% even within tight window', () => {
+    const match = findDuplicate(existing, '2025-03-01T08:01:00Z', 2000, 'wahoo', null, { distanceMeters: 40000 });
+    expect(match).toBeNull();
+  });
+
+  // Hard rejection: distance >30% different
+  it('rejects when distance differs by >30% even within tight window', () => {
+    const match = findDuplicate(existing, '2025-03-01T08:01:00Z', 3610, 'wahoo', null, { distanceMeters: 20000 });
+    expect(match).toBeNull();
+  });
+
+  // Outside time window entirely
+  it('returns null when time difference > 5 minutes', () => {
+    const match = findDuplicate(existing, '2025-03-01T08:10:00Z', 3600, 'wahoo', null, { distanceMeters: 40000 });
+    expect(match).toBeNull();
+  });
+
+  // No confirming signals at all
+  it('returns null when neither duration nor distance available', () => {
+    const noDuration = [{ id: 'a1', source: 'strava', source_id: '111', started_at: '2025-03-01T08:00:00Z' }];
+    const match = findDuplicate(noDuration, '2025-03-01T08:01:00Z', null, 'wahoo');
+    expect(match).toBeNull();
+  });
+
+  // Empty list
+  it('returns null for empty list', () => {
+    expect(findDuplicate([], '2025-03-01T08:00:00Z', 3600, 'strava')).toBeNull();
+  });
+
+  // Indoor trainer (zero distance) — dedup on duration only
+  it('matches indoor rides (zero distance) on time + duration', () => {
+    const indoor = [{ id: 'a1', source: 'strava', source_id: '111', started_at: '2025-03-01T08:00:00Z', duration_seconds: 3600, distance_meters: 0 }];
+    const match = findDuplicate(indoor, '2025-03-01T08:01:00Z', 3610, 'wahoo', null, { distanceMeters: 0 });
+    expect(match?.id).toBe('a1');
+  });
+
+  // Backward compat: deprecated wrapper still works
+  it('findCrossSourceDuplicate still works as deprecated wrapper', () => {
+    const match = findCrossSourceDuplicate(existing, '2025-03-01T08:01:00Z', 3650, 'wahoo');
+    expect(match?.id).toBe('a1');
   });
 });

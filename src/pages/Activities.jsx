@@ -214,6 +214,7 @@ export default function Workouts() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [selectedActivityId, setSelectedActivityId] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [showNotes, setShowNotes] = useState(true);
 
   // Activity browser — always enabled on this page
   const {
@@ -519,7 +520,7 @@ export default function Workouts() {
                       key={a.id}
                       activity={a}
                       isSelected={a.id === selectedActivityId}
-                      onSelect={(id) => setSelectedActivityId(id)}
+                      onSelect={(id) => { setSelectedActivityId(id); setShowNotes(true); }}
                       units={units}
                     />
                   ))}
@@ -618,18 +619,21 @@ export default function Workouts() {
                   analysisLoading={analysisLoading}
                   analysisError={analysisError}
                 />
-                <SessionNotes
-                  key={activity.id}
-                  activityId={activity.id}
-                  initialNotes={activity.user_notes || ""}
-                  initialRating={activity.user_rating || 0}
-                  initialRpe={activity.user_rpe || 0}
-                  initialTags={activity.user_tags || []}
-                  initialGiComfort={activity.gi_comfort || 0}
-                  initialMentalFocus={activity.mental_focus || 0}
-                  initialPerceivedRecoveryPre={activity.perceived_recovery_pre || 0}
-                  onSaved={(updated) => setActivity(prev => ({ ...prev, ...updated }))}
-                />
+                {showNotes && (
+                  <SessionNotes
+                    key={activity.id}
+                    activityId={activity.id}
+                    initialNotes={activity.user_notes || ""}
+                    initialRating={activity.user_rating || 0}
+                    initialRpe={activity.user_rpe || 0}
+                    initialTags={activity.user_tags || []}
+                    initialGiComfort={activity.gi_comfort || 0}
+                    initialMentalFocus={activity.mental_focus || 0}
+                    initialPerceivedRecoveryPre={activity.perceived_recovery_pre || 0}
+                    onSaved={(updated) => setActivity(prev => ({ ...prev, ...updated }))}
+                    onClose={() => setShowNotes(false)}
+                  />
+                )}
               </>
             ) : (
               <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: "60px 24px", textAlign: "center" }}>

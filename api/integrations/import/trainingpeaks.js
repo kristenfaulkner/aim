@@ -15,7 +15,7 @@ import { computeActivityMetrics } from "../../_lib/metrics.js";
 import { updateDailyMetrics, updatePowerProfile } from "../../_lib/training-load.js";
 import { supabaseAdmin } from "../../_lib/supabase.js";
 import { verifySession, cors } from "../../_lib/auth.js";
-import { isHigherPriority } from "../../_lib/source-priority.js";
+import { isHigherPriority, findDuplicate } from "../../_lib/source-priority.js";
 import { buildLapsPayload } from "../../_lib/intervals.js";
 import { detectAllTags, persistTags } from "../../_lib/tags.js";
 
@@ -295,7 +295,7 @@ async function loadContext(session) {
 
   const { data: existingActivities } = await supabaseAdmin
     .from("activities")
-    .select("id, source, source_id, started_at, duration_seconds, name, description, source_data, lr_balance, tss, intensity_factor, variability_index, efficiency_factor, work_kj, zone_distribution, power_curve, hr_drift_pct, decoupling_pct, avg_power_watts, normalized_power_watts, max_power_watts, avg_hr_bpm, max_hr_bpm, avg_cadence_rpm")
+    .select("id, source, source_id, started_at, duration_seconds, distance_meters, name, description, source_data, lr_balance, tss, intensity_factor, variability_index, efficiency_factor, work_kj, zone_distribution, power_curve, hr_drift_pct, decoupling_pct, avg_power_watts, normalized_power_watts, max_power_watts, avg_hr_bpm, max_hr_bpm, avg_cadence_rpm")
     .eq("user_id", session.userId);
 
   return { profile: profile || {}, existing: existingActivities || [] };
@@ -349,7 +349,10 @@ async function processEntries(session, entries, csvRows, profile, existing) {
       }
 
       // Check for duplicate
-      const duplicate = findDuplicate(existing, metadata.started_at, metadata.duration_seconds, metadata.source_id);
+      const duplicate = findDuplicate(
+        existing, metadata.started_at, metadata.duration_seconds,
+        "trainingpeaks", metadata.source_id, { distanceMeters: metadata.distance_meters }
+      );
 
       if (duplicate && duplicate.source === "trainingpeaks") {
         // Re-import from TP: fill in any fields that are now computable
@@ -640,37 +643,6 @@ function parseCsvData(csvData) {
     console.error("CSV parse error (non-fatal):", err.message);
     return [];
   }
-}
-
-/**
- * Find a duplicate activity by matching start time and duration.
- * Matches: started_at within ±2 minutes AND duration within ±5%.
- * Also matches by exact source_id for TP re-imports.
- */
-function findDuplicate(existingActivities, startedAt, durationSeconds, sourceId) {
-  const targetTime = new Date(startedAt).getTime();
-  const WINDOW_MS = 2 * 60 * 1000; // 2 minutes
-  const DURATION_TOLERANCE = 0.05; // 5%
-
-  for (const act of existingActivities) {
-    // Exact source_id match (re-import from TP)
-    if (act.source === "trainingpeaks" && act.source_id === sourceId) {
-      return act;
-    }
-
-    // Time + duration match (cross-source dedup)
-    const actTime = new Date(act.started_at).getTime();
-    const timeDiff = Math.abs(actTime - targetTime);
-    if (timeDiff > WINDOW_MS) continue;
-
-    if (act.duration_seconds && durationSeconds) {
-      const durationDiff = Math.abs(act.duration_seconds - durationSeconds) / Math.max(durationSeconds, 1);
-      if (durationDiff > DURATION_TOLERANCE) continue;
-    }
-
-    return act;
-  }
-  return null;
 }
 
 /**

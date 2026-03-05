@@ -6,7 +6,7 @@ import { verifySession, cors } from "../../_lib/auth.js";
 import { analyzeActivity } from "../../_lib/ai.js";
 import { sendWorkoutSMS } from "../../sms/send.js";
 import { sendWorkoutEmail } from "../../email/send.js";
-import { isHigherPriority, findCrossSourceDuplicate } from "../../_lib/source-priority.js";
+import { isHigherPriority, findDuplicate } from "../../_lib/source-priority.js";
 import { backfillUserMetrics } from "../../_lib/backfill.js";
 import { buildLapsPayload } from "../../_lib/intervals.js";
 import { detectAllTags, persistTags } from "../../_lib/tags.js";
@@ -179,43 +179,71 @@ export async function syncStravaActivity(userId, stravaActivityId, options = {})
     record.hr_source_confidence = hrDevice.confidence;
   }
 
-  // Check for cross-source duplicates from higher-priority sources.
+  // Check for duplicates from any source (same-source re-uploads + cross-source).
   // Strava is lowest priority — if the same workout exists from TP or a
   // device source, we just enrich it with Strava metadata instead of
   // creating a duplicate row.
   const { data: nearbyActivities } = await supabaseAdmin
     .from("activities")
-    .select("id, source, source_id, started_at, duration_seconds, name, description, source_data")
+    .select("id, source, source_id, started_at, duration_seconds, distance_meters, name, description, source_data")
     .eq("user_id", userId)
-    .neq("source", "strava")
-    .gte("started_at", new Date(new Date(activity.start_date).getTime() - 3 * 60 * 1000).toISOString())
-    .lte("started_at", new Date(new Date(activity.start_date).getTime() + 3 * 60 * 1000).toISOString());
+    .gte("started_at", new Date(new Date(activity.start_date).getTime() - 6 * 60 * 1000).toISOString())
+    .lte("started_at", new Date(new Date(activity.start_date).getTime() + 6 * 60 * 1000).toISOString());
 
-  const higherPriorityDup = findCrossSourceDuplicate(
-    nearbyActivities || [], activity.start_date, activity.moving_time, "strava"
+  const duplicate = findDuplicate(
+    nearbyActivities || [], activity.start_date, activity.moving_time, "strava",
+    String(activity.id), { distanceMeters: activity.distance }
   );
 
-  if (higherPriorityDup && isHigherPriority(higherPriorityDup.source, "strava")) {
-    // Higher-priority source owns this activity — just enrich with Strava metadata
-    const enrichData = {
-      source_data: {
-        ...(higherPriorityDup.source_data || {}),
-        strava: activity, // Store full Strava API data for reference
-      },
-    };
-    // Enrich name/description only if the existing ones are missing
-    if (!higherPriorityDup.name && activity.name) enrichData.name = activity.name;
-    if (!higherPriorityDup.description && activity.description) enrichData.description = activity.description;
+  if (duplicate) {
+    if (duplicate.source === "strava" && duplicate.source_id === String(activity.id)) {
+      // Exact same Strava activity — fall through to upsert (onConflict handles it)
+    } else if (duplicate.source === "strava") {
+      // Same source, different ID (user deleted + re-uploaded) — update existing
+      await supabaseAdmin
+        .from("activities")
+        .update({ ...record, source_id: String(activity.id) })
+        .eq("id", duplicate.id);
+      console.log(`[Strava] Updated re-uploaded activity ${duplicate.id} (source_id: ${duplicate.source_id} → ${activity.id})`);
+      return { ...record, id: duplicate.id, enriched: true };
+    } else if (isHigherPriority(duplicate.source, "strava")) {
+      // Higher-priority source owns this activity — just enrich with Strava metadata
+      const enrichData = {
+        source_data: {
+          ...(duplicate.source_data || {}),
+          strava: activity,
+        },
+      };
+      if (!duplicate.name && activity.name) enrichData.name = activity.name;
+      if (!duplicate.description && activity.description) enrichData.description = activity.description;
 
-    await supabaseAdmin
-      .from("activities")
-      .update(enrichData)
-      .eq("id", higherPriorityDup.id);
+      await supabaseAdmin
+        .from("activities")
+        .update(enrichData)
+        .eq("id", duplicate.id);
 
-    return { ...record, id: higherPriorityDup.id, enriched: true };
+      return { ...record, id: duplicate.id, enriched: true };
+    } else {
+      // Strava is equal or higher priority — enrich with other source's metadata
+      const enrichData = {
+        source_data: {
+          ...(duplicate.source_data || {}),
+          strava: activity,
+        },
+      };
+      if (!duplicate.name && activity.name) enrichData.name = activity.name;
+      if (!duplicate.description && activity.description) enrichData.description = activity.description;
+
+      await supabaseAdmin
+        .from("activities")
+        .update(enrichData)
+        .eq("id", duplicate.id);
+
+      return { ...record, id: duplicate.id, enriched: true };
+    }
   }
 
-  // No higher-priority duplicate — proceed with normal upsert
+  // No duplicate (or exact same Strava ID) — proceed with normal upsert
   const { data: upserted } = await supabaseAdmin
     .from("activities")
     .upsert(record, { onConflict: "user_id,source,source_id" })

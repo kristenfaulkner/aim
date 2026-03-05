@@ -2,6 +2,7 @@ import { supabaseAdmin } from "../../_lib/supabase.js";
 import { getWahooToken, wahooFetch, mapWahooToActivity, downloadWahooFit } from "../../_lib/wahoo.js";
 import { computeActivityMetrics } from "../../_lib/metrics.js";
 import { updateDailyMetrics, updatePowerProfile } from "../../_lib/training-load.js";
+import { findDuplicate, isHigherPriority } from "../../_lib/source-priority.js";
 import { verifySession, cors } from "../../_lib/auth.js";
 import { analyzeActivity } from "../../_lib/ai.js";
 import { sendWorkoutSMS } from "../../sms/send.js";
@@ -166,7 +167,84 @@ export async function syncWahooWorkout(userId, workout, options = {}) {
     record.hr_source_confidence = 'high';
   }
 
-  // Upsert activity
+  // --- Cross-source dedup: Wahoo is device-level (priority 3) ---
+  const { data: nearbyActivities } = await supabaseAdmin
+    .from("activities")
+    .select("id, source, source_id, started_at, duration_seconds, distance_meters, name, description, source_data")
+    .eq("user_id", userId)
+    .gte("started_at", new Date(new Date(record.started_at).getTime() - 6 * 60 * 1000).toISOString())
+    .lte("started_at", new Date(new Date(record.started_at).getTime() + 6 * 60 * 1000).toISOString());
+
+  const duplicate = findDuplicate(
+    nearbyActivities || [],
+    record.started_at,
+    record.duration_seconds,
+    "wahoo",
+    record.source_id,
+    { distanceMeters: record.distance_meters }
+  );
+
+  if (duplicate && duplicate.source !== "wahoo") {
+    // Cross-source duplicate found
+    if (isHigherPriority("wahoo", duplicate.source)) {
+      // Wahoo is higher priority — overwrite metrics on existing row
+      const updateData = { ...record };
+      delete updateData.user_id;
+      delete updateData.source;
+      delete updateData.source_id;
+      updateData.source_data = {
+        ...(duplicate.source_data || {}),
+        wahoo: workout,
+      };
+
+      await supabaseAdmin
+        .from("activities")
+        .update(updateData)
+        .eq("id", duplicate.id);
+
+      if (record.tss) {
+        try { await updateDailyMetrics(userId, record); } catch (err) {
+          console.error(`[Wahoo Sync] Daily metrics update failed:`, err.message);
+        }
+      }
+      if (metrics.power_curve) {
+        try { await updatePowerProfile(userId, metrics.power_curve, weightKg); } catch (err) {
+          console.error(`[Wahoo Sync] Power profile update failed:`, err.message);
+        }
+      }
+
+      console.log(`[Wahoo Sync] Merged workout ${workout.id} into existing ${duplicate.source} activity ${duplicate.id}`);
+      return { ...record, id: duplicate.id, enriched: true };
+    } else {
+      // Lower/equal priority — just enrich with Wahoo metadata
+      const enrichData = {
+        source_data: {
+          ...(duplicate.source_data || {}),
+          wahoo: workout,
+        },
+      };
+      if (!duplicate.name && record.name) enrichData.name = record.name;
+
+      await supabaseAdmin
+        .from("activities")
+        .update(enrichData)
+        .eq("id", duplicate.id);
+
+      console.log(`[Wahoo Sync] Enriched existing ${duplicate.source} activity ${duplicate.id} with Wahoo metadata`);
+      return { ...record, id: duplicate.id, enriched: true };
+    }
+  } else if (duplicate && duplicate.source === "wahoo" && duplicate.source_id !== record.source_id) {
+    // Same source, different ID (re-upload) — update existing row
+    await supabaseAdmin
+      .from("activities")
+      .update(record)
+      .eq("id", duplicate.id);
+
+    console.log(`[Wahoo Sync] Updated existing Wahoo activity ${duplicate.id} (source_id changed: ${duplicate.source_id} → ${record.source_id})`);
+    return { ...record, id: duplicate.id, enriched: true };
+  }
+
+  // No duplicate found — upsert new activity
   const { data: upserted, error: upsertError } = await supabaseAdmin
     .from("activities")
     .upsert(record, { onConflict: "user_id,source,source_id" })

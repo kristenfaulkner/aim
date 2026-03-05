@@ -10,19 +10,28 @@ import { aggregateDurability } from "./durability.js";
 
 /**
  * Update daily_metrics with TSS and recompute CTL/ATL/TSB.
+ * Idempotent: always recomputes daily_tss from all activities on that date.
  */
 export async function updateDailyMetrics(userId, activity) {
   const activityDate = new Date(activity.started_at).toISOString().split("T")[0];
 
+  // Compute daily TSS by summing all activities on this date (idempotent)
+  const { data: dayActivities } = await supabaseAdmin
+    .from("activities")
+    .select("tss")
+    .eq("user_id", userId)
+    .gte("started_at", activityDate + "T00:00:00Z")
+    .lt("started_at", activityDate + "T23:59:59.999Z");
+
+  const newTss = (dayActivities || []).reduce((sum, a) => sum + (a.tss || 0), 0);
+
   // Get or create daily_metrics row for this date
   const { data: existing } = await supabaseAdmin
     .from("daily_metrics")
-    .select("id, daily_tss")
+    .select("id")
     .eq("user_id", userId)
     .eq("date", activityDate)
     .single();
-
-  const newTss = (existing?.daily_tss || 0) + (activity.tss || 0);
 
   if (existing) {
     await supabaseAdmin

@@ -8,7 +8,7 @@ import {
 } from "../../_lib/garmin.js";
 import { computeActivityMetrics } from "../../_lib/metrics.js";
 import { updateDailyMetrics, updatePowerProfile } from "../../_lib/training-load.js";
-import { isHigherPriority, findCrossSourceDuplicate } from "../../_lib/source-priority.js";
+import { isHigherPriority, findDuplicate } from "../../_lib/source-priority.js";
 import { backfillUserMetrics } from "../../_lib/backfill.js";
 import { buildLapsPayload } from "../../_lib/intervals.js";
 import { detectAllTags, persistTags } from "../../_lib/tags.js";
@@ -104,24 +104,32 @@ export async function syncGarminActivity(userId, garminActivity, options = {}) {
   // Cross-source dedup: Garmin is device-level (priority 3)
   const { data: nearbyActivities } = await supabaseAdmin
     .from("activities")
-    .select("id, source, source_id, started_at, duration_seconds, name, description, source_data")
+    .select("id, source, source_id, started_at, duration_seconds, distance_meters, name, description, source_data")
     .eq("user_id", userId)
-    .neq("source", "garmin")
-    .gte("started_at", new Date(new Date(record.started_at).getTime() - 3 * 60 * 1000).toISOString())
-    .lte("started_at", new Date(new Date(record.started_at).getTime() + 3 * 60 * 1000).toISOString());
+    .gte("started_at", new Date(new Date(record.started_at).getTime() - 6 * 60 * 1000).toISOString())
+    .lte("started_at", new Date(new Date(record.started_at).getTime() + 6 * 60 * 1000).toISOString());
 
-  const duplicate = findCrossSourceDuplicate(
-    nearbyActivities || [], record.started_at, record.duration_seconds, "garmin"
+  const duplicate = findDuplicate(
+    nearbyActivities || [], record.started_at, record.duration_seconds, "garmin",
+    record.source_id, { distanceMeters: record.distance_meters }
   );
 
   if (duplicate) {
-    if (isHigherPriority("garmin", duplicate.source)) {
+    if (duplicate.source === "garmin" && duplicate.source_id === record.source_id) {
+      // Exact same Garmin activity — fall through to upsert (onConflict handles it)
+    } else if (duplicate.source === "garmin") {
+      // Same source, different ID — update existing row
+      await supabaseAdmin
+        .from("activities")
+        .update({ ...record, source_id: record.source_id })
+        .eq("id", duplicate.id);
+      return { ...record, id: duplicate.id, enriched: true };
+    } else if (isHigherPriority("garmin", duplicate.source)) {
       // Garmin is higher priority — update the existing record with our metrics
       const updateData = { ...record };
       delete updateData.user_id;
       delete updateData.source;
       delete updateData.source_id;
-      // Merge source_data
       updateData.source_data = {
         ...(duplicate.source_data || {}),
         garmin: garminActivity,
@@ -134,7 +142,7 @@ export async function syncGarminActivity(userId, garminActivity, options = {}) {
 
       return { ...record, id: duplicate.id, enriched: true };
     } else {
-      // Same or lower priority — just enrich with Garmin metadata
+      // Lower/equal priority — just enrich with Garmin metadata
       const enrichData = {
         source_data: {
           ...(duplicate.source_data || {}),

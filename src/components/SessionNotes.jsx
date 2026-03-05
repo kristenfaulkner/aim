@@ -173,6 +173,7 @@ export default function SessionNotes({
   initialMentalFocus = 0,
   initialPerceivedRecoveryPre = 0,
   onSaved,
+  onClose,
 }) {
   const [notes, setNotes] = useState(initialNotes);
   const [rating, setRating] = useState(initialRating);
@@ -306,13 +307,26 @@ export default function SessionNotes({
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Session Notes</div>
-        {saveStatus && (
-          <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: saveStatus === "saving" ? T.textDim : T.green }}>
-            {saveStatus === "saving"
-              ? <><RefreshCw size={10} style={{ animation: "snotes-spin 1s linear infinite" }} /> Saving...</>
-              : <><Check size={10} /> Saved</>}
-          </div>
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {saveStatus && (
+            <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: saveStatus === "saving" ? T.textDim : T.green }}>
+              {saveStatus === "saving"
+                ? <><RefreshCw size={10} style={{ animation: "snotes-spin 1s linear infinite" }} /> Saving...</>
+                : <><Check size={10} /> Saved</>}
+            </div>
+          )}
+          {onClose && (
+            <button
+              onClick={onClose}
+              style={{ background: "transparent", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center", color: T.textDim }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = T.text; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = T.textDim; }}
+              aria-label="Close session notes"
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Notes textarea */}

@@ -860,6 +860,7 @@ export default function ActivityDetail() {
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [error, setError] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showNotes, setShowNotes] = useState(true);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [nameEditing, setNameEditing] = useState(false);
   const [localName, setLocalName] = useState("");
@@ -1124,17 +1125,20 @@ export default function ActivityDetail() {
           {/* Left column: Metrics */}
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {/* Session notes & annotations */}
-            <SessionNotes
-              key={id}
-              activityId={id}
-              initialNotes={a.user_notes || ""}
-              initialRating={a.user_rating || 0}
-              initialRpe={a.user_rpe || 0}
-              initialTags={a.user_tags || []}
-              initialGiComfort={a.gi_comfort || 0}
-              initialMentalFocus={a.mental_focus || 0}
-              initialPerceivedRecoveryPre={a.perceived_recovery_pre || 0}
-            />
+            {showNotes && (
+              <SessionNotes
+                key={id}
+                activityId={id}
+                initialNotes={a.user_notes || ""}
+                initialRating={a.user_rating || 0}
+                initialRpe={a.user_rpe || 0}
+                initialTags={a.user_tags || []}
+                initialGiComfort={a.gi_comfort || 0}
+                initialMentalFocus={a.mental_focus || 0}
+                initialPerceivedRecoveryPre={a.perceived_recovery_pre || 0}
+                onClose={() => setShowNotes(false)}
+              />
+            )}
 
             {/* Primary metrics */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
