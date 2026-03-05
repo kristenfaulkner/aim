@@ -9,8 +9,9 @@ import { useResponsive } from "../hooks/useResponsive";
 import { supabase } from "../lib/supabase";
 import AIPanel from "../components/dashboard/AIPanel";
 import SessionNotes from "../components/SessionNotes.jsx";
+import LogActivityModal from "../components/activities/LogActivityModal";
 import SEO from "../components/SEO";
-import { LogOut, Settings, Menu, X, Search, Calendar, ChevronDown, User, Sparkles } from "lucide-react";
+import { LogOut, Settings, Menu, X, Search, Calendar, ChevronDown, User, Sparkles, Plus } from "lucide-react";
 import { apiFetch } from "../lib/api";
 import { formatActivityDate } from "../lib/formatTime";
 
@@ -67,7 +68,7 @@ function groupActivities(activities, timePeriod) {
 
 // ── ActivityRow ──
 
-function ActivityRow({ activity, isSelected, onSelect, units }) {
+function ActivityRow({ activity, isSelected, onSelect }) {
   const [hover, setHover] = useState(false);
 
   return (
@@ -81,9 +82,9 @@ function ActivityRow({ activity, isSelected, onSelect, units }) {
         justifyContent: "space-between",
         width: "100%",
         padding: "10px 14px",
-        background: isSelected ? T.accentDim : hover ? T.cardHover : "transparent",
+        background: activity.isNew ? T.accentDim : isSelected ? T.accentDim : hover ? T.cardHover : "transparent",
         border: "none",
-        borderLeft: isSelected ? `2px solid ${T.accent}` : "2px solid transparent",
+        borderLeft: activity.isNew ? `2px solid ${T.accent}` : isSelected ? `2px solid ${T.accent}` : "2px solid transparent",
         borderBottom: `1px solid ${T.border}`,
         cursor: "pointer",
         fontFamily: font,
@@ -95,24 +96,23 @@ function ActivityRow({ activity, isSelected, onSelect, units }) {
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
           fontSize: 12, fontWeight: 600,
-          color: isSelected ? T.accent : T.text,
+          color: activity.isNew ? T.accent : isSelected ? T.accent : T.text,
           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          display: "flex", alignItems: "center", gap: 6,
         }}>
           {activity.name || "Untitled Ride"}
+          {activity.source === "manual" && hover && (
+            <span style={{ fontSize: 10, fontWeight: 600, color: T.textDim, background: T.surface, padding: "2px 7px", borderRadius: 20, border: `1px solid ${T.border}` }}>manual</span>
+          )}
         </div>
         <div style={{ fontSize: 10, color: T.textDim, marginTop: 2 }}>
           {formatActivityDate(activity, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
         </div>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2, flexShrink: 0, marginLeft: 12 }}>
+      <div style={{ flexShrink: 0, marginLeft: 12 }}>
         <span style={{ fontSize: 12, fontFamily: mono, fontWeight: 600, color: T.text }}>
           {formatDuration(activity.duration_seconds)}
         </span>
-        <div style={{ display: "flex", gap: 8, fontSize: 10, color: T.textSoft, fontFamily: mono }}>
-          {activity.distance_meters > 0 && <span>{formatDistance(activity.distance_meters, units)}</span>}
-          {activity.tss > 0 && <span>{Math.round(activity.tss)} TSS</span>}
-          {activity.avg_power_watts > 0 && <span>{Math.round(activity.avg_power_watts)}W</span>}
-        </div>
       </div>
     </button>
   );
@@ -216,9 +216,12 @@ export default function Workouts() {
   const [profile, setProfile] = useState(null);
   const [showNotes, setShowNotes] = useState(true);
 
+  const [showLogModal, setShowLogModal] = useState(false);
+
   // Activity browser — always enabled on this page
   const {
     activities,
+    setActivities,
     loading: browserLoading,
     hasMore,
     timePeriod,
@@ -355,6 +358,17 @@ export default function Workouts() {
 
   const handleSignout = async () => { await signout(); navigate("/"); };
 
+  const handleActivitySaved = (newActivity) => {
+    // Prepend the new activity to the list with matching shape
+    const entry = {
+      ...newActivity,
+      started_at: newActivity.started_at,
+      isNew: true,
+    };
+    setActivities(prev => [entry, ...prev]);
+    setSelectedActivityId(newActivity.id);
+  };
+
   // ── Backfill AI Analysis ──
   const [backfillRunning, setBackfillRunning] = useState(false);
   const [backfillProgress, setBackfillProgress] = useState(null); // { processed, remaining }
@@ -413,6 +427,22 @@ export default function Workouts() {
             </h1>
             <p style={{ fontSize: 13, color: T.textSoft, margin: "4px 0 0" }}>Browse all activities with AI-powered analysis</p>
           </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button
+              onClick={() => setShowLogModal(true)}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                padding: "8px 16px", borderRadius: 10, border: "none",
+                background: T.gradient,
+                color: T.white, fontFamily: font, fontSize: 12, fontWeight: 700,
+                cursor: "pointer", boxShadow: "0 4px 14px rgba(16,185,129,0.28)",
+                transition: "all 0.2s", whiteSpace: "nowrap",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 6px 20px rgba(16,185,129,0.36)"; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 4px 14px rgba(16,185,129,0.28)"; }}
+            >
+              <Plus size={14} /> Log Activity
+            </button>
           {!backfillRunning && backfillProgress?.remaining !== 0 && (
             <button
               onClick={runBackfill}
@@ -444,6 +474,7 @@ export default function Workouts() {
               {typeof backfillProgress.error === "string" ? backfillProgress.error : "Analysis error — try again later"}
             </div>
           )}
+          </div>
         </div>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
@@ -504,24 +535,25 @@ export default function Workouts() {
             <div style={{ flex: 1, overflow: "auto", minHeight: 0 }}>
               {groups.map(group => (
                 <div key={group.label}>
-                  <div style={{
-                    padding: "8px 16px", fontSize: 10, fontWeight: 700, color: T.textDim,
-                    textTransform: "uppercase", letterSpacing: "0.08em", background: T.surface,
-                    borderBottom: `1px solid ${T.border}`, position: "sticky", top: 0, zIndex: 1,
-                    display: "flex", justifyContent: "space-between", fontFamily: font,
-                  }}>
-                    <span>{group.label}</span>
-                    <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>
-                      {group.items.length} {group.items.length === 1 ? "ride" : "rides"}
-                    </span>
-                  </div>
+                  {group.label === "Today" && (
+                    <div style={{
+                      padding: "8px 16px", fontSize: 10, fontWeight: 700, color: T.textDim,
+                      textTransform: "uppercase", letterSpacing: "0.08em", background: T.surface,
+                      borderBottom: `1px solid ${T.border}`, position: "sticky", top: 0, zIndex: 1,
+                      display: "flex", justifyContent: "space-between", fontFamily: font,
+                    }}>
+                      <span>TODAY</span>
+                      <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>
+                        {group.items.length} {group.items.length === 1 ? "ride" : "rides"}
+                      </span>
+                    </div>
+                  )}
                   {group.items.map(a => (
                     <ActivityRow
                       key={a.id}
                       activity={a}
                       isSelected={a.id === selectedActivityId}
                       onSelect={(id) => { setSelectedActivityId(id); setShowNotes(true); }}
-                      units={units}
                     />
                   ))}
                 </div>
@@ -646,6 +678,12 @@ export default function Workouts() {
           </div>
         </div>
       </div>
+
+      <LogActivityModal
+        isOpen={showLogModal}
+        onClose={() => setShowLogModal(false)}
+        onSaved={handleActivitySaved}
+      />
     </div>
   );
 }

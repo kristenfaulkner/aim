@@ -22,7 +22,6 @@ import PerformanceModels from "../components/dashboard/PerformanceModels";
 import AthleteBio from "../components/dashboard/AthleteBio";
 import TravelStatusCard from "../components/dashboard/TravelStatusCard";
 import CheckInModal, { CheckInSummaryCard } from "../components/dashboard/CheckInModal";
-import CrossTrainingLogger from "../components/dashboard/CrossTrainingLogger";
 import PrescriptionCard from "../components/dashboard/PrescriptionCard";
 import TrialBanner from "../components/TrialBanner";
 import { usePrescription } from "../hooks/usePrescription";
@@ -106,7 +105,7 @@ function SkeletonCard({ height = 80 }) {
 }
 
 // ── ACTION ITEMS PANEL ──
-function ActionItems({ activity, dailyMetrics, computed, isMobile, onOpenNutrition, onOpenCrossTraining }) {
+function ActionItems({ activity, dailyMetrics, computed, isMobile, onOpenNutrition }) {
   const [tab, setTab] = useState("today");
   const tabs = [
     { id: "today", label: "Today" },
@@ -118,7 +117,7 @@ function ActionItems({ activity, dailyMetrics, computed, isMobile, onOpenNutriti
   if (activity && computed?.fuel) {
     todayItems.push({ icon: "\u26FD", cat: "NUTRITION", title: "Log post-ride nutrition", desc: `Estimated ${computed.fuel.carbGrams}g carbs burned — replenish within 30min`, action: onOpenNutrition });
   }
-  todayItems.push({ icon: "\uD83C\uDFCB\uFE0F", cat: "TRAINING", title: "Log cross-training", desc: "Track strength, yoga, swimming, or other sessions", action: onOpenCrossTraining });
+  todayItems.push({ icon: "\uD83C\uDFCB\uFE0F", cat: "TRAINING", title: "Log cross-training", desc: "Track strength, yoga, swimming, or other sessions on the Activities page" });
   if (dailyMetrics?.recovery_score != null && dailyMetrics.recovery_score < 50) {
     todayItems.push({ icon: "\uD83D\uDECF\uFE0F", cat: "RECOVERY", title: "Prioritize recovery today", desc: `Recovery score ${Math.round(dailyMetrics.recovery_score)}/100 — consider rest or easy spin` });
   }
@@ -302,7 +301,6 @@ export default function Dashboard() {
   // ── Goals + Nutrition Logger + Cross-Training Logger ──
   const [goals, setGoals] = useState(null);
   const [nutritionOpen, setNutritionOpen] = useState(false);
-  const [crossTrainingOpen, setCrossTrainingOpen] = useState(false);
   const [crossTrainingEntries, setCrossTrainingEntries] = useState([]);
   const goalsFetchedRef = useRef(false);
 
@@ -532,7 +530,7 @@ export default function Dashboard() {
             />
 
             {/* Action Items */}
-            <ActionItems activity={activity} dailyMetrics={dailyMetrics} computed={computed} isMobile={isMobile} onOpenNutrition={() => setNutritionOpen(true)} onOpenCrossTraining={() => setCrossTrainingOpen(true)} />
+            <ActionItems activity={activity} dailyMetrics={dailyMetrics} computed={computed} isMobile={isMobile} onOpenNutrition={() => setNutritionOpen(true)} />
 
             {/* Activity Browser + Last Ride */}
             <div style={{ position: "relative" }}>
@@ -628,29 +626,6 @@ export default function Dashboard() {
         onClose={() => setNutritionOpen(false)}
         activityId={activity?.id}
         rideDurationHours={activity?.duration_seconds ? activity.duration_seconds / 3600 : null}
-        isMobile={isMobile}
-      />
-
-      {/* Cross-Training Logger Modal */}
-      <CrossTrainingLogger
-        isOpen={crossTrainingOpen}
-        onClose={() => {
-          setCrossTrainingOpen(false);
-          // Refresh cross-training entries for chart
-          (async () => {
-            try {
-              const { data: { session } } = await supabase.auth.getSession();
-              if (!session) return;
-              const res = await fetch("/api/cross-training/list?days=7", {
-                headers: { Authorization: `Bearer ${session.access_token}` },
-              });
-              if (res.ok) {
-                const data = await res.json();
-                setCrossTrainingEntries(data.entries || []);
-              }
-            } catch {}
-          })();
-        }}
         isMobile={isMobile}
       />
 

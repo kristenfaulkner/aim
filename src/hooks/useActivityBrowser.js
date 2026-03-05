@@ -70,7 +70,7 @@ export function useActivityBrowser({ enabled = false, initialTimePeriod = "month
     try {
       let query = supabase
         .from("activities")
-        .select("id, name, started_at, tss, duration_seconds, distance_meters, avg_power_watts, activity_type, elevation_gain_meters")
+        .select("id, name, started_at, tss, duration_seconds, distance_meters, avg_power_watts, activity_type, elevation_gain_meters, source")
         .eq("user_id", user.id)
         .order("started_at", { ascending: false })
         .limit(PAGE_SIZE);
@@ -133,6 +133,7 @@ export function useActivityBrowser({ enabled = false, initialTimePeriod = "month
 
   return {
     activities,
+    setActivities,
     loading,
     hasMore,
     timePeriod,
