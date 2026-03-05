@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Activity, Zap, Brain, Target, Heart, TrendingUp, ArrowRight, Check, Star, Menu, X } from "lucide-react";
+import { Activity, Zap, Brain, Target, Heart, TrendingUp, ArrowRight, Check, Star, Menu, X, User, Settings, LayoutDashboard, LogOut } from "lucide-react";
 import { T, font, mono } from "../theme/tokens";
 import { btn } from "../theme/styles";
 import NeuralBackground from "../components/NeuralBackground";
@@ -217,9 +217,11 @@ function InsightsShowcase({ navigate, user }) {
 
 export default function Landing() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile, signout } = useAuth();
   // Annual billing planned for future release
   const [menuOpen, setMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const handleSignout = async () => { await signout(); navigate("/"); };
   const { isMobile, isTablet } = useResponsive();
 
   const features = [
@@ -265,7 +267,29 @@ export default function Landing() {
             <a href="#pricing" style={{ color: T.textSoft, textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Pricing</a>
             <a href="#testimonials" style={{ color: T.textSoft, textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Testimonials</a>
             {user ? (
-              <button onClick={() => navigate("/dashboard")} style={{ ...btn(true), padding: "10px 24px", fontSize: 13 }}>My Dashboard</button>
+              <div style={{ position: "relative" }}>
+                <div onClick={() => setUserMenuOpen(!userMenuOpen)} style={{ width: 32, height: 32, borderRadius: 9, background: `linear-gradient(135deg, ${T.purple}, ${T.pink})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: T.white, cursor: "pointer" }}>
+                  {profile?.full_name ? profile.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() : "U"}
+                </div>
+                {userMenuOpen && (<>
+                  <div onClick={() => setUserMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 149 }} />
+                  <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, padding: 4, minWidth: 170, zIndex: 150, boxShadow: "0 4px 16px rgba(0,0,0,0.08)" }}>
+                    <button onClick={() => { setUserMenuOpen(false); navigate("/dashboard"); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", background: "none", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 600, color: T.text, cursor: "pointer", fontFamily: font }}>
+                      <LayoutDashboard size={14} /> My Dashboard
+                    </button>
+                    <button onClick={() => { setUserMenuOpen(false); navigate("/profile"); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", background: "none", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 600, color: T.text, cursor: "pointer", fontFamily: font }}>
+                      <User size={14} /> Profile
+                    </button>
+                    <button onClick={() => { setUserMenuOpen(false); navigate("/settings"); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", background: "none", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 600, color: T.text, cursor: "pointer", fontFamily: font }}>
+                      <Settings size={14} /> Settings
+                    </button>
+                    <div style={{ height: 1, background: T.border, margin: "4px 0" }} />
+                    <button onClick={() => { setUserMenuOpen(false); handleSignout(); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", background: "none", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 600, color: "#ef4444", cursor: "pointer", fontFamily: font }}>
+                      <LogOut size={14} /> Sign Out
+                    </button>
+                  </div>
+                </>)}
+              </div>
             ) : (
               <>
                 <button onClick={() => navigate("/signin")} style={{ ...btn(false), padding: "8px 20px", fontSize: 13 }}>Sign In</button>
@@ -289,7 +313,20 @@ export default function Landing() {
             ))}
             <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
               {user ? (
-                <button onClick={() => { setMenuOpen(false); navigate("/dashboard"); }} style={{ ...btn(true), justifyContent: "center", width: "100%", padding: "14px 24px" }}>My Dashboard</button>
+                <>
+                  {profile?.full_name && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", marginBottom: 4 }}>
+                      <div style={{ width: 30, height: 30, borderRadius: 9, background: `linear-gradient(135deg, ${T.purple}, ${T.pink})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: T.white }}>
+                        {profile.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
+                      </div>
+                      <span style={{ fontSize: 14, fontWeight: 600 }}>{profile.full_name}</span>
+                    </div>
+                  )}
+                  <button onClick={() => { setMenuOpen(false); navigate("/dashboard"); }} style={{ ...btn(true), justifyContent: "center", width: "100%", padding: "14px 24px" }}>My Dashboard</button>
+                  <button onClick={() => { setMenuOpen(false); navigate("/profile"); }} style={{ ...btn(false), justifyContent: "center", width: "100%", padding: "14px 24px" }}>Profile</button>
+                  <button onClick={() => { setMenuOpen(false); navigate("/settings"); }} style={{ ...btn(false), justifyContent: "center", width: "100%", padding: "14px 24px" }}>Settings</button>
+                  <button onClick={() => { setMenuOpen(false); handleSignout(); }} style={{ background: "none", border: "1px solid rgba(239,68,68,0.2)", padding: "14px 24px", borderRadius: 10, fontSize: 14, fontWeight: 600, color: "#ef4444", cursor: "pointer", fontFamily: font, width: "100%", textAlign: "center" }}>Sign Out</button>
+                </>
               ) : (
                 <>
                   <button onClick={() => { setMenuOpen(false); navigate("/signup"); }} style={{ ...btn(true), justifyContent: "center", width: "100%", padding: "14px 24px" }}>Get Started</button>
