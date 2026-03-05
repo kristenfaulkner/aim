@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" width="200" height="60">
+  <defs>
+    <linearGradient id="aimGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </linearGradient>
+  </defs>
+  <!-- Badge background -->
+  <rect x="8" y="12" width="36" height="36" rx="10" fill="url(#aimGrad)"/>
+  <!-- Badge AI text -->
+  <path d="M18.91 36.48L22.74 25.98L25.14 25.98L28.96 36.48L26.73 36.48L23.92 28.37L23.92 28.37L21.10 36.48ZM20.59 34.13L21.15 32.49L26.55 32.49L27.09 34.13ZM30.31 36.48L30.31 25.98L32.41 25.98L32.41 36.48Z" fill="#f8f8fa"/>
+  <!-- Wordmark AI (gradient) -->
+  <path d="M54.64 40.00L61.78 20.40L66.07 20.40L73.21 40.00L69.20 40.00L63.91 24.71L63.91 24.71L58.59 40.00ZM57.78 35.55L58.79 32.61L68.76 32.61L69.74 35.55ZM75.77 40.00L75.77 20.40L79.55 20.40L79.55 40.00Z" fill="url(#aimGrad)"/>
+  <!-- Wordmark M (dark) -->
+  <path d="M83.40 40.00L83.40 20.40L87.91 20.40L93.88 32.61L93.88 32.61L99.84 20.40L104.35 20.40L104.35 40.00L100.57 40.00L100.57 26.81L100.57 26.81L95.36 37.26L92.39 37.26L87.18 26.84L87.18 26.84L87.18 40.00Z" fill="#1a1a2e"/>
+</svg>
