@@ -6,6 +6,11 @@
   box-sizing: border-box;
 }
 
+html, body, #root {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
 body {
   background: #f8f8fa;
   color: #1a1a2e;

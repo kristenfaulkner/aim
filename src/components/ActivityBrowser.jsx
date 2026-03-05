@@ -3,6 +3,7 @@ import { Search, X, ChevronDown, Calendar } from "lucide-react";
 import { T } from "../theme/tokens";
 import { useActivityBrowser } from "../hooks/useActivityBrowser";
 import { formatActivityDate } from "../lib/formatTime";
+import { useResponsive } from "../hooks/useResponsive";
 
 const font = "'Outfit', sans-serif";
 const mono = "'JetBrains Mono', monospace";
@@ -145,6 +146,7 @@ function ActivityRow({ activity, isSelected, onSelect }) {
 // ── ActivityBrowser (popover) ──
 
 export default function ActivityBrowser({ isOpen, onClose, selectedActivityId, onSelectActivity, anchorRef }) {
+  const { isMobile } = useResponsive();
   const {
     activities,
     loading,
@@ -206,7 +208,21 @@ export default function ActivityBrowser({ isOpen, onClose, selectedActivityId, o
   return (
     <div
       ref={panelRef}
-      style={{
+      style={isMobile ? {
+        position: "fixed",
+        top: 56,
+        left: 16,
+        right: 16,
+        maxHeight: "calc(100vh - 72px)",
+        background: T.card,
+        border: `1px solid ${T.borderHover}`,
+        borderRadius: 14,
+        boxShadow: "0 20px 60px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.06)",
+        zIndex: 200,
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+      } : {
         position: "absolute",
         top: "100%",
         right: 0,

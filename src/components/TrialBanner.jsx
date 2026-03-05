@@ -5,6 +5,7 @@ import { T, font } from "../theme/tokens";
 import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "../lib/api";
 import { PAYMENTS_ENABLED } from "../lib/featureFlags";
+import { useResponsive } from "../hooks/useResponsive";
 
 /**
  * TrialBanner — persistent banner during free trial period.
@@ -14,6 +15,7 @@ import { PAYMENTS_ENABLED } from "../lib/featureFlags";
 export default function TrialBanner() {
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const { isMobile } = useResponsive();
   const [subscription, setSubscription] = useState(null);
   const [dismissed, setDismissed] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -52,8 +54,9 @@ export default function TrialBanner() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        gap: 12,
-        padding: "10px 16px",
+        flexWrap: "wrap",
+        gap: isMobile ? "6px 10px" : 12,
+        padding: isMobile ? "10px 40px 10px 16px" : "10px 16px",
         background: isUrgent ? "rgba(245,158,11,0.08)" : T.accentDim,
         borderBottom: `1px solid ${isUrgent ? "rgba(245,158,11,0.2)" : T.accentMid}`,
         fontSize: 13,
@@ -61,7 +64,7 @@ export default function TrialBanner() {
         color: T.text,
         position: "relative",
       }}>
-        <Zap size={14} color={isUrgent ? T.warn : T.accent} />
+        <Zap size={14} color={isUrgent ? T.warn : T.accent} style={{ flexShrink: 0 }} />
         <span>
           {daysLeft === 0
             ? "Your trial ends today!"
@@ -83,13 +86,14 @@ export default function TrialBanner() {
             fontWeight: 600,
             fontFamily: font,
             cursor: "pointer",
+            flexShrink: 0,
           }}
         >
           Subscribe <ArrowRight size={12} />
         </button>
         <button
           onClick={() => setDismissed(true)}
-          style={{ position: "absolute", right: 12, background: "none", border: "none", cursor: "pointer", color: T.textDim, padding: 4 }}
+          style={{ position: "absolute", right: 12, top: 10, background: "none", border: "none", cursor: "pointer", color: T.textDim, padding: 4 }}
         >
           <X size={14} />
         </button>
@@ -104,8 +108,9 @@ export default function TrialBanner() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        gap: 12,
-        padding: "10px 16px",
+        flexWrap: "wrap",
+        gap: isMobile ? "6px 10px" : 12,
+        padding: isMobile ? "10px 40px 10px 16px" : "10px 16px",
         background: T.accentDim,
         borderBottom: `1px solid ${T.accentMid}`,
         fontSize: 13,
@@ -113,7 +118,7 @@ export default function TrialBanner() {
         color: T.text,
         position: "relative",
       }}>
-        <Zap size={14} color={T.accent} />
+        <Zap size={14} color={T.accent} style={{ flexShrink: 0 }} />
         <span>You're on the Free plan — upgrade for unlimited AI analysis and advanced features</span>
         <button
           onClick={() => navigate("/pricing")}
@@ -130,13 +135,14 @@ export default function TrialBanner() {
             fontWeight: 600,
             fontFamily: font,
             cursor: "pointer",
+            flexShrink: 0,
           }}
         >
           View Plans <ArrowRight size={12} />
         </button>
         <button
           onClick={() => setDismissed(true)}
-          style={{ position: "absolute", right: 12, background: "none", border: "none", cursor: "pointer", color: T.textDim, padding: 4 }}
+          style={{ position: "absolute", right: 12, top: 10, background: "none", border: "none", cursor: "pointer", color: T.textDim, padding: 4 }}
         >
           <X size={14} />
         </button>
