@@ -24,7 +24,7 @@ export default async function handler(req, res) {
       client_secret: process.env.WITHINGS_CLIENT_SECRET,
       code,
       grant_type: "authorization_code",
-      redirect_uri: `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL || req.headers.host}/api/auth/callback/withings`,
+      redirect_uri: `https://${req.headers.host}/api/auth/callback/withings`,
     }),
   });
 
