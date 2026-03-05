@@ -150,16 +150,18 @@ See `docs/insights-catalog.md` for the full list with detailed examples. Active 
 - Connect 2+ data sources in most insights
 - Use specific numbers from the athlete's own data
 - Compare to athlete's own history before population benchmarks
-- Include one actionable takeaway per insight
+- Reference past rides by name and date in every insight (comparative analysis)
+- Include one actionable takeaway per insight citing historical precedent
 - Assign confidence level (high/medium/low)
+- Target 4-6 most meaningful insights per ride (not 6-12)
 - Never assume causation without evidence — use "may be related to"
 - **Never give direct medical advice** — see "No Medical Advice Policy" section below for details
 
 ### AI Output Format
 ```json
 {
-  "summary": "2-3 sentence workout summary",
-  "insights": [{ "type": "insight|positive|warning|action", "icon": "emoji", "category": "performance|body|recovery|training|nutrition|environment|health", "title": "Short title with key number", "body": "Explanation connecting 2+ sources with actionable takeaway", "confidence": "high|medium|low" }],
+  "summary": "2-3 sentence workout summary comparing to most similar recent session",
+  "insights": [{ "type": "insight|positive|warning|action", "icon": "emoji", "category": "performance|body|recovery|training|nutrition|environment|health", "cat_label": "Human-readable cross-domain label e.g. Sleep → Performance", "sig": "Significance tag e.g. Season best, High load", "title": "Short title with key number", "body": "Explanation connecting 2+ sources with actionable takeaway", "confidence": "high|medium|low" }],
   "dataGaps": ["Suggestions for additional integrations"]
 }
 ```
@@ -192,10 +194,10 @@ HRV vs personal baseline (30%) + sleep quality (25%) + RHR deviation (15%) + Who
 
 See `docs/build-status.md` for the full detailed log. Summary of what's built:
 
-**Core**: Auth (email/password/Google SSO/magic link), onboarding, Vercel deployment, mobile-responsive, testing (549 tests), SEO, legal compliance, account management
+**Core**: Auth (email/password/Google SSO/magic link), onboarding, Vercel deployment, mobile-responsive, testing (574 tests), SEO, legal compliance, account management
 **Integrations**: Strava (full), EightSleep (full + hourly cron), Wahoo (full sync + backfill + webhook + FIT stream processing), Garmin (scaffolded — OAuth 1.0a, webhook, sync, data mappers, awaiting API keys), TrainingPeaks (file import), Twilio SMS, Resend email, Oura (full + hourly cron), Whoop (full + hourly cron), Withings (full + hourly cron)
 **AI (12 features)**: Post-ride analysis, email summaries, SMS coach, chat coach, sleep summary, blood panel OCR, nutrition parsing, dashboard intelligence, adaptive 3-mode AI, athlete bio generation, insight feedback loop (thumbs up/down + personalized AI prompt injection), training prescription engine (power profile gap analysis → AI-generated structured workouts with readiness/weather/cross-training guards)
-**Pages**: Dashboard V2, Sleep Intelligence, ActivityDetail, HealthLab, Boosters, ConnectApps, Settings, WorkoutDatabase, Landing, Legal pages
+**Pages**: Dashboard V2, Sleep Intelligence, ActivityDetail V3 (two-column AI+Data layout), HealthLab, Boosters, ConnectApps, Settings, WorkoutDatabase, Landing, Legal pages
 **Structured Workouts (5 phases)**: Interval extraction, canonical tagging (32+14 tags), weather enrichment, interval execution coaching, performance models (heat/sleep/HRV/fueling/durability), searchable workout database
 **Power Analytics**: Critical Power (CP) & W' model — hyperbolic fitting from power profile bests, auto-computed on sync, CPModelCard on dashboard, AI context enrichment, backfill endpoint. Adaptive training zones (readiness-adjusted -3% to -8%, zone evolution history, preference auto/CP/Coggan). Durability & fatigue resistance (per-activity fatigue-bucket power curves, retention scoring, aggregate durability score, race predictions, backfill endpoint). W' Balance tracking (Skiba differential reconstitution, real-time anaerobic reserve depletion/recovery, empty tank detection, WbalChart on ActivityDetail, backfill endpoint, AI Category 29). Similar Session Finder (weighted 5-dimension matching, cross-domain context enrichment, expandable comparison cards with AI analysis on ActivityDetail). Segment Comparison (auto-import from Strava sync, cross-domain adjusted performance scoring with heat/HRV/fatigue/sleep/wind penalties, PR detection, SegmentComparisonPanel on ActivityDetail with expandable effort history, AI Category 30, backfill endpoint, 27 tests)
 **Expansion (P1)**: Daily subjective check-in (4 sliders: stress/motivation/soreness/mood), activity subjective fields (GI comfort, mental focus, pre-ride recovery), travel & timezone auto-detection (GPS-based + browser geolocation, jet lag + altitude tracking, TravelStatusCard on dashboard with collapse/expand, timezone recovery bar, 14-segment altitude acclimation bar, power penalty mini chart, auto-dismiss), cross-training logger (replaced by unified LogActivityModal on Activities page: 8 activity types, file upload with FIT/GPX/TCX/CSV parsing, body region for strength, intensity 1-5, duration spinner, performance data accordion, saves to both activities + cross_training_log tables, TrainingWeekChart stacked bars), 6 new AI insight categories (23-28), 10 new workout tags
