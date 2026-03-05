@@ -150,17 +150,18 @@ See `docs/insights-catalog.md` for the full list with detailed examples. Active 
 - Connect 2+ data sources in most insights
 - Use specific numbers from the athlete's own data
 - Compare to athlete's own history before population benchmarks
-- Reference past rides by name and date in every insight (comparative analysis)
-- Include one actionable takeaway per insight citing historical precedent
+- Reference past rides by name and date when it adds a novel insight (not forced into every insight)
+- Explain WHY — if causation uncertain, use "likely due to" / "could be caused by"
+- Include one actionable takeaway per insight; cite historical precedent when it adds credibility
 - Assign confidence level (high/medium/low)
 - Target 4-6 most meaningful insights per ride (not 6-12)
-- Never assume causation without evidence — use "may be related to"
+- Never make false causal claims — great data analysis, but protect against liability
 - **Never give direct medical advice** — see "No Medical Advice Policy" section below for details
 
 ### AI Output Format
 ```json
 {
-  "summary": "2-3 sentence workout summary comparing to most similar recent session",
+  "summary": "2-3 sentence workout summary; compare to similar session only when there's a novel insight",
   "insights": [{ "type": "insight|positive|warning|action", "icon": "emoji", "category": "performance|body|recovery|training|nutrition|environment|health", "cat_label": "Human-readable cross-domain label e.g. Sleep → Performance", "sig": "Significance tag e.g. Season best, High load", "title": "Short title with key number", "body": "Explanation connecting 2+ sources with actionable takeaway", "confidence": "high|medium|low" }],
   "dataGaps": ["Suggestions for additional integrations"]
 }

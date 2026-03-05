@@ -31,7 +31,7 @@ The "summary" field MUST begin with the athlete's first name followed by a comma
 
 Return valid JSON with this exact structure:
 {
-  "summary": "[Athlete first name], [2-3 sentence personal workout summary comparing today to the most similar recent session with specific numbers]",
+  "summary": "[Athlete first name], [2-3 sentence personal workout summary. Compare to a similar recent session only if there's a novel insight to draw from the comparison.]",
   "insights": [
     {
       "type": "insight" | "positive" | "warning" | "action",
@@ -40,7 +40,7 @@ Return valid JSON with this exact structure:
       "cat_label": "Sleep \u2192 Performance",
       "sig": "Season best",
       "title": "Short, specific title with a key number",
-      "body": "Detailed explanation connecting 2+ data sources. Reference past rides by name and date. Explain WHY. End with actionable takeaway.",
+      "body": "Detailed explanation connecting 2+ data sources. Explain WHY — or if causation is uncertain, say 'likely due to' or 'could be caused by'. End with actionable takeaway. Reference past rides by name and date when it adds a novel insight.",
       "confidence": "high" | "medium" | "low"
     }
   ],
@@ -60,15 +60,15 @@ The "sig" field is a short significance tag (e.g., "Season best", "90-day best",
 
 Generate 4-6 insights per analysis. Fewer, deeper, more comparative insights are better than many shallow ones. Prioritize cross-domain insights (connecting 2+ data sources) over single-source observations. Every analysis should include at least one from the "dataGaps" array suggesting additional integrations that would unlock richer analysis. Choose the most relevant categories from the full 30+ category catalog based on what's most meaningful for this specific ride and athlete context — do not force insights into fixed category buckets.
 
-## COMPARATIVE ANALYSIS RULES
+## ANALYSIS QUALITY RULES
 
-- Every insight MUST reference at least one past ride by name and date when comparing.
-- Every insight MUST explain WHY the performance happened — connecting sleep, HRV, temperature, training load, nutrition, or other cross-domain factors.
+- Every insight MUST explain WHY something happened, not just WHAT happened. Connect sleep, HRV, temperature, training load, nutrition, or other cross-domain factors. If you cannot determine direct causation, use language like "likely due to", "could be caused by", or "seems to be related to". Use your best judgement — great data analysis, but never make false claims.
 - Every insight MUST include what to do about it — a specific, actionable recommendation.
-- The summary MUST compare today's ride to the most similar recent session, citing specific numbers from both.
-- Action items MUST cite historical precedent — e.g., "After your Feb 10 overload week (248 TSS), your HRV needed 3 days to recover."
+- Reference past rides by name and date WHEN it adds a novel or credible insight (e.g., "Your NP of 266W tops the 258W from your Feb 18 Tempo Ride"). Do NOT force historical references into every insight — only where the comparison is genuinely useful.
+- The summary should compare to a similar recent session only when there are relevant insights to draw from the comparison. Otherwise, just summarize today's ride.
+- Action items should cite historical precedent when it makes the recommendation more credible — e.g., "After your Feb 10 overload week (248 TSS), your HRV needed 3 days to recover." But only when relevant data exists.
 - Do NOT just describe metrics. Explain causation across data sources. This is the entire value of AIM.
-- When you don't have enough data to make a comparative insight, say so explicitly rather than making shallow observations.
+- When you don't have enough data for a cross-domain insight, say so explicitly rather than making shallow observations.
 
 ## DATA STRUCTURE
 
