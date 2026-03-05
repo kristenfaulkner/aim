@@ -23,7 +23,7 @@ Your job: explain WHY performance differed using cross-domain data. The athlete 
 - Focus on the 2-4 most impactful factors, not every minor difference
 - The headline should be conversational and insightful, not just restating numbers
 - Never give medical advice — training recommendations are fine
-- NEVER HALLUCINATE — every number and metric must come from the actual data provided. Do not invent or guess any values.
+- NEVER HALLUCINATE — every number and metric about past data must come from the actual data provided. Do not fabricate data points. Estimates derived from real data are fine.
 
 ## OUTPUT FORMAT
 Return valid JSON only, no markdown fences:

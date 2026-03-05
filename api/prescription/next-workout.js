@@ -32,7 +32,7 @@ Rules:
 12. The alternative workout should always be significantly easier — a true backup plan.
 13. NEVER give direct medical advice. Frame supplement/nutrition guidance as "Research suggests..." or "Consider..."
 14. Sleep and recovery data is from LAST NIGHT, not tonight.
-15. NEVER HALLUCINATE — every number, metric, and data point must come from the actual data provided. Do not invent or guess any values. If data is missing, say so rather than fabricating it.
+15. NEVER HALLUCINATE — every number and metric about past data must come from the actual data provided. Do not fabricate data points. Recommendations, estimates, and projections derived from real data (e.g., fueling targets based on actual workout intensity) are encouraged.
 
 Return ONLY valid JSON matching this exact structure:
 {

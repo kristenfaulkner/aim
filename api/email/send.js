@@ -46,7 +46,7 @@ STYLE RULES:
 - Use tables for layout (not flexbox/grid — email compatibility)
 - Return ONLY the HTML, no JSON wrapping, no markdown code fences
 - NEVER give direct medical advice in the email. For health-related insights, use "Research suggests...", "Consider discussing with your doctor...", or "Studies show X may help with Y...". Never say "Take X", "Start X protocol", or give any directive health instructions.
-- NEVER HALLUCINATE — every number, metric, and data point in the email must come from the actual data provided. Do not invent or fabricate any values.`;
+- NEVER HALLUCINATE — every number and metric about past data must come from the actual data provided. Do not fabricate data points. Recommendations and estimates derived from real data are encouraged.`;
 
 const BASE_URL = process.env.VERCEL_PROJECT_PRODUCTION_URL
   ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`

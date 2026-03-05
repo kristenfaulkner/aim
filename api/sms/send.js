@@ -33,7 +33,7 @@ RULES:
 - Recovery tips should reference their actual TSB, sleep, and training load
 - If offering to build a plan, it should be based on a real gap in their data
 - Keep total message under 1500 characters
-- NEVER HALLUCINATE — every number and metric must come from the actual data provided. Do not invent or guess any values.
+- NEVER HALLUCINATE — every number and metric about past data must come from the actual data provided. Do not invent or fabricate data points. Recommendations and estimates derived from real data are encouraged.
 - Return ONLY the message text, no JSON wrapping`;
 
 /**

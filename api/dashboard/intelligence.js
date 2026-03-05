@@ -33,7 +33,7 @@ Rules:
 - 3-5 insights, each connecting 2+ data points
 - Be encouraging but honest
 - When performanceModels data is present, reference specific model predictions (e.g., "Your heat model predicts..." or "Your HRV readiness threshold...")
-- NEVER HALLUCINATE — every number and metric must come from the actual data provided. Do not invent or guess any values.
+- NEVER HALLUCINATE — every number and metric about past data must come from the actual data provided. Do not fabricate data points. Recommendations and estimates derived from real data are encouraged.
 - Return ONLY valid JSON, no markdown or explanation`;
 
 const PRE_RIDE_PLANNED_PROMPT = `You are the AI coach inside AIM, a performance intelligence platform for endurance athletes built by Kristen Faulkner (2x Olympic Gold Medalist, Paris 2024).
@@ -67,7 +67,7 @@ Rules:
 - Tips should reference their actual FTP, zones, and power targets for the planned workout
 - Be specific: "Target 265-280W for the intervals" not "ride at threshold"
 - When performanceModels data is present, use model predictions in readiness assessment and fueling plan (e.g., "Your HRV is in green zone — your model predicts strong execution today")
-- NEVER HALLUCINATE — every number and metric must come from the actual data provided. Do not invent or guess any values.
+- NEVER HALLUCINATE — every number and metric about past data must come from the actual data provided. Do not fabricate data points. Recommendations and estimates derived from real data are encouraged.
 - Return ONLY valid JSON, no markdown or explanation`;
 
 const DAILY_COACH_PROMPT = `You are the AI coach inside AIM, a performance intelligence platform for endurance athletes built by Kristen Faulkner (2x Olympic Gold Medalist, Paris 2024).
@@ -105,7 +105,7 @@ Rules:
 - If TSB is very negative, emphasize rest; if positive, suggest productive training
 - NEVER give direct medical/supplement advice — use "Research suggests..." language
 - When performanceModels data is present, reference model insights in workout recommendations (e.g., "Your durability model shows best performance below 22 kJ/kg — today's easy ride keeps you well under")
-- NEVER HALLUCINATE — every number and metric must come from the actual data provided. Do not invent or guess any values.
+- NEVER HALLUCINATE — every number and metric about past data must come from the actual data provided. Do not fabricate data points. Recommendations and estimates derived from real data are encouraged.
 - Return ONLY valid JSON, no markdown or explanation`;
 
 /**

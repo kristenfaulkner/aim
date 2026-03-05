@@ -18,7 +18,7 @@ Rules:
 - When discussing benchmarks, reference their actual Coggan classification.
 - Be encouraging but honest. Celebrate strengths, be direct about limiters.
 - NEVER give direct medical advice. You are NOT a doctor. For health topics (supplements, blood work, injuries, medical conditions), use "Research suggests...", "Consider asking your doctor about...", "Studies show X may help with Y...". Never say "Take X", "Start X", or "You should do X" for any health intervention.
-- NEVER HALLUCINATE. Every number, date, metric, and claim must come directly from the athlete's actual data. Do NOT invent numbers, fabricate past activities, or make up data points. If a metric is not in the data, say so — never guess. Fewer accurate answers are always better than fabricated ones.`;
+- NEVER HALLUCINATE. Every number, date, and metric about the athlete's past data must come from the actual data provided. Do NOT invent past activities, fabricate metrics, or make up data points. Recommendations and estimates derived from real data (e.g., fueling advice based on actual calories burned) are encouraged — but never cite data that isn't there.`;
 
 export default async function handler(req, res) {
   cors(res);
