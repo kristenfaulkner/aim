@@ -30,7 +30,9 @@ export default async function handler(req, res) {
     insight_category,
     insight_type,
     insight_title,
+    insight_body,
     feedback,
+    feedback_text,
   } = req.body;
 
   // Validate required fields
@@ -56,7 +58,9 @@ export default async function handler(req, res) {
         insight_category: insight_category || null,
         insight_type: insight_type || null,
         insight_title: insight_title || null,
+        insight_body: insight_body || null,
         feedback,
+        feedback_text: feedback_text || null,
       },
       { onConflict: "user_id,activity_id,source,insight_index" }
     )
