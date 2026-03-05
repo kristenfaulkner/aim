@@ -287,8 +287,13 @@ export default function Dashboard() {
 
   useEffect(() => {
     // Show modal 500ms after dashboard loads when check-in not completed
+    // Only show once per calendar day (persisted via localStorage)
     if (!loading && checkinStatus === null && !checkInShownRef.current) {
+      const today = new Date().toISOString().slice(0, 10);
+      const lastShown = localStorage.getItem("aim_checkin_shown_date");
+      if (lastShown === today) return;
       checkInShownRef.current = true;
+      localStorage.setItem("aim_checkin_shown_date", today);
       const timer = setTimeout(() => setShowCheckIn(true), 500);
       return () => clearTimeout(timer);
     }
