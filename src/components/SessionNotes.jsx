@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
-import { RefreshCw, Check, X, Star } from "lucide-react";
+import { RefreshCw, Check, X, Star, Pencil } from "lucide-react";
 import { T, font, mono } from "../theme/tokens";
 import { inputStyle } from "../theme/styles";
 import { supabase } from "../lib/supabase";
@@ -158,6 +158,12 @@ function rpeColor(val) {
  * SessionNotes — editable notes, star rating, RPE, and tags for an activity.
  * Uses key={activityId} at the call site to reset state when activity changes.
  *
+ * Two modes:
+ *   - View mode: displays saved data with an "Edit" button
+ *   - Edit mode: full form with a "Save" button
+ *
+ * Starts in edit mode if no data has been saved yet (all fields empty).
+ *
  * Props:
  *   activityId  — UUID of the activity
  *   initialNotes, initialRating, initialRpe, initialTags — seed values
@@ -175,116 +181,96 @@ export default function SessionNotes({
   onSaved,
   onClose,
 }) {
+  const hasData = !!(initialNotes || initialRating || initialRpe || (initialTags && initialTags.length) || initialGiComfort || initialMentalFocus || initialPerceivedRecoveryPre);
+  const [editing, setEditing] = useState(!hasData);
   const [notes, setNotes] = useState(initialNotes);
   const [rating, setRating] = useState(initialRating);
   const [rpe, setRpe] = useState(initialRpe);
   const [tags, setTags] = useState(initialTags);
   const [tagInput, setTagInput] = useState("");
-  const [saveStatus, setSaveStatus] = useState(null); // null | "saving" | "saved"
+  const [saveStatus, setSaveStatus] = useState(null); // null | "saving" | "saved" | "error"
   const [hoverStar, setHoverStar] = useState(0);
   const [giComfort, setGiComfort] = useState(initialGiComfort);
   const [mentalFocus, setMentalFocus] = useState(initialMentalFocus);
   const [perceivedRecoveryPre, setPerceivedRecoveryPre] = useState(initialPerceivedRecoveryPre);
-  const debounceRef = useRef(null);
 
-  // Cleanup debounce on unmount
-  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
+  // Saved snapshot — what's currently persisted. Used to display in view mode and to revert on cancel.
+  const [saved, setSaved] = useState({
+    notes: initialNotes, rating: initialRating, rpe: initialRpe, tags: initialTags,
+    giComfort: initialGiComfort, mentalFocus: initialMentalFocus, perceivedRecoveryPre: initialPerceivedRecoveryPre,
+  });
 
-  const save = useCallback(async (updates) => {
+  const save = useCallback(async () => {
     setSaveStatus("saving");
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
+      const payload = {
+        user_notes: notes,
+        user_rating: rating || null,
+        user_rpe: rpe || null,
+        user_tags: tags,
+        gi_comfort: giComfort || null,
+        mental_focus: mentalFocus || null,
+        perceived_recovery_pre: perceivedRecoveryPre || null,
+      };
       const res = await fetch(`/api/activities/annotate?id=${activityId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify(updates),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
         const updated = await res.json();
         setSaveStatus("saved");
+        const snap = { notes, rating, rpe, tags, giComfort, mentalFocus, perceivedRecoveryPre };
+        setSaved(snap);
+        setEditing(false);
         setTimeout(() => setSaveStatus(null), 2000);
         onSaved?.(updated);
       } else {
-        setSaveStatus(null);
+        setSaveStatus("error");
+        setTimeout(() => setSaveStatus(null), 2000);
       }
     } catch {
-      setSaveStatus(null);
+      setSaveStatus("error");
+      setTimeout(() => setSaveStatus(null), 2000);
     }
-  }, [activityId, onSaved]);
+  }, [activityId, notes, rating, rpe, tags, giComfort, mentalFocus, perceivedRecoveryPre, onSaved]);
 
-  const debouncedSave = useCallback((updates) => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => save(updates), 1200);
-  }, [save]);
+  const handleEdit = () => setEditing(true);
 
-  // Helper to build the full save payload
-  const buildPayload = (overrides = {}) => ({
-    user_notes: notes,
-    user_rating: rating || null,
-    user_rpe: rpe || null,
-    user_tags: tags,
-    gi_comfort: giComfort || null,
-    mental_focus: mentalFocus || null,
-    perceived_recovery_pre: perceivedRecoveryPre || null,
-    ...overrides,
-  });
-
-  const handleNotesChange = (e) => {
-    const val = e.target.value;
-    setNotes(val);
-    debouncedSave(buildPayload({ user_notes: val }));
+  const handleCancel = () => {
+    // Revert to last saved state
+    setNotes(saved.notes);
+    setRating(saved.rating);
+    setRpe(saved.rpe);
+    setTags(saved.tags);
+    setGiComfort(saved.giComfort);
+    setMentalFocus(saved.mentalFocus);
+    setPerceivedRecoveryPre(saved.perceivedRecoveryPre);
+    setTagInput("");
+    setEditing(false);
   };
 
   const handleRating = (val) => {
-    const newRating = val === rating ? 0 : val;
-    setRating(newRating);
-    save(buildPayload({ user_rating: newRating || null }));
-  };
-
-  const handleRpe = (e) => {
-    const val = parseInt(e.target.value, 10);
-    setRpe(val);
-    save(buildPayload({ user_rpe: val || null }));
-  };
-
-  const handleGiComfort = (e) => {
-    const val = parseInt(e.target.value, 10);
-    setGiComfort(val);
-    save(buildPayload({ gi_comfort: val || null }));
-  };
-
-  const handleMentalFocus = (e) => {
-    const val = parseInt(e.target.value, 10);
-    setMentalFocus(val);
-    save(buildPayload({ mental_focus: val || null }));
-  };
-
-  const handlePerceivedRecoveryPre = (e) => {
-    const val = parseInt(e.target.value, 10);
-    setPerceivedRecoveryPre(val);
-    save(buildPayload({ perceived_recovery_pre: val || null }));
+    setRating(val === rating ? 0 : val);
   };
 
   const addTag = (tag) => {
     const trimmed = normalizeTag(tag);
     if (trimmed && !tags.includes(trimmed)) {
-      const newTags = [...tags, trimmed];
-      setTags(newTags);
+      setTags([...tags, trimmed]);
       setTagInput("");
-      save(buildPayload({ user_tags: newTags }));
     } else {
       setTagInput("");
     }
   };
 
   const removeTag = (tag) => {
-    const newTags = tags.filter((t) => t !== tag);
-    setTags(newTags);
-    save(buildPayload({ user_tags: newTags }));
+    setTags(tags.filter((t) => t !== tag));
   };
 
   const handleTagKeyDown = (e) => {
@@ -299,6 +285,118 @@ export default function SessionNotes({
     [tags]
   );
 
+  const savedHasData = !!(saved.notes || saved.rating || saved.rpe || (saved.tags && saved.tags.length) || saved.giComfort || saved.mentalFocus || saved.perceivedRecoveryPre);
+
+  // ─── VIEW MODE ───
+  if (!editing) {
+    return (
+      <div style={{
+        background: T.card, border: `1px solid ${T.border}`, borderRadius: 14,
+        padding: 20, display: "flex", flexDirection: "column", gap: 12,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Session Notes</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {saveStatus === "saved" && (
+              <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: T.green }}>
+                <Check size={10} /> Saved
+              </div>
+            )}
+            <button
+              onClick={handleEdit}
+              style={{ display: "flex", alignItems: "center", gap: 5, background: "transparent", border: `1px solid ${T.border}`, borderRadius: 8, padding: "5px 12px", fontSize: 12, fontWeight: 600, color: T.textSoft, cursor: "pointer", fontFamily: font }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = T.accent; e.currentTarget.style.color = T.accent; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.textSoft; }}
+            >
+              <Pencil size={12} /> Edit
+            </button>
+            {onClose && (
+              <button onClick={onClose} style={{ background: "transparent", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center", color: T.textDim }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = T.text; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = T.textDim; }}
+                aria-label="Close session notes"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {!savedHasData && (
+          <div style={{ fontSize: 13, color: T.textDim, fontStyle: "italic" }}>No notes yet. Click Edit to add your thoughts on this session.</div>
+        )}
+
+        {/* Notes */}
+        {saved.notes && (
+          <div>
+            <div style={{ fontSize: 11, color: T.textDim, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>Notes</div>
+            <div style={{ fontSize: 13, color: T.text, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{saved.notes}</div>
+          </div>
+        )}
+
+        {/* Rating + RPE inline */}
+        {(saved.rating > 0 || saved.rpe > 0) && (
+          <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+            {saved.rating > 0 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ fontSize: 11, color: T.textDim, fontWeight: 600, textTransform: "uppercase", marginRight: 4 }}>Rating</span>
+                {[1, 2, 3, 4, 5].map((val) => (
+                  <Star key={val} size={16} fill={saved.rating >= val ? "#f59e0b" : "transparent"} color={saved.rating >= val ? "#f59e0b" : T.textDim} strokeWidth={1.5} />
+                ))}
+              </div>
+            )}
+            {saved.rpe > 0 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 11, color: T.textDim, fontWeight: 600, textTransform: "uppercase" }}>RPE</span>
+                <span style={{ fontSize: 13, fontFamily: mono, fontWeight: 700, color: rpeColor(saved.rpe) }}>{saved.rpe}/10</span>
+                <span style={{ fontSize: 12, color: T.textSoft }}>{RPE_LABELS[saved.rpe]}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Perception metrics inline */}
+        {(saved.perceivedRecoveryPre > 0 || saved.giComfort > 0 || saved.mentalFocus > 0) && (
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+            {saved.perceivedRecoveryPre > 0 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 11, color: T.textDim, fontWeight: 600, textTransform: "uppercase" }}>Recovery</span>
+                <span style={{ fontSize: 13, fontFamily: mono, fontWeight: 700, color: saved.perceivedRecoveryPre >= 4 ? T.green : saved.perceivedRecoveryPre >= 3 ? T.warn : T.danger }}>{saved.perceivedRecoveryPre}/5</span>
+                <span style={{ fontSize: 12, color: T.textSoft }}>{RECOVERY_PRE_LABELS[saved.perceivedRecoveryPre]}</span>
+              </div>
+            )}
+            {saved.giComfort > 0 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 11, color: T.textDim, fontWeight: 600, textTransform: "uppercase" }}>GI</span>
+                <span style={{ fontSize: 13, fontFamily: mono, fontWeight: 700, color: saved.giComfort <= 2 ? T.green : saved.giComfort <= 3 ? T.warn : T.danger }}>{saved.giComfort}/5</span>
+                <span style={{ fontSize: 12, color: T.textSoft }}>{GI_LABELS[saved.giComfort]}</span>
+              </div>
+            )}
+            {saved.mentalFocus > 0 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 11, color: T.textDim, fontWeight: 600, textTransform: "uppercase" }}>Focus</span>
+                <span style={{ fontSize: 13, fontFamily: mono, fontWeight: 700, color: saved.mentalFocus >= 4 ? T.green : saved.mentalFocus >= 3 ? T.warn : T.danger }}>{saved.mentalFocus}/5</span>
+                <span style={{ fontSize: 12, color: T.textSoft }}>{FOCUS_LABELS[saved.mentalFocus]}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tags */}
+        {saved.tags && saved.tags.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {saved.tags.map((tag) => (
+              <span key={tag} style={{ display: "inline-flex", alignItems: "center", padding: "4px 10px", background: T.accentDim, border: `1px solid ${T.accentMid}`, borderRadius: 20, fontSize: 12, color: T.accent, fontWeight: 500 }}>
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ─── EDIT MODE ───
   return (
     <div style={{
       background: T.card, border: `1px solid ${T.border}`, borderRadius: 14,
@@ -308,12 +406,13 @@ export default function SessionNotes({
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Session Notes</div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {saveStatus && (
-            <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: saveStatus === "saving" ? T.textDim : T.green }}>
-              {saveStatus === "saving"
-                ? <><RefreshCw size={10} style={{ animation: "snotes-spin 1s linear infinite" }} /> Saving...</>
-                : <><Check size={10} /> Saved</>}
+          {saveStatus === "saving" && (
+            <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: T.textDim }}>
+              <RefreshCw size={10} style={{ animation: "snotes-spin 1s linear infinite" }} /> Saving...
             </div>
+          )}
+          {saveStatus === "error" && (
+            <div style={{ fontSize: 11, color: T.danger }}>Save failed</div>
           )}
           {onClose && (
             <button
@@ -340,7 +439,7 @@ export default function SessionNotes({
         <textarea
           className="snotes-textarea"
           value={notes}
-          onChange={handleNotesChange}
+          onChange={(e) => setNotes(e.target.value)}
           placeholder={"How did this session feel? Intervals, cadence drills, conditions, nutrition...\n\nTip: specifics like \"8×1min VO2max, 60rpm low-cadence blocks\" get auto-tagged."}
           maxLength={5000}
           rows={4}
@@ -396,7 +495,7 @@ export default function SessionNotes({
         </div>
         <input
           type="range" min={0} max={10} step={1} value={rpe}
-          onChange={handleRpe}
+          onChange={(e) => setRpe(parseInt(e.target.value, 10))}
           style={{
             width: "100%", height: 6, WebkitAppearance: "none", appearance: "none",
             background: rpe > 0
@@ -424,7 +523,7 @@ export default function SessionNotes({
         </div>
         <input
           type="range" min={0} max={5} step={1} value={perceivedRecoveryPre}
-          onChange={handlePerceivedRecoveryPre}
+          onChange={(e) => setPerceivedRecoveryPre(parseInt(e.target.value, 10))}
           style={{ width: "100%", height: 6, WebkitAppearance: "none", appearance: "none", background: perceivedRecoveryPre > 0 ? `linear-gradient(90deg, ${T.danger} 0%, ${T.warn} 50%, ${T.green} 100%)` : T.surface, borderRadius: 3, outline: "none", cursor: "pointer", accentColor: T.accent }}
         />
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
@@ -446,7 +545,7 @@ export default function SessionNotes({
         </div>
         <input
           type="range" min={0} max={5} step={1} value={giComfort}
-          onChange={handleGiComfort}
+          onChange={(e) => setGiComfort(parseInt(e.target.value, 10))}
           style={{ width: "100%", height: 6, WebkitAppearance: "none", appearance: "none", background: giComfort > 0 ? `linear-gradient(90deg, ${T.green} 0%, ${T.warn} 50%, ${T.danger} 100%)` : T.surface, borderRadius: 3, outline: "none", cursor: "pointer", accentColor: T.accent }}
         />
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
@@ -468,7 +567,7 @@ export default function SessionNotes({
         </div>
         <input
           type="range" min={0} max={5} step={1} value={mentalFocus}
-          onChange={handleMentalFocus}
+          onChange={(e) => setMentalFocus(parseInt(e.target.value, 10))}
           style={{ width: "100%", height: 6, WebkitAppearance: "none", appearance: "none", background: mentalFocus > 0 ? `linear-gradient(90deg, ${T.danger} 0%, ${T.warn} 50%, ${T.green} 100%)` : T.surface, borderRadius: 3, outline: "none", cursor: "pointer", accentColor: T.accent }}
         />
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
@@ -517,6 +616,32 @@ export default function SessionNotes({
             ))}
           </div>
         )}
+      </div>
+
+      {/* Save / Cancel buttons */}
+      <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+        {savedHasData && (
+          <button
+            onClick={handleCancel}
+            style={{ background: "transparent", border: `1px solid ${T.border}`, borderRadius: 8, padding: "8px 20px", fontSize: 13, fontWeight: 600, color: T.textSoft, cursor: "pointer", fontFamily: font }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = T.textDim; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = T.border; }}
+          >
+            Cancel
+          </button>
+        )}
+        <button
+          onClick={save}
+          disabled={saveStatus === "saving"}
+          style={{
+            background: T.accent, border: "none", borderRadius: 8, padding: "8px 24px",
+            fontSize: 13, fontWeight: 700, color: T.white, cursor: saveStatus === "saving" ? "not-allowed" : "pointer",
+            fontFamily: font, opacity: saveStatus === "saving" ? 0.7 : 1,
+            display: "flex", alignItems: "center", gap: 6,
+          }}
+        >
+          {saveStatus === "saving" ? <><RefreshCw size={12} style={{ animation: "snotes-spin 1s linear infinite" }} /> Saving...</> : "Save"}
+        </button>
       </div>
 
       <style>{`
