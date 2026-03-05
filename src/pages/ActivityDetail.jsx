@@ -785,7 +785,7 @@ function AIAnalysis({ analysis, loading, onRegenerate, activityId }) {
                       </div>
                       <FormattedText text={insight.body} style={{ fontSize: 11, lineHeight: 1.6, color: T.textSoft }} />
                       <InsightFeedback
-                        activityId={activity?.id}
+                        activityId={activityId}
                         source="activity_analysis"
                         insightIndex={originalIndex}
                         insight={insight}
