@@ -5,7 +5,7 @@ import { supabase } from "../../lib/supabase";
 import { apiFetch } from "../../lib/api";
 import {
   Bike, Footprints, Waves, Dumbbell, Flower2, Mountain,
-  Activity, Sparkles, Upload, X, ChevronDown, Loader2,
+  Activity, Sparkles, Upload, X, Loader2,
 } from "lucide-react";
 
 // ── Activity Config ──
@@ -171,59 +171,25 @@ function FieldInput({ label, value, onChange, unit, placeholder, highlight = fal
   );
 }
 
-// ── Expandable Performance Fields ──
+// ── Performance Fields ──
 
-function ExpandableFields({ groups, fields, setField, open, setOpen, parsedKeys = new Set() }) {
-  const filledCount = Object.values(fields).filter(v => v !== "" && v != null).length;
+function PerformanceFields({ groups, fields, setField, parsedKeys = new Set() }) {
   return (
-    <div>
-      <button onClick={() => setOpen(o => !o)} style={{
-        width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "11px 14px", borderRadius: 11,
-        border: `1.5px solid ${open ? T.accentMid : T.border}`,
-        background: open ? T.accentDim : T.surface,
-        cursor: "pointer", transition: "all 0.18s", fontFamily: font,
-      }}
-        onMouseEnter={e => { if (!open) { e.currentTarget.style.borderColor = T.borderHover; e.currentTarget.style.background = T.cardHover; } }}
-        onMouseLeave={e => { if (!open) { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.background = T.surface; } }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <ChevronDown size={14} style={{ color: T.textSoft }} />
-          <div style={{ textAlign: "left" }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: open ? T.accent : T.text }}>Performance Data</div>
-            <div style={{ fontSize: 11, color: filledCount > 0 ? T.accent : T.textDim, marginTop: 1, fontWeight: filledCount > 0 ? 600 : 400 }}>
-              {filledCount > 0 ? `${filledCount} field${filledCount > 1 ? "s" : ""} filled` : "Distance, power, HR, elevation\u2026"}
-            </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {groups.map(group => (
+        <div key={group.label}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 9 }}>
+            <div style={{ height: 1, flex: 1, background: T.border }} />
+            <span style={{ fontSize: 10, fontWeight: 700, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.05em" }}>{group.label}</span>
+            <div style={{ height: 1, flex: 1, background: T.border }} />
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9 }}>
+            {group.fields.map(f => (
+              <FieldInput key={f.key} label={f.label} value={fields[f.key] || ""} onChange={v => setField(f.key, v)} unit={f.unit} placeholder={f.placeholder} highlight={parsedKeys.has(f.key)} />
+            ))}
           </div>
         </div>
-        <div style={{
-          width: 24, height: 24, borderRadius: 12,
-          background: open ? T.accent : T.borderHover,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 10, color: open ? T.white : T.textSoft,
-          transition: "all 0.18s", transform: open ? "rotate(180deg)" : "rotate(0deg)",
-          flexShrink: 0,
-        }}><ChevronDown size={12} /></div>
-      </button>
-
-      {open && (
-        <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 14, animation: "slideDown 0.2s ease" }}>
-          {groups.map(group => (
-            <div key={group.label}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 9 }}>
-                <div style={{ height: 1, flex: 1, background: T.border }} />
-                <span style={{ fontSize: 10, fontWeight: 700, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.05em" }}>{group.label}</span>
-                <div style={{ height: 1, flex: 1, background: T.border }} />
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9 }}>
-                {group.fields.map(f => (
-                  <FieldInput key={f.key} label={f.label} value={fields[f.key] || ""} onChange={v => setField(f.key, v)} unit={f.unit} placeholder={f.placeholder} highlight={parsedKeys.has(f.key)} />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      ))}
     </div>
   );
 }
@@ -376,7 +342,6 @@ export default function LogActivityModal({ isOpen, onClose, onSaved }) {
   const [notes, setNotes] = useState("");
   const [title, setTitle] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
-  const [perfOpen, setPerfOpen] = useState(false);
   const [parsedKeys, setParsedKeys] = useState(new Set());
 
   const act = ACTIVITIES.find(a => a.id === actId);
@@ -389,7 +354,7 @@ export default function LogActivityModal({ isOpen, onClose, onSaved }) {
     setHours(1); setMinutes(0); setSeconds(0);
     setFieldsState({}); setNotes(""); setTitle("");
     setDate(new Date().toISOString().split("T")[0]);
-    setPerfOpen(false); setParsedKeys(new Set());
+    setParsedKeys(new Set());
     setSaved(false); setSaving(false); setSaveError(null);
   };
 
@@ -398,14 +363,13 @@ export default function LogActivityModal({ isOpen, onClose, onSaved }) {
     setActId(id); setFieldsState({}); setBodyRegion(null);
     const [h, m, s] = a.durationDefault;
     setHours(h); setMinutes(m); setSeconds(s);
-    setPerfOpen(false); setParsedKeys(new Set());
+    setParsedKeys(new Set());
   };
 
   const handleFileParsed = (parsedData, activityTypeHint) => {
     const { duration_seconds: durSec, ...perfFields } = parsedData;
     setFieldsState(prev => ({ ...prev, ...perfFields }));
     setParsedKeys(new Set(Object.keys(perfFields)));
-    setPerfOpen(true);
     if (durSec) {
       setHours(Math.floor(durSec / 3600));
       setMinutes(Math.floor((durSec % 3600) / 60));
@@ -424,7 +388,6 @@ export default function LogActivityModal({ isOpen, onClose, onSaved }) {
       return next;
     });
     setParsedKeys(new Set());
-    setPerfOpen(false);
   };
 
   const handleSave = async () => {
@@ -632,7 +595,7 @@ export default function LogActivityModal({ isOpen, onClose, onSaved }) {
               {/* Expandable performance fields */}
               {act && act.groups.length > 0 && (
                 <div style={{ animation: "slideDown 0.2s ease" }}>
-                  <ExpandableFields groups={act.groups} fields={fields} setField={setField} open={perfOpen} setOpen={setPerfOpen} parsedKeys={parsedKeys} />
+                  <PerformanceFields groups={act.groups} fields={fields} setField={setField} parsedKeys={parsedKeys} />
                 </div>
               )}
 

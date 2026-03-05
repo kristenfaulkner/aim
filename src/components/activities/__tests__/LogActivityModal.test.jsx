@@ -91,38 +91,40 @@ describe("LogActivityModal", () => {
     expect(screen.getByText("Core")).toBeInTheDocument();
   });
 
-  it("performance accordion visible for cycling/running/swimming/hiking; hidden for yoga/pilates/other", () => {
+  it("performance fields visible for cycling/running/swimming/hiking; hidden for yoga/pilates/other", () => {
     render(
       <LogActivityModal isOpen={true} onClose={vi.fn()} onSaved={vi.fn()} />
     );
 
-    // Cycling has performance fields
+    // Cycling has performance fields (always shown, no accordion)
     fireEvent.click(screen.getByText("Cycling"));
-    expect(screen.getByText("Performance Data")).toBeInTheDocument();
+    expect(screen.getByText("Distance & Speed")).toBeInTheDocument();
+    expect(screen.getByText("Power")).toBeInTheDocument();
 
     // Running has performance fields
     fireEvent.click(screen.getByText("Running"));
-    expect(screen.getByText("Performance Data")).toBeInTheDocument();
+    expect(screen.getByText("Distance & Pace")).toBeInTheDocument();
 
     // Swimming has performance fields
     fireEvent.click(screen.getByText("Swimming"));
-    expect(screen.getByText("Performance Data")).toBeInTheDocument();
+    expect(screen.getByText("Distance & Pace")).toBeInTheDocument();
 
     // Hiking has performance fields
     fireEvent.click(screen.getByText("Hiking"));
-    expect(screen.getByText("Performance Data")).toBeInTheDocument();
+    expect(screen.getByText("Distance & Elevation")).toBeInTheDocument();
 
     // Yoga has NO performance fields
     fireEvent.click(screen.getByText("Yoga"));
-    expect(screen.queryByText("Performance Data")).not.toBeInTheDocument();
+    expect(screen.queryByText("Distance & Speed")).not.toBeInTheDocument();
+    expect(screen.queryByText("Distance & Pace")).not.toBeInTheDocument();
 
     // Pilates has NO performance fields
     fireEvent.click(screen.getByText("Pilates"));
-    expect(screen.queryByText("Performance Data")).not.toBeInTheDocument();
+    expect(screen.queryByText("Distance & Speed")).not.toBeInTheDocument();
 
     // Other has NO performance fields
     fireEvent.click(screen.getByText("Other"));
-    expect(screen.queryByText("Performance Data")).not.toBeInTheDocument();
+    expect(screen.queryByText("Distance & Speed")).not.toBeInTheDocument();
   });
 
   it("file upload calls POST /api/activities/parse-file and populates fields on success", async () => {
@@ -167,9 +169,9 @@ describe("LogActivityModal", () => {
       );
     });
 
-    // After parsing, the performance accordion should be open and fields populated
+    // After parsing, the performance fields should be visible and populated
     await waitFor(() => {
-      expect(screen.getByText("Performance Data")).toBeInTheDocument();
+      expect(screen.getByText("Distance & Speed")).toBeInTheDocument();
     });
   });
 
@@ -199,7 +201,7 @@ describe("LogActivityModal", () => {
     });
   });
 
-  it("clearing file removes parsed fields and collapses accordion", async () => {
+  it("clearing file removes parsed field values", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
