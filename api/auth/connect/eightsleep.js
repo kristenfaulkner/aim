@@ -48,7 +48,7 @@ export default async function handler(req, res) {
     console.error("Eight Sleep connect error:", err.message);
     const msg = err.message.includes("authentication failed")
       ? "Invalid Eight Sleep credentials. Please check your email and password."
-      : err.message;
-    return res.status(401).json({ error: msg });
+      : "Unable to connect Eight Sleep. Please try again later.";
+    return res.status(err.message.includes("authentication failed") ? 401 : 500).json({ error: msg });
   }
 }
