@@ -342,7 +342,7 @@ export default function CheckInModal({
           ? "ciModalFadeIn 0.25s ease reverse forwards"
           : "ciModalFadeIn 0.2s ease",
       }}
-      // Click-outside does NOT dismiss (intentional per spec)
+      onClick={(e) => { if (e.target === e.currentTarget) handleSkip(); }}
     >
       <div
         style={{
