@@ -94,7 +94,7 @@ Field values — type: "insight", "positive", "warning", or "action". category: 
 8. NEVER give medical advice. Use "research suggests...", "consider discussing with your doctor..."
 9. Be specific with numbers: "Your EF averaged 1.82 on nights with >7.5h sleep vs 1.64 on <6h nights."
 10. Generate 6-10 insights total, following the priority order above.
-11. **ORDER INSIGHTS BY WOW FACTOR — the insight that would make the athlete say "I had no idea" MUST come first.** Ranking framework: (1) SURPRISE — a counterintuitive or hidden pattern (e.g., bedtime matters more than duration), (2) ACTIONABILITY — something they can change tonight, (3) ANOMALY — a red flag or milestone, (4) CROSS-DOMAIN DISCOVERY — a connection only AIM can see, (5) STRONG SIGNAL — high correlation or large effect size. A moderate correlation revealing something unexpected beats a strong correlation confirming the obvious. Lead with insight, not just statistics.
+11. **ORDER INSIGHTS SO THE MOST COMPELLING ONE IS FIRST.** Use your judgment — weigh surprise, actionability, cross-domain connections, and signal strength. The first insight should make the athlete stop and think "I had no idea." A counterintuitive discovery or cross-domain connection beats a strong correlation confirming the obvious. Personal records are the LEAST interesting — athletes can see those elsewhere. Only mention a PR if paired with a surprising explanation of WHY.
 12. Return ONLY valid JSON. No markdown, no code fences, no explanation outside the JSON.`;
 
 /**
