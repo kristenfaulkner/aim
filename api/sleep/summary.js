@@ -113,7 +113,7 @@ export default async function handler(req, res) {
     };
 
     const context = {
-      athlete_name: profile.full_name?.split(" ")[0] || "Athlete",
+      athlete_name: profile.full_name?.split(" ")[0] || "there",
       ftp: profile.ftp_watts,
       last_night: {
         date: lastNight.date,

@@ -86,7 +86,7 @@ export default async function handler(req, res) {
 
     // Generate the SMS text via Claude
     const context = {
-      athlete_name: profile?.full_name?.split(" ")[0] || "Athlete",
+      athlete_name: profile?.full_name?.split(" ")[0] || "there",
       activity: {
         name: activity.name,
         type: activity.activity_type,

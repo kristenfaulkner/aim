@@ -59,8 +59,19 @@ DATA GAP RULES:
 - Frame every gap as unlocking intelligence, never as a requirement.
 - **Check \`connectedSources\` before suggesting any integration.** Eight Sleep, Oura, and Whoop all provide sleep stages, HRV, resting HR, and respiratory rate. If ANY of these is connected, do NOT suggest the others for sleep/HRV data they already have. Only suggest truly incremental metrics: e.g., if Eight Sleep is connected but not Oura/Whoop, the only incremental data would be SpO2, a holistic readiness/recovery score, and true body temperature deviation. Never use generic language like "connecting a recovery tracker would give AIM your nightly HRV" when the athlete already has HRV from another device.
 
+WEATHER & FORECAST RULES:
+- When "weatherForecast" is present, use it to provide proactive weather-aware coaching.
+- "weatherForecast.current" has real-time conditions (temp_c, apparent_temp_c, humidity_pct, wind_speed_kmh).
+- "weatherForecast.daily" is a 7-day forecast array with temp_max_c, temp_min_c, apparent_max_c, precip_mm, wind_max_kmh, uv_index_max per day.
+- Flag upcoming heat-risk days (apparent_max_c > 30C) with expected performance impact using the heat model if available.
+- Flag rain days (precip_mm > 5) and high wind days (wind_max_kmh > 40) as conditions to plan around.
+- For morning modes, reference today's forecast in the briefing and contextCards (temp, conditions, UV).
+- For post-ride mode, compare actual ride weather to the forecast if both are available.
+- Include a contextCard for current weather when forecast data is present.
+- When the heat model is available, predict expected EF/HR adjustments for upcoming hot days.
+
 GENERAL RULES:
-- ALWAYS address the athlete by their first name (from athlete.first_name). NEVER say "Athlete".
+- ALWAYS address the athlete by their first name (from athlete.first_name). NEVER use the word "Athlete" as a name or greeting — use their actual first name. If first_name is null or missing, just use "you" naturally without any name.
 - Always second person ("your power", "your sleep"). Never "athletes in the bottom quartile".
 - Sleep and recovery data is from LAST NIGHT, not tonight. Always say "last night" when referring to the most recent sleep data.
 - When performanceModels data is present, reference specific model predictions.
@@ -199,7 +210,7 @@ export default async function handler(req, res) {
         .single(),
       supabaseAdmin
         .from("activities")
-        .select("id, name, activity_type, started_at, duration_seconds, distance_meters, avg_power_watts, normalized_power_watts, max_power_watts, tss, intensity_factor, variability_index, efficiency_factor, hr_drift_pct, avg_hr_bpm, max_hr_bpm, avg_cadence_rpm, avg_speed_mps, calories, work_kj, elevation_gain_meters, temperature_celsius, activity_weather, perceived_exertion, gi_comfort, mental_focus, perceived_recovery_pre, description, source_data, laps, zone_distribution")
+        .select("id, name, sport_type, activity_type, start_date, started_at, duration_seconds, distance_meters, moving_time_seconds, avg_power_watts, normalized_power_watts, max_power_watts, average_power, normalized_power, tss, intensity_factor, variability_index, efficiency_factor, hr_drift_pct, avg_hr_bpm, max_hr_bpm, average_hr, max_hr, avg_cadence_rpm, avg_speed_mps, calories, work_kj, elevation_gain, elevation_gain_meters, temperature_celsius, activity_weather, perceived_exertion, gi_comfort, mental_focus, perceived_recovery_pre, description")
         .eq("user_id", session.userId)
         .gte("started_at", todayStart)
         .lt("started_at", todayEnd)
@@ -220,7 +231,7 @@ export default async function handler(req, res) {
         .order("date", { ascending: false }),
       supabaseAdmin
         .from("activities")
-        .select("id, activity_type, name, started_at, duration_seconds, distance_meters, tss, normalized_power_watts, avg_power_watts, avg_hr_bpm, max_hr_bpm, intensity_factor, elevation_gain_meters, source_data")
+        .select("id, activity_type, name, started_at, duration_seconds, distance_meters, tss, normalized_power_watts, avg_power_watts, avg_hr_bpm, max_hr_bpm, intensity_factor, elevation_gain_meters")
         .eq("user_id", session.userId)
         .order("started_at", { ascending: false })
         .limit(5),
@@ -302,8 +313,8 @@ export default async function handler(req, res) {
     if (mode === "DAILY_COACH") mode = "MORNING_RECOVERY";
 
     // Build context for Claude
-    const firstName = profile?.full_name?.split(" ")[0] || "Athlete";
-    const profileSafe = profile ? { ...profile, first_name: firstName } : { first_name: "Athlete" };
+    const firstName = profile?.full_name?.split(" ")[0] || null;
+    const profileSafe = profile ? { ...profile, first_name: firstName } : {};
     const modelsText = performanceModels ? formatModelsForAI(performanceModels) : "";
     // Subjective check-in from today's daily metrics
     const todayMetrics = dailyMetrics.find((d) => d.date === today);

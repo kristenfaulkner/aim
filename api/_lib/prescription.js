@@ -391,7 +391,7 @@ export function buildPrescriptionContext({
   travelEvents,
   races,
 }) {
-  const firstName = profile?.full_name?.split(" ")[0] || "Athlete";
+  const firstName = profile?.full_name?.split(" ")[0] || "there";
 
   return {
     athlete: {

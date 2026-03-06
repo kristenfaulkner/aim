@@ -159,7 +159,7 @@ export default async function handler(req, res) {
     if (matched.length < 7) {
       return res.status(200).json({
         analysis: {
-          summary: `${profile.full_name?.split(" ")[0] || "Athlete"}, we need at least 7 rides with matching sleep data to analyze your sleep-performance patterns. You currently have ${matched.length} matched ride${matched.length !== 1 ? "s" : ""}.`,
+          summary: `${profile.full_name?.split(" ")[0] || "Hey"}, we need at least 7 rides with matching sleep data to analyze your sleep-performance patterns. You currently have ${matched.length} matched ride${matched.length !== 1 ? "s" : ""}.`,
           insights: [],
           dataGaps: [
             matched.length === 0 ? "Connect a sleep tracker (Eight Sleep, Oura, or Whoop) to start tracking sleep data" : "Keep training and tracking sleep — we need a few more matched days to find patterns",

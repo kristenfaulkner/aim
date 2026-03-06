@@ -211,7 +211,7 @@ export async function sendWorkoutEmail(userId, activityId) {
   ]);
 
   const getData = (r) => r.status === "fulfilled" ? r.value.data : null;
-  const athleteName = profile.full_name?.split(" ")[0] || "Athlete";
+  const athleteName = profile.full_name?.split(" ")[0] || "there";
 
   const context = {
     athlete_name: athleteName,

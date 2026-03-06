@@ -64,7 +64,12 @@ export default async function handler(req, res) {
         .json({ error: "Location required (lat/lng query params or profile location)" });
     }
 
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code,uv_index&temperature_unit=fahrenheit&wind_speed_unit=mph`;
+    const includeForecast = req.query.forecast === "true";
+
+    const dailyParams = includeForecast
+      ? "&daily=temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,precipitation_sum,wind_speed_10m_max,weather_code,uv_index_max&forecast_days=7"
+      : "";
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code,uv_index&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto${dailyParams}`;
     const resp = await fetch(url);
     if (!resp.ok) {
       return res.status(502).json({ error: "Weather API request failed" });
@@ -80,6 +85,20 @@ export default async function handler(req, res) {
       conditions: WEATHER_CODES[current.weather_code] || "Unknown",
       uv_index: current.uv_index,
     };
+
+    if (includeForecast && data.daily?.time) {
+      weather.forecast = data.daily.time.map((date, i) => ({
+        date,
+        temp_max_f: data.daily.temperature_2m_max?.[i],
+        temp_min_f: data.daily.temperature_2m_min?.[i],
+        apparent_max_f: data.daily.apparent_temperature_max?.[i],
+        apparent_min_f: data.daily.apparent_temperature_min?.[i],
+        precip_mm: data.daily.precipitation_sum?.[i],
+        wind_max_mph: data.daily.wind_speed_10m_max?.[i],
+        conditions: WEATHER_CODES[data.daily.weather_code?.[i]] || "Unknown",
+        uv_index_max: data.daily.uv_index_max?.[i],
+      }));
+    }
 
     // Cache in daily_metrics for today
     const today = new Date().toISOString().slice(0, 10);

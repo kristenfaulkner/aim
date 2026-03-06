@@ -106,7 +106,7 @@ export async function sendWorkoutSMS(userId, activityId) {
   const getData = (r) => r.status === "fulfilled" ? r.value.data : null;
 
   const context = {
-    athlete_name: profile.full_name?.split(" ")[0] || "Athlete",
+    athlete_name: profile.full_name?.split(" ")[0] || "there",
     activity: {
       name: activity.name,
       type: activity.activity_type,

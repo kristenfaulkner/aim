@@ -184,7 +184,7 @@ export default async function handler(req, res) {
     }
 
     const payload = {
-      athlete_name: profile?.full_name || "Athlete",
+      athlete_name: profile?.full_name?.split(" ")[0] || "there",
       current_session: buildSessionContext(currentAct),
       comparison_session: buildSessionContext(compAct),
     };

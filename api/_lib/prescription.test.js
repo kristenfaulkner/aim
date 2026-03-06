@@ -301,9 +301,9 @@ describe("buildPrescriptionContext", () => {
     expect(ctx.athlete.first_name).toBe("Kristen");
   });
 
-  it("defaults to 'Athlete' when no name", () => {
+  it("defaults to 'there' when no name", () => {
     const ctx = buildPrescriptionContext({ profile: null });
-    expect(ctx.athlete.first_name).toBe("Athlete");
+    expect(ctx.athlete.first_name).toBe("there");
   });
 
   it("limits recent activities to 10", () => {
