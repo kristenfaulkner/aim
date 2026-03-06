@@ -21,17 +21,15 @@ import ReadinessCard from "../components/dashboard/ReadinessCard";
 import LastRideCard from "../components/dashboard/LastRideCard";
 import FitnessChart from "../components/dashboard/FitnessChart";
 import TrainingWeekChart from "../components/dashboard/TrainingWeekChart";
-import CPModelCard from "../components/dashboard/CPModelCard";
 import WorkingGoals from "../components/dashboard/WorkingGoals";
 import PrescriptionCard from "../components/dashboard/PrescriptionCard";
 import TravelStatusCard from "../components/dashboard/TravelStatusCard";
 import AthleteBio from "../components/dashboard/AthleteBio";
-import PerformanceModels from "../components/dashboard/PerformanceModels";
 import TrialBanner from "../components/TrialBanner";
 
 // ── NAV BAR ──
 const NAV_ITEMS = [
-  { label: "Today", path: "/dashboard" },
+  { label: "Today", path: "/today" },
   { label: "Activities", path: "/activities" },
   { label: "Performance", path: "/performance" },
   { label: "My Stats", path: "/my-stats" },
@@ -51,7 +49,7 @@ function NavBar({ profile, isMobile, menuOpen, setMenuOpen, userMenuOpen, setUse
     <>
       <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: isMobile ? "0 12px" : "0 24px", height: isMobile ? 48 : 52, borderBottom: `1px solid ${T.border}`, background: `${T.card}ee`, backdropFilter: "blur(16px)", position: "sticky", top: 0, zIndex: 100 }}>
         <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 10 : 20 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }} onClick={() => navigate("/dashboard")}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }} onClick={() => navigate("/today")}>
             <div style={{ width: 26, height: 26, borderRadius: 7, background: T.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: T.white, letterSpacing: "-0.02em" }}>AI</div>
             <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.03em" }}><span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>AI</span>M</span>
             <span style={{ fontSize: 8, color: T.accent, fontWeight: 600, letterSpacing: "0.1em", marginLeft: -3 }}>BETA</span>
@@ -357,6 +355,14 @@ export default function Today() {
     ];
   }, [activity, profile]);
 
+  // Check if latest activity happened today
+  const activityIsToday = useMemo(() => {
+    if (!activity?.started_at) return false;
+    const actDate = new Date(activity.started_at).toLocaleDateString();
+    const todayDate = new Date().toLocaleDateString();
+    return actDate === todayDate;
+  }, [activity?.started_at]);
+
   const mode = intelligence?.mode || null;
   const briefing = intelligence?.intelligence?.briefing || intelligence?.briefing || null;
   const insights = intelligence?.intelligence?.insights || intelligence?.insights || [];
@@ -494,8 +500,8 @@ export default function Today() {
             isMobile={isMobile}
           />
 
-          {/* Last Ride */}
-          {activity && (
+          {/* Last Ride (only if it happened today) */}
+          {activity && activityIsToday && (
             <LastRideCard
               activity={activity}
               onViewDetails={() => navigate(`/activity/${activity.id}`)}
@@ -517,8 +523,8 @@ export default function Today() {
             </div>
           </div>
 
-          {/* Power Zones */}
-          {powerZonesData.length > 0 && (
+          {/* Power Zones (only for today's activity) */}
+          {activityIsToday && powerZonesData.length > 0 && (
             <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: 18 }}>
               <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Power Zones</div>
               {powerZonesData.map(z => {
@@ -538,11 +544,8 @@ export default function Today() {
             </div>
           )}
 
-          {/* Critical Power Model */}
-          <CPModelCard powerProfile={powerProfile} ftp={profile?.ftp_watts} isMobile={isMobile} />
-
-          {/* Training Load Summary + Fuel Breakdown */}
-          {computed && (
+          {/* Training Load Summary + Fuel Breakdown (only for today's activity) */}
+          {activityIsToday && computed && (
             <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: 18 }}>
               <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Training Load Summary</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: isMobile ? "4px 16px" : 24, fontSize: 12 }}>
@@ -576,9 +579,6 @@ export default function Today() {
               )}
             </div>
           )}
-
-          {/* Performance Models */}
-          <PerformanceModels isMobile={isMobile} />
 
           {/* Working Goals */}
           <WorkingGoals goals={goals} isMobile={isMobile} />
