@@ -10,6 +10,10 @@ export default async function handler(req, res) {
   const session = await verifySession(req);
   if (!session) return res.status(401).json({ error: "Unauthorized" });
 
+  if (!process.env.GARMIN_CONSUMER_KEY || !process.env.GARMIN_CONSUMER_SECRET) {
+    return res.status(503).json({ error: "Garmin integration is not yet available — awaiting API approval from Garmin" });
+  }
+
   const baseUrl = process.env.APP_URL || `https://${req.headers.host}`;
   const callbackUrl = `${baseUrl}/api/auth/callback/garmin`;
 
