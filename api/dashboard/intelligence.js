@@ -83,6 +83,8 @@ HISTORICAL PATTERN RULES (when "historicalPatterns" is present):
 - When recommending rest or continued training, cite the athlete's own precedent: what happened last time they were in a similar situation.
 
 GENERAL RULES:
+- The "today" field contains the athlete's current local date (YYYY-MM-DD). Use it to determine day-of-week, what counts as "this week", and whether the current week is incomplete. Do NOT count future days as rest days — only days up to and including today.
+- To determine rest days, check "recentActivities" for actual activity dates. A day is only a rest day if it has passed AND there is no activity with a started_at on that date. If an activity exists for today in recentActivities, it is NOT a rest day.
 - When CTL, ATL, and TSB values are present in dailyMetrics, state them as computed facts, not estimates. These are calculated values (CTL = 42-day fitness, ATL = 7-day fatigue, TSB = CTL − ATL). Never say "likely", "probably", or "estimated" about values you have actual data for.
 - ALWAYS address the athlete by their first name (from athlete.first_name). NEVER use the word "Athlete" as a name or greeting — use their actual first name. If first_name is null or missing, just use "you" naturally without any name.
 - Always second person ("your power", "your sleep"). Never "athletes in the bottom quartile".
@@ -152,7 +154,7 @@ MORNING WITH PLAN SPECIFIC RULES:
 
 const MORNING_RECOVERY_PROMPT = `You are the AI coach inside AIM, a performance intelligence platform for endurance athletes built by Kristen Faulkner (2x Olympic Gold Medalist, Paris 2024).
 
-No ride today and no planned workout. Provide daily coaching guidance.
+No ride detected yet today and no planned workout. Provide daily coaching guidance. Check "recentActivities" carefully — if any activity has a started_at matching today's date, acknowledge it instead of calling today a rest day.
 
 ${SHARED_FORMAT}
 
@@ -254,7 +256,7 @@ export default async function handler(req, res) {
         .select("id, activity_type, name, started_at, duration_seconds, distance_meters, tss, normalized_power_watts, avg_power_watts, avg_hr_bpm, max_hr_bpm, intensity_factor, elevation_gain_meters, start_lat, start_lng")
         .eq("user_id", session.userId)
         .order("started_at", { ascending: false })
-        .limit(5),
+        .limit(14),
       supabaseAdmin
         .from("travel_events")
         .select("detected_at, distance_km, timezone_shift_hours, altitude_change_m, travel_type, altitude_acclimation_day, dest_timezone")
@@ -383,6 +385,7 @@ export default async function handler(req, res) {
     const workingGoals = getData(goalsResult) || [];
 
     const context = {
+      today,
       athlete: profileSafe,
       connectedIntegrations: integrations.map(i => i.provider),
       lastNightSleep,

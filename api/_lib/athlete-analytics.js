@@ -74,6 +74,9 @@ function computeHistoricalPatterns(activities90d, dailyMetrics90d) {
   const metricsMap = {};
   for (const m of (dailyMetrics90d || [])) metricsMap[m.date] = m;
 
+  // Today's date string for capping the current incomplete week
+  const todayStr = new Date().toISOString().split("T")[0];
+
   // Group activities by ISO week (Monday start)
   const weeklyBlocks = {};
   for (const a of activities90d) {
@@ -99,7 +102,10 @@ function computeHistoricalPatterns(activities90d, dailyMetrics90d) {
       for (let i = 0; i < 7; i++) {
         const d = new Date(w.weekStart + "T00:00:00Z");
         d.setUTCDate(d.getUTCDate() + i);
-        if (!w.activityDates.has(d.toISOString().split("T")[0])) restDays++;
+        const dateStr = d.toISOString().split("T")[0];
+        // Don't count future days as rest days
+        if (dateStr > todayStr) break;
+        if (!w.activityDates.has(dateStr)) restDays++;
       }
       const endDate = new Date(w.weekStart + "T00:00:00Z");
       endDate.setUTCDate(endDate.getUTCDate() + 6);
