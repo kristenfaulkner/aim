@@ -36,7 +36,7 @@ export default async function handler(req, res) {
     access_token: data.access_token,
     refresh_token: data.refresh_token || "",
     token_expires_at: new Date((Math.floor(Date.now() / 1000) + data.expires_in) * 1000).toISOString(),
-    scopes: ["personal", "daily", "heartrate", "workout", "session", "sleep", "spo2"],
+    scopes: ["personal", "daily", "heartrate", "workout", "session", "tag", "spo2", "email"],
     is_active: true,
     sync_status: "pending",
   }, { onConflict: "user_id,provider" });

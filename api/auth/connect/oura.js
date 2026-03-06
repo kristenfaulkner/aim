@@ -19,7 +19,7 @@ export default async function handler(req, res) {
     client_id: process.env.OURA_CLIENT_ID,
     redirect_uri: `${baseUrl}/api/auth/callback/oura`,
     response_type: "code",
-    scope: "personal daily heartrate workout session sleep spo2",
+    scope: "personal daily heartrate workout session tag spo2 email",
     state,
   });
 
