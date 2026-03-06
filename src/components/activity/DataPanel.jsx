@@ -1,7 +1,6 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState } from "react";
 import { T, font, mono } from "../../theme/tokens";
 import { useResponsive } from "../../hooks/useResponsive";
-import { Target } from "lucide-react";
 
 // ── Helper ──
 function formatDuration(seconds) {
@@ -34,161 +33,6 @@ function StatBox({ label, value, unit, sub, highlight, small }) {
   );
 }
 
-// ── Activity Trace Chart ──
-function ActivityChart({ activity }) {
-  const canvasRef = useRef(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const dpr = 2;
-    const W = 600, H = 140;
-    canvas.width = W * dpr;
-    canvas.height = H * dpr;
-    canvas.style.width = "100%";
-    canvas.style.height = `${H}px`;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return; // jsdom has no canvas context
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, W, H);
-
-    // Try to use real stream data from laps, otherwise generate from activity data
-    const laps = activity?.laps?.intervals;
-    const dur = activity?.duration_seconds || 0;
-
-    // Generate representative power trace from intervals/laps
-    const N = 300;
-    const points = [];
-    const hrPoints = [];
-
-    if (laps && laps.length > 0) {
-      // Build trace from lap data
-      const totalDur = laps.reduce((s, l) => s + (l.duration_s || 0), 0) || dur;
-      let elapsed = 0;
-      for (let i = 0; i < N; i++) {
-        const t = (i / N) * totalDur;
-        // Find which lap this time falls in
-        let cumul = 0;
-        let lap = laps[0];
-        for (const l of laps) {
-          cumul += l.duration_s || 0;
-          if (t < cumul) { lap = l; break; }
-        }
-        const pwr = (lap.avg_power_w || lap.normalized_power_w || 0) + (Math.random() - 0.5) * 30;
-        const hr = (lap.avg_hr_bpm || 0) + (Math.random() - 0.5) * 8;
-        points.push(Math.max(0, Math.min(500, pwr)));
-        hrPoints.push(Math.max(60, Math.min(200, hr)));
-        elapsed += totalDur / N;
-      }
-    } else {
-      // Generate synthetic trace from summary metrics
-      const avgPwr = activity?.avg_power_watts || 200;
-      const avgHr = activity?.avg_hr_bpm || 140;
-      for (let i = 0; i < N; i++) {
-        const t = i / N;
-        const variation = Math.sin(i * 0.15) * 25 + (Math.random() - 0.5) * 20;
-        const warmup = t < 0.1 ? t * 10 : 1;
-        const cooldown = t > 0.92 ? (1 - t) * 12 : 1;
-        points.push(Math.max(0, avgPwr * warmup * cooldown + variation));
-        hrPoints.push(Math.max(60, avgHr * warmup * cooldown + Math.sin(i * 0.08) * 6));
-      }
-    }
-
-    if (points.length === 0) return;
-
-    const maxPwr = Math.max(...points, 100);
-    const minHr = Math.min(...hrPoints);
-    const maxHr = Math.max(...hrPoints);
-    const hrRange = maxHr - minHr || 1;
-
-    // Power area fill
-    ctx.beginPath();
-    points.forEach((v, i) => {
-      const x = (i / (N - 1)) * W;
-      const y = H - 8 - (v / maxPwr) * (H - 16);
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    });
-    ctx.lineTo(W, H - 8);
-    ctx.lineTo(0, H - 8);
-    const g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, "rgba(139,92,246,0.18)");
-    g.addColorStop(1, "rgba(139,92,246,0.01)");
-    ctx.fillStyle = g;
-    ctx.fill();
-
-    // Power line
-    ctx.beginPath();
-    ctx.lineWidth = 1.5;
-    ctx.strokeStyle = T.purple + "cc";
-    points.forEach((v, i) => {
-      const x = (i / (N - 1)) * W;
-      const y = H - 8 - (v / maxPwr) * (H - 16);
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    });
-    ctx.stroke();
-
-    // HR line
-    if (hrPoints.some(h => h > 60)) {
-      ctx.beginPath();
-      ctx.lineWidth = 1.2;
-      ctx.strokeStyle = T.red + "88";
-      hrPoints.forEach((v, i) => {
-        const x = (i / (N - 1)) * W;
-        const y = H - 8 - ((v - minHr + 10) / (hrRange + 20)) * (H - 16);
-        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-      });
-      ctx.stroke();
-    }
-
-    // Interval markers from laps
-    if (laps && laps.length > 1) {
-      const totalDur = laps.reduce((s, l) => s + (l.duration_s || 0), 0) || 1;
-      let cumul = 0;
-      laps.forEach((l) => {
-        cumul += l.duration_s || 0;
-        const t = cumul / totalDur;
-        if (t > 0.01 && t < 0.99) {
-          ctx.beginPath();
-          ctx.strokeStyle = "rgba(0,0,0,0.06)";
-          ctx.lineWidth = 1;
-          ctx.setLineDash([3, 5]);
-          ctx.moveTo(t * W, 0);
-          ctx.lineTo(t * W, H);
-          ctx.stroke();
-          ctx.setLineDash([]);
-        }
-      });
-    }
-
-    // Time labels
-    if (dur > 0) {
-      ctx.fillStyle = T.textDim;
-      ctx.font = `9px ${mono}`;
-      const labelCount = 6;
-      for (let i = 0; i < labelCount; i++) {
-        const secs = (i / (labelCount - 1)) * dur;
-        const h = Math.floor(secs / 3600);
-        const m = Math.floor((secs % 3600) / 60);
-        ctx.fillText(`${h}:${String(m).padStart(2, "0")}`, (i / (labelCount - 1)) * (W - 28), H);
-      }
-    }
-  }, [activity]);
-
-  return (
-    <div>
-      <canvas ref={canvasRef} style={{ width: "100%", height: 140, borderRadius: 8, display: "block" }} />
-      <div style={{ display: "flex", gap: 12, marginTop: 6, justifyContent: "center" }}>
-        {[["Power", T.purple], ["HR", T.red]].map(([l, c]) => (
-          <div key={l} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <div style={{ width: 14, height: 2, background: c, borderRadius: 1 }} />
-            <span style={{ fontSize: 9, color: T.textDim, fontFamily: font }}>{l}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 // ── Zone Bars ──
 function ZoneBars({ zones, title }) {
@@ -309,68 +153,235 @@ function ZonesView({ activity }) {
   );
 }
 
-// ── Laps View ──
+// ── Interval Insight Detection ──
+function detectIntervalInsights(workIntervals) {
+  if (workIntervals.length < 2) return {};
+  const insights = {};
+
+  for (let i = 1; i < workIntervals.length; i++) {
+    const curr = workIntervals[i];
+    const prev = workIntervals[i - 1];
+    const flags = [];
+
+    // HR drift: HR rising significantly between intervals at similar/lower power
+    if (curr.avg_hr_bpm && prev.avg_hr_bpm) {
+      const hrRise = curr.avg_hr_bpm - prev.avg_hr_bpm;
+      const pwrDrop = (prev.avg_power_w || 0) - (curr.avg_power_w || 0);
+      if (hrRise >= 4 && pwrDrop >= 0) {
+        flags.push({ icon: "\u26A0\uFE0F", label: "HR drift", color: T.amber, bg: "rgba(245,158,11,0.08)" });
+      }
+    }
+
+    // Cadence fade: significant cadence drop
+    if (curr.avg_cadence_rpm && prev.avg_cadence_rpm) {
+      const cadDrop = prev.avg_cadence_rpm - curr.avg_cadence_rpm;
+      if (cadDrop >= 5) {
+        flags.push({ icon: "\uD83D\uDD34", label: "Cadence fade", color: T.danger, bg: "rgba(239,68,68,0.06)" });
+      }
+    }
+
+    // Power fade from execution metrics
+    if (curr.execution?.fade_score != null && curr.execution.fade_score < -0.08) {
+      flags.push({ icon: "\u26A0\uFE0F", label: "Power fade", color: T.amber, bg: "rgba(245,158,11,0.08)" });
+    }
+
+    if (flags.length > 0) insights[i] = flags;
+  }
+
+  return insights;
+}
+
+// ── Laps View (Interval Execution) ──
 function LapsView({ activity }) {
-  const [expandedLap, setExpandedLap] = useState(null);
   const laps = activity?.laps?.intervals;
   if (!laps || laps.length === 0) return <div style={{ fontSize: 12, color: T.textDim, padding: 16, textAlign: "center" }}>No lap data available</div>;
 
-  const typeColors = { warmup: T.blue, work: T.accent, rest: T.textDim, cooldown: T.purple, recovery: T.textDim, unknown: T.textDim };
-  const typeBgs = { work: T.accentDim, warmup: "rgba(59,130,246,0.03)", recovery: "rgba(239,68,68,0.03)", rest: "rgba(239,68,68,0.03)" };
+  const workIntervals = laps.filter(l => l.type === "work");
+  const hasWorkIntervals = workIntervals.length >= 2;
+  const setMetrics = activity?.laps?.set_metrics;
+
+  // Target power: from planned_vs_actual or inferred from execution metrics
+  const pva = activity?.planned_vs_actual;
+  const plannedTarget = pva?.comparison?.comparisons?.[0]?.planned_watts;
+  const inferredTarget = workIntervals[0]?.execution?.target_power_w;
+  const targetPower = plannedTarget || inferredTarget || null;
+
+  // Build workout summary line (e.g., "4 × 20 min threshold · Target 275W")
+  let workoutSummary = null;
+  if (hasWorkIntervals) {
+    const count = workIntervals.length;
+    const avgDurS = Math.round(workIntervals.reduce((s, w) => s + (w.duration_s || 0), 0) / count);
+    const durMin = Math.round(avgDurS / 60);
+    const durLabel = durMin >= 1 ? `${durMin} min` : `${avgDurS}s`;
+
+    // Zone label from intensity
+    let zoneLabel = "";
+    if (targetPower && activity?.ftp_at_activity) {
+      const pctFtp = targetPower / activity.ftp_at_activity;
+      if (pctFtp >= 1.05) zoneLabel = "VO2max";
+      else if (pctFtp >= 0.91) zoneLabel = "threshold";
+      else if (pctFtp >= 0.76) zoneLabel = "sweet spot";
+      else if (pctFtp >= 0.56) zoneLabel = "tempo";
+      else zoneLabel = "endurance";
+    }
+
+    const parts = [`${count} \u00D7 ${durLabel}`];
+    if (zoneLabel) parts[0] += ` ${zoneLabel}`;
+    if (targetPower) parts.push(`Target ${targetPower}W`);
+    // Use plan title if available and more descriptive
+    if (pva?.plan?.title) {
+      workoutSummary = pva.plan.title;
+    } else {
+      workoutSummary = parts.join(" \u00B7 ");
+    }
+  }
+
+  // Detect per-interval insights
+  const intervalInsights = hasWorkIntervals ? detectIntervalInsights(workIntervals) : {};
+
+  // Summary stats for work intervals
+  const avgPower = setMetrics?.avg_work_power_w || (workIntervals.length
+    ? Math.round(workIntervals.reduce((s, w) => s + (w.avg_power_w || 0), 0) / workIntervals.length)
+    : null);
+  const avgHr = workIntervals.length
+    ? Math.round(workIntervals.filter(w => w.avg_hr_bpm).reduce((s, w) => s + w.avg_hr_bpm, 0) / workIntervals.filter(w => w.avg_hr_bpm).length || 0)
+    : null;
+  const powerFade = workIntervals.length >= 2
+    ? Math.round((workIntervals[workIntervals.length - 1].avg_power_w || 0) - (workIntervals[0].avg_power_w || 0))
+    : null;
+  const hrDrift = workIntervals.length >= 2 && workIntervals[0].avg_hr_bpm && workIntervals[workIntervals.length - 1].avg_hr_bpm
+    ? Math.round(workIntervals[workIntervals.length - 1].avg_hr_bpm - workIntervals[0].avg_hr_bpm)
+    : null;
+
+  // If not a structured workout, fall back to all-laps view
+  const displayIntervals = hasWorkIntervals ? workIntervals : laps;
+  const showVsTgt = hasWorkIntervals && targetPower;
 
   return (
-    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, overflow: "hidden" }}>
-      {/* Header */}
+    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, overflow: "hidden" }}>
+      {/* Title */}
+      <div style={{ padding: "16px 18px 12px" }}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: T.text, fontFamily: font }}>
+          {hasWorkIntervals ? "Interval Execution" : "Laps"}
+        </div>
+        {workoutSummary && (
+          <div style={{ fontSize: 13, color: T.textSoft, fontFamily: font, marginTop: 2 }}>
+            {workoutSummary}
+          </div>
+        )}
+      </div>
+
+      {/* Column headers */}
       <div style={{
-        display: "grid", gridTemplateColumns: "32px 48px 50px 44px 44px 1fr",
-        padding: "8px 12px", borderBottom: `1px solid ${T.border}`, background: T.surface,
+        display: "grid",
+        gridTemplateColumns: showVsTgt ? "36px 52px 60px 56px 56px 60px 1fr" : "36px 52px 60px 56px 60px 1fr",
+        padding: "6px 18px",
+        borderBottom: `1px solid ${T.border}`,
       }}>
-        {["#", "Time", "W", "HR", "EF", "Note"].map(h => (
-          <div key={h} style={{ fontSize: 9, fontWeight: 700, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: font }}>{h}</div>
+        {[
+          "#", "TIME", "POWER", ...(showVsTgt ? ["VS TGT"] : []), "HR", "CADENCE", ""
+        ].map(h => (
+          <div key={h} style={{ fontSize: 9, fontWeight: 700, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.07em", fontFamily: font }}>{h}</div>
         ))}
       </div>
-      <div style={{ maxHeight: 360, overflowY: "auto" }}>
-        {laps.map((lap, i) => {
-          const isInt = lap.type === "work";
-          const isRec = lap.type === "recovery" || lap.type === "rest";
-          const isWarm = lap.type === "warmup";
+
+      {/* Interval rows */}
+      <div>
+        {displayIntervals.map((lap, i) => {
+          const delta = showVsTgt && lap.avg_power_w ? Math.round(lap.avg_power_w - targetPower) : null;
+          const deltaColor = delta != null
+            ? (Math.abs(delta) <= 5 ? T.accent : delta > 5 ? T.amber : delta < -10 ? T.danger : T.amber)
+            : null;
+          const insights = intervalInsights[i] || [];
+          const hasWarning = insights.length > 0;
+
+          // Left border color: green if on target, yellow/orange if drifting
+          const borderColor = delta != null
+            ? (Math.abs(delta) <= 5 ? T.accent : Math.abs(delta) <= 10 ? T.amber : T.danger)
+            : (lap.type === "work" ? T.accent : T.border);
+
           return (
-            <div key={i} onClick={() => setExpandedLap(expandedLap === i ? null : i)}
-              style={{
-                borderBottom: `1px solid ${T.border}`,
-                cursor: "pointer",
-                background: typeBgs[lap.type] || "transparent",
-              }}>
-              <div style={{ display: "grid", gridTemplateColumns: "32px 48px 50px 44px 44px 1fr", padding: "6px 12px", alignItems: "center" }}>
-                <span style={{ fontSize: 10, fontFamily: mono, color: T.textDim }}>{i + 1}</span>
-                <span style={{ fontSize: 10, fontFamily: mono, color: T.text }}>{formatDuration(lap.duration_s)}</span>
-                <span style={{ fontSize: 10, fontFamily: mono, color: isInt ? T.accent : T.text, fontWeight: isInt ? 700 : 400 }}>{lap.avg_power_w || "--"}</span>
-                <span style={{ fontSize: 10, fontFamily: mono, color: T.red }}>{lap.avg_hr_bpm || "--"}</span>
-                <span style={{ fontSize: 10, fontFamily: mono, color: T.textSoft }}>
-                  {lap.avg_power_w && lap.avg_hr_bpm ? (lap.avg_power_w / lap.avg_hr_bpm).toFixed(2) : "--"}
+            <div key={i} style={{
+              display: "grid",
+              gridTemplateColumns: showVsTgt ? "36px 52px 60px 56px 56px 60px 1fr" : "36px 52px 60px 56px 60px 1fr",
+              padding: "14px 18px",
+              borderBottom: `1px solid ${T.border}`,
+              borderLeft: `3px solid ${borderColor}`,
+              background: hasWarning ? "rgba(245,158,11,0.04)" : "transparent",
+              alignItems: "center",
+            }}>
+              <span style={{ fontSize: 12, fontFamily: mono, color: T.textDim, fontWeight: 600 }}>#{i + 1}</span>
+              <span style={{ fontSize: 13, fontFamily: mono, color: T.text }}>{formatDuration(lap.duration_s)}</span>
+              <span style={{ fontSize: 16, fontFamily: mono, fontWeight: 700, color: T.accent }}>
+                {lap.avg_power_w ? Math.round(lap.avg_power_w) : "--"}
+                <span style={{ fontSize: 11, fontWeight: 400, color: T.textDim }}>w</span>
+              </span>
+              {showVsTgt && (
+                <span style={{ fontSize: 13, fontFamily: mono, fontWeight: 600, color: deltaColor }}>
+                  {delta != null ? `${delta > 0 ? "+" : ""}${delta}W` : "--"}
                 </span>
-                <span style={{ fontSize: 9, color: T.textSoft, fontFamily: font }}>
-                  <span style={{
-                    fontSize: 9, fontWeight: 600, padding: "1px 5px", borderRadius: 3,
-                    background: `${typeColors[lap.type] || T.textDim}12`,
-                    color: typeColors[lap.type] || T.textDim,
-                    textTransform: "capitalize", marginRight: 4,
-                  }}>{lap.type}</span>
-                </span>
-              </div>
-              {expandedLap === i && (
-                <div style={{ padding: "6px 12px 8px", borderTop: `1px solid ${T.border}`, background: T.surface }}>
-                  <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                    {lap.avg_cadence_rpm && <span style={{ fontSize: 9, color: T.textSoft, fontFamily: font }}>Cadence: <span style={{ fontFamily: mono, color: T.text }}>{lap.avg_cadence_rpm} rpm</span></span>}
-                    {lap.normalized_power_w && <span style={{ fontSize: 9, color: T.textSoft, fontFamily: font }}>NP: <span style={{ fontFamily: mono, color: T.text }}>{lap.normalized_power_w}W</span></span>}
-                    {lap.max_power_w && <span style={{ fontSize: 9, color: T.textSoft, fontFamily: font }}>Max: <span style={{ fontFamily: mono, color: T.text }}>{lap.max_power_w}W</span></span>}
-                  </div>
-                </div>
               )}
+              <span style={{ fontSize: 13, fontFamily: mono, color: T.text }}>
+                {lap.avg_hr_bpm ? Math.round(lap.avg_hr_bpm) : "--"}
+                <span style={{ fontSize: 10, color: T.textDim }}>bpm</span>
+              </span>
+              <span style={{ fontSize: 13, fontFamily: mono, color: T.text, fontWeight: (insights.some(f => f.label === "Cadence fade")) ? 700 : 400 }}>
+                {lap.avg_cadence_rpm ? Math.round(lap.avg_cadence_rpm) : "--"}
+                <span style={{ fontSize: 10, color: T.textDim }}>rpm</span>
+              </span>
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                {insights.map((flag, fi) => (
+                  <span key={fi} style={{
+                    fontSize: 10, fontWeight: 700, color: flag.color,
+                    background: flag.bg, borderRadius: 6, padding: "3px 8px",
+                    display: "inline-flex", alignItems: "center", gap: 3,
+                    lineHeight: 1.3,
+                  }}>
+                    {flag.icon} {flag.label}
+                  </span>
+                ))}
+              </div>
             </div>
           );
         })}
       </div>
+
+      {/* Summary footer for structured workouts */}
+      {hasWorkIntervals && (avgPower || avgHr) && (
+        <div style={{
+          display: "flex", gap: 16, padding: "14px 18px", background: T.surface,
+          borderTop: `1px solid ${T.border}`, flexWrap: "wrap",
+        }}>
+          {avgPower && (
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.07em", fontFamily: font }}>Avg Power</div>
+              <div style={{ fontSize: 15, fontWeight: 700, fontFamily: mono, color: T.text }}>{avgPower}W</div>
+            </div>
+          )}
+          {avgHr > 0 && (
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.07em", fontFamily: font }}>Avg HR</div>
+              <div style={{ fontSize: 15, fontWeight: 700, fontFamily: mono, color: T.text }}>{avgHr}bpm</div>
+            </div>
+          )}
+          {powerFade != null && powerFade !== 0 && (
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.07em", fontFamily: font }}>Power Fade</div>
+              <div style={{ fontSize: 15, fontWeight: 700, fontFamily: mono, color: powerFade < -5 ? T.danger : T.text }}>
+                {powerFade > 0 ? "+" : ""}{powerFade}W
+              </div>
+            </div>
+          )}
+          {hrDrift != null && hrDrift !== 0 && (
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.07em", fontFamily: font }}>HR Drift</div>
+              <div style={{ fontSize: 15, fontWeight: 700, fontFamily: mono, color: hrDrift > 5 ? T.amber : T.text }}>
+                {hrDrift > 0 ? "+" : ""}{hrDrift}bpm
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -426,7 +437,7 @@ function SimilarSessionsList({ data, loading }) {
         const np = r.normalized_power_watts ? `${Math.round(r.normalized_power_watts)}W` : r.np || "";
         const ef = r.efficiency_factor || r.ef || "";
         const tss = r.tss ? Math.round(r.tss) : "";
-        const match = r.match_score ? `${Math.round(r.match_score * 100)}%` : r.match || "";
+        const match = r.similarity_score ? `${Math.round(r.similarity_score * 100)}%` : r.match || "";
 
         return (
           <div key={i} style={{ borderTop: `1px solid ${T.border}`, padding: "8px 14px", display: "flex", alignItems: "center", gap: 10 }}>
@@ -470,12 +481,6 @@ export default function DataPanel({ activity, similarSessions, units }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      {/* Chart */}
-      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, padding: "14px 14px 10px" }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.07em", fontFamily: font, marginBottom: 8 }}>Activity Trace</div>
-        <ActivityChart activity={activity} />
-      </div>
-
       {/* Compliance */}
       <ComplianceCard activity={activity} />
 

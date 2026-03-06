@@ -237,6 +237,11 @@ export default function ActivityDetail() {
     { label: "EF", value: a.efficiency_factor || null, glow: true },
   ].filter(s => s.value != null);
 
+  // Show segments only when AI analysis generated a segment-related insight
+  const hasSegmentInsight = (a.ai_analysis?.insights || []).some(
+    ins => /segment/i.test(ins.cat_label || "") || /segment/i.test(ins.title || "")
+  );
+
   return (
     <div style={{ minHeight: "100vh", background: T.bg, paddingBottom: 120 }}>
       {/* Header */}
@@ -472,8 +477,8 @@ export default function ActivityDetail() {
               units={units}
             />
 
-            {/* Additional panels below data tabs */}
-            {(segmentData || segmentsLoading) && (
+            {/* Segments — only show when AI analysis produced a segment insight */}
+            {hasSegmentInsight && (segmentData || segmentsLoading) && (
               <SegmentComparisonPanel data={segmentData} loading={segmentsLoading} isMobile={isMobile} />
             )}
 
