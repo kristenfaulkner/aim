@@ -2,7 +2,7 @@ import { supabaseAdmin } from "../../_lib/supabase.js";
 import { getWahooToken, wahooFetch, mapWahooToActivity, downloadWahooFit } from "../../_lib/wahoo.js";
 import { computeActivityMetrics } from "../../_lib/metrics.js";
 import { updateDailyMetrics, updatePowerProfile } from "../../_lib/training-load.js";
-import { findDuplicate, isHigherPriority } from "../../_lib/source-priority.js";
+import { findDuplicate, isHigherPriority, mergeRaceDuplicates } from "../../_lib/source-priority.js";
 import { verifySession, cors } from "../../_lib/auth.js";
 import { analyzeActivity } from "../../_lib/ai.js";
 import { sendWorkoutSMS } from "../../sms/send.js";
@@ -254,6 +254,14 @@ export async function syncWahooWorkout(userId, workout, options = {}) {
   if (upsertError) {
     console.error(`[Wahoo Sync] Upsert failed for workout ${workout.id}:`, upsertError.message);
     return record;
+  }
+
+  // Post-insert race condition sweep: if Strava webhook inserted the same
+  // ride concurrently, merge and keep the higher-priority source (Wahoo wins).
+  if (upserted?.id) {
+    mergeRaceDuplicates(supabaseAdmin, upserted.id, record).catch(err =>
+      console.error(`[Wahoo Sync] Race dedup sweep failed:`, err.message)
+    );
   }
 
   // Update daily_metrics with TSS

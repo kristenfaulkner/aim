@@ -73,75 +73,44 @@ function Constellation() {
     window.addEventListener("resize", resize);
     const ctx = canvas.getContext("2d");
 
-    const labels = ["FTP 298W", "HRV 68ms", "Sleep 7.2h", "TSS 82", "Ferritin 52",
-      "VO\u2082max 58", "Form +8", "CTL 74", "SpO\u2082 98%", "Readiness 71",
-      "Body Fat 14%", "EF 1.79", "W' 18kJ", "Cadence 91"];
-
-    function getBuffer() {
-      const w = canvas.width, h = canvas.height;
-      const pad = 80;
-      return { left: w * 0.18 - pad, right: w * 0.82 + pad, top: h * 0.08, bottom: h * 0.88 };
-    }
-
-    function spawnOutside() {
-      const b = getBuffer();
-      const side = Math.floor(Math.random() * 4);
-      let x, y;
-      if (side === 0) { x = Math.random() * b.left; y = Math.random() * canvas.height; }
-      else if (side === 1) { x = b.right + Math.random() * (canvas.width - b.right); y = Math.random() * canvas.height; }
-      else if (side === 2) { x = Math.random() * canvas.width; y = Math.random() * b.top; }
-      else { x = Math.random() * canvas.width; y = b.bottom + Math.random() * (canvas.height - b.bottom); }
-      return { x: Math.max(10, Math.min(canvas.width - 10, x)), y: Math.max(10, Math.min(canvas.height - 10, y)) };
-    }
-
-    const nodes = labels.map(label => {
-      const pos = spawnOutside();
-      return { ...pos, vx: (Math.random() - 0.5) * 0.25, vy: (Math.random() - 0.5) * 0.25, label, r: Math.random() * 2.5 + 1.5, alpha: Math.random() * 0.35 + 0.15 };
-    });
+    const COUNT = 8;
+    const nodes = Array.from({ length: COUNT }, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      vx: (Math.random() - 0.5) * 0.15,
+      vy: (Math.random() - 0.5) * 0.15,
+      r: Math.random() * 1.5 + 1,
+      alpha: Math.random() * 0.12 + 0.04,
+    }));
 
     let raf;
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const b = getBuffer();
       nodes.forEach(n => {
         n.x += n.vx; n.y += n.vy;
-        if (n.x < 0) { n.x = 0; n.vx *= -1; }
-        if (n.x > canvas.width) { n.x = canvas.width; n.vx *= -1; }
-        if (n.y < 0) { n.y = 0; n.vy *= -1; }
-        if (n.y > canvas.height) { n.y = canvas.height; n.vy *= -1; }
-        if (n.x > b.left && n.x < b.right && n.y > b.top && n.y < b.bottom) {
-          const distL = n.x - b.left, distR = b.right - n.x, distT = n.y - b.top, distB = b.bottom - n.y;
-          const minDist = Math.min(distL, distR, distT, distB);
-          if (minDist === distL) { n.x = b.left; n.vx = -Math.abs(n.vx); }
-          else if (minDist === distR) { n.x = b.right; n.vx = Math.abs(n.vx); }
-          else if (minDist === distT) { n.y = b.top; n.vy = -Math.abs(n.vy); }
-          else { n.y = b.bottom; n.vy = Math.abs(n.vy); }
-        }
+        if (n.x < 0 || n.x > canvas.width) n.vx *= -1;
+        if (n.y < 0 || n.y > canvas.height) n.vy *= -1;
       });
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
           const dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 180) {
-            const mx = (nodes[i].x + nodes[j].x) / 2, my = (nodes[i].y + nodes[j].y) / 2;
-            if (mx > b.left && mx < b.right && my > b.top && my < b.bottom) continue;
+          if (dist < 220) {
             ctx.beginPath(); ctx.moveTo(nodes[i].x, nodes[i].y); ctx.lineTo(nodes[j].x, nodes[j].y);
-            ctx.strokeStyle = `rgba(16,185,129,${0.10 * (1 - dist / 180)})`; ctx.lineWidth = 1; ctx.stroke();
+            ctx.strokeStyle = `rgba(16,185,129,${0.04 * (1 - dist / 220)})`; ctx.lineWidth = 1; ctx.stroke();
           }
         }
       }
       nodes.forEach(n => {
         ctx.beginPath(); ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(16,185,129,${n.alpha})`; ctx.fill();
-        ctx.font = `11px '${font}'`; ctx.fillStyle = `rgba(15,17,23,${n.alpha * 0.9})`;
-        ctx.fillText(n.label, n.x + n.r + 4, n.y + 4);
       });
       raf = requestAnimationFrame(draw);
     }
     draw();
     return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
   }, []);
-  return <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }} />;
+  return <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", opacity: 0.7 }} />;
 }
 
 // ── Cross-domain insight data ────────────────────────────────────────────────
@@ -341,7 +310,7 @@ export default function Landing() {
     return () => window.removeEventListener("scroll", h);
   }, []);
 
-  const ctaText = user ? "Go to Dashboard" : "Create Account";
+  const ctaText = user ? "Go to Dashboard" : "Create account";
   const ctaRoute = user ? "/dashboard" : "/signup";
   const visibleInsights = isMobile && !showAllInsights ? INSIGHTS.slice(0, 4) : INSIGHTS;
 
@@ -407,9 +376,9 @@ export default function Landing() {
           ) : (
             <div style={{ display: "flex", alignItems: "center", gap: isTablet ? 20 : 28 }}>
               {["How it works", "Pricing"].map(l => (
-                <a key={l} href={`#${l.toLowerCase().replace(/\s/g, "-")}`} style={{ fontSize: 14, fontWeight: 500, color: T.textSoft, transition: "color 0.15s" }}
-                  onMouseEnter={e => e.target.style.color = T.text}
-                  onMouseLeave={e => e.target.style.color = T.textSoft}
+                <a key={l} href={`#${l.toLowerCase().replace(/\s/g, "-")}`} style={{ fontSize: 13, fontWeight: 500, color: T.textDim, transition: "color 0.15s", textDecoration: "none" }}
+                  onMouseEnter={e => e.target.style.color = T.textSoft}
+                  onMouseLeave={e => e.target.style.color = T.textDim}
                 >{l}</a>
               ))}
               {user ? (
@@ -434,8 +403,8 @@ export default function Landing() {
                 </div>
               ) : (
                 <>
-                  <button onClick={() => navigate("/signin")} style={{ fontSize: 13, fontWeight: 700, color: T.text, border: `1.5px solid ${T.border}`, borderRadius: 8, padding: "7px 16px", background: "none", cursor: "pointer", fontFamily: font }}>Log in</button>
-                  <button onClick={() => navigate("/signup")} style={{ fontSize: 13, fontWeight: 700, color: "white", background: T.gradient, borderRadius: 8, padding: "8px 18px", boxShadow: "0 2px 10px rgba(16,185,129,0.25)", border: "none", cursor: "pointer", fontFamily: font }}>Start free {"\u2192"}</button>
+                  <button onClick={() => navigate("/signin")} style={{ fontSize: 13, fontWeight: 600, color: T.textSoft, border: "none", borderRadius: 8, padding: "7px 16px", background: "none", cursor: "pointer", fontFamily: font }}>Log in</button>
+                  <button onClick={() => navigate("/signup")} style={{ fontSize: 13, fontWeight: 700, color: "white", background: T.gradient, borderRadius: 8, padding: "8px 18px", boxShadow: "0 2px 10px rgba(16,185,129,0.2)", border: "none", cursor: "pointer", fontFamily: font }}>Start free {"\u2192"}</button>
                 </>
               )}
             </div>
@@ -468,9 +437,9 @@ export default function Landing() {
       <main>
         {/* ═══ HERO ═══════════════════════════════════════════════════════════ */}
         <section style={{
-          paddingTop: isMobile ? 88 : isTablet ? 130 : 140, paddingBottom: isMobile ? 40 : 80,
+          paddingTop: isMobile ? 100 : isTablet ? 150 : 170, paddingBottom: isMobile ? 48 : 96,
           paddingLeft: isMobile ? 20 : 40, paddingRight: isMobile ? 20 : 40,
-          background: "linear-gradient(180deg, #eef8f4 0%, #fafaf9 55%)",
+          background: "linear-gradient(180deg, #f2f9f6 0%, #fafaf9 60%)",
           position: "relative", overflow: "hidden",
         }}>
           {isDesktop && <Constellation />}
@@ -478,9 +447,9 @@ export default function Landing() {
             <Reveal delay={0.04}>
               <h1 style={{
                 textAlign: "center",
-                fontSize: isMobile ? 38 : isTablet ? 52 : "clamp(44px, 6.5vw, 76px)",
+                fontSize: isMobile ? 40 : isTablet ? 56 : "clamp(48px, 6.5vw, 80px)",
                 fontFamily: SERIF, fontWeight: 400, lineHeight: 1.08, letterSpacing: "-0.03em",
-                margin: "0 auto 16px", maxWidth: 800,
+                margin: "0 auto", maxWidth: 800,
               }}>
                 Five apps.<br />Zero answers.{isMobile ? <br /> : " "}
                 <em style={{ fontStyle: "italic", background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Until now.</em>
@@ -490,7 +459,7 @@ export default function Landing() {
             <Reveal delay={0.08}>
               <p style={{
                 textAlign: "center", fontSize: isMobile ? 15 : "clamp(15px, 1.5vw, 18px)",
-                lineHeight: 1.6, color: T.textSoft, maxWidth: 560, margin: "0 auto 28px",
+                lineHeight: 1.6, color: T.textDim, maxWidth: 520, margin: isMobile ? "20px auto 32px" : "24px auto 40px",
               }}>
                 AIM connects your training, sleep, recovery, blood work, and body comp {"\u2014"} then tells you exactly what to do next.
               </p>
@@ -500,48 +469,33 @@ export default function Landing() {
             <Reveal delay={0.12}>
               <div style={{ display: "flex", justifyContent: "center" }}>
                 <button onClick={() => navigate(ctaRoute)} style={{
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                   background: T.gradient, color: "white", fontWeight: 700,
-                  fontSize: 15, padding: isMobile ? "14px 24px" : "12px 24px",
+                  fontSize: isMobile ? 15 : 16, padding: isMobile ? "15px 28px" : "14px 32px",
                   borderRadius: isMobile ? 12 : 10, border: "none", cursor: "pointer", fontFamily: font,
                   width: isMobile ? "100%" : "auto", minHeight: isMobile ? 48 : undefined,
-                  boxShadow: "0 2px 14px rgba(16,185,129,0.3)",
+                  boxShadow: "0 4px 20px rgba(16,185,129,0.25)",
                 }}>
                   {ctaText} <ArrowRight size={16} />
                 </button>
               </div>
-              <p style={{ textAlign: "center", fontSize: isMobile ? 12 : 13, color: T.textDim, marginTop: 10 }}>
-                Free 14-day trial {"\u00B7"} No credit card {!isMobile && "\u00B7 2 minutes to set up"}
+              <p style={{ textAlign: "center", fontSize: 12, color: T.textDim, marginTop: 12, letterSpacing: "0.01em" }}>
+                Free 14-day trial {"\u00B7"} No credit card required
               </p>
             </Reveal>
 
-            {/* Integration names */}
+            {/* Integration logos — single quiet row */}
             <Reveal delay={0.16}>
-              <div style={{ textAlign: "center", margin: isMobile ? "20px 0 0" : "28px 0 52px" }}>
-                <div style={{ display: "flex", gap: isMobile ? 16 : 36, justifyContent: "center", flexWrap: "wrap", marginBottom: isMobile ? 4 : 8 }}>
-                  {["Strava", "Wahoo", "Garmin", "Oura", "Whoop", "Withings"].map(n => (
-                    <span key={n} style={{ fontSize: isMobile ? 13 : 16, fontWeight: 600, color: "rgba(0,0,0,0.22)" }}>{n}</span>
-                  ))}
-                </div>
-                <p style={{ fontSize: isMobile ? 11 : 13, color: T.textDim, margin: 0 }}>Integrates with 18+ platforms</p>
-              </div>
-            </Reveal>
-
-            {/* Founder credit */}
-            <Reveal delay={0.2}>
-              <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 10, justifyContent: "center", marginTop: isMobile ? 24 : 12 }}>
-                <div style={{ width: isMobile ? 28 : 34, height: isMobile ? 28 : 34, borderRadius: "50%", border: `2px solid ${T.accentMid}`, overflow: "hidden", flexShrink: 0 }}>
-                  <img src="/kristen.jpg" alt="Kristen Faulkner" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                </div>
-                <p style={{ fontSize: isMobile ? 12 : 13, color: T.textSoft, margin: 0 }}>
-                  Built by <strong style={{ color: T.text, fontWeight: 700 }}>Kristen Faulkner</strong> {"\u2014"} 2{"\u00D7"} Olympic Gold{!isMobile && " Medalist, Paris 2024"}
-                </p>
+              <div style={{ display: "flex", gap: isMobile ? 18 : 32, justifyContent: "center", flexWrap: "wrap", marginTop: isMobile ? 36 : 56 }}>
+                {["Strava", "Wahoo", "Garmin", "Oura", "Whoop", "Withings"].map(n => (
+                  <span key={n} style={{ fontSize: isMobile ? 12 : 14, fontWeight: 600, color: "rgba(0,0,0,0.18)", letterSpacing: "0.01em" }}>{n}</span>
+                ))}
               </div>
             </Reveal>
 
             {/* Dashboard mockup */}
-            <Reveal delay={isMobile ? 0 : 0.25} y={40}>
-              <div style={{ marginTop: isMobile ? 32 : 48, padding: isMobile ? "0" : undefined }}>
+            <Reveal delay={isMobile ? 0 : 0.2} y={40}>
+              <div style={{ marginTop: isMobile ? 40 : 64 }}>
                 <DashboardMockup isMobile={isMobile} />
               </div>
             </Reveal>

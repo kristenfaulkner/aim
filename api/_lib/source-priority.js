@@ -69,18 +69,18 @@ export function findDuplicate(
 
     let signals = 0;
 
-    // Duration check
+    // Duration check (normalize by max of the two for symmetry)
     const hasBothDuration = act.duration_seconds && durationSeconds;
     if (hasBothDuration) {
-      const durationDiff = Math.abs(act.duration_seconds - durationSeconds) / Math.max(durationSeconds, 1);
+      const durationDiff = Math.abs(act.duration_seconds - durationSeconds) / Math.max(act.duration_seconds, durationSeconds);
       if (durationDiff > HARD_REJECT) continue;  // definitely different
       if (durationDiff <= DURATION_TOLERANCE) signals++;
     }
 
-    // Distance check
+    // Distance check (normalize by max of the two for symmetry)
     const hasBothDistance = act.distance_meters && distanceMeters && distanceMeters > 0;
     if (hasBothDistance) {
-      const distDiff = Math.abs(act.distance_meters - distanceMeters) / Math.max(distanceMeters, 1);
+      const distDiff = Math.abs(act.distance_meters - distanceMeters) / Math.max(act.distance_meters, distanceMeters);
       if (distDiff > HARD_REJECT) continue;  // definitely different
       if (distDiff <= DISTANCE_TOLERANCE) signals++;
     }
@@ -97,6 +97,71 @@ export function findDuplicate(
     }
   }
   return null;
+}
+
+/**
+ * Post-insert dedup sweep for webhook race conditions.
+ *
+ * When Strava and Wahoo webhooks fire simultaneously for the same ride,
+ * both query activities, find nothing, and both insert. This function
+ * runs AFTER an upsert to detect and merge any duplicate that was just
+ * created by a concurrent webhook.
+ *
+ * Keeps the higher-priority source's row, enriches it with the lower-
+ * priority source's metadata, and deletes the lower-priority duplicate.
+ *
+ * @param {object} supabase - supabaseAdmin client
+ * @param {string} activityId - the just-inserted activity's UUID
+ * @param {object} record - the activity record (needs user_id, source, started_at, duration_seconds, distance_meters)
+ * @returns {object|null} - merge result, or null if no race duplicate found
+ */
+export async function mergeRaceDuplicates(supabase, activityId, record) {
+  const { data: nearby } = await supabase
+    .from("activities")
+    .select("id, source, source_id, started_at, duration_seconds, distance_meters, name, description, source_data")
+    .eq("user_id", record.user_id)
+    .neq("id", activityId)
+    .gte("started_at", new Date(new Date(record.started_at).getTime() - 6 * 60 * 1000).toISOString())
+    .lte("started_at", new Date(new Date(record.started_at).getTime() + 6 * 60 * 1000).toISOString());
+
+  if (!nearby?.length) return null;
+
+  const dup = findDuplicate(
+    nearby, record.started_at, record.duration_seconds,
+    record.source, null, // skip exact source_id match — we want cross-source only
+    { distanceMeters: record.distance_meters }
+  );
+
+  if (!dup || dup.source === record.source) return null;
+
+  // Determine winner (higher priority keeps the row)
+  const weWin = isHigherPriority(record.source, dup.source);
+  const keepId = weWin ? activityId : dup.id;
+  const deleteId = weWin ? dup.id : activityId;
+  const loserSource = weWin ? dup.source : record.source;
+  const loserData = weWin ? dup : record;
+
+  // Enrich winner with loser's metadata
+  const { data: winner } = await supabase
+    .from("activities")
+    .select("source_data, name, description")
+    .eq("id", keepId)
+    .single();
+
+  const enrichData = {
+    source_data: {
+      ...(winner?.source_data || {}),
+      [loserSource]: loserData.source_data || {},
+    },
+  };
+  if (!winner?.name && loserData.name) enrichData.name = loserData.name;
+  if (!winner?.description && loserData.description) enrichData.description = loserData.description;
+
+  await supabase.from("activities").update(enrichData).eq("id", keepId);
+  await supabase.from("activities").delete().eq("id", deleteId);
+
+  console.log(`[Dedup] Race condition resolved: kept ${keepId} (${weWin ? record.source : dup.source}), deleted ${deleteId} (${loserSource})`);
+  return { keepId, deleteId, source: weWin ? record.source : dup.source };
 }
 
 /** @deprecated Use findDuplicate() instead */

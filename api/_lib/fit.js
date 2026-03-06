@@ -98,8 +98,11 @@ export function parseFitFile(buffer, filename = "unknown.fit") {
     ? startTime.toISOString()
     : new Date(startTime).toISOString();
 
+  // Prefer total_timer_time (moving/active time) for consistency with
+  // Strava (moving_time) and Wahoo (duration_active_accum). Fall back to
+  // total_elapsed_time (wall clock, includes pauses) if timer time unavailable.
   const durationSeconds = Math.round(
-    session.total_elapsed_time || session.total_timer_time ||
+    session.total_timer_time || session.total_elapsed_time ||
     (records.length > 1
       ? (new Date(records[records.length - 1].timestamp) - new Date(records[0].timestamp)) / 1000
       : 0)

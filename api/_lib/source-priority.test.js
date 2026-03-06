@@ -202,6 +202,19 @@ describe('findDuplicate', () => {
     expect(match?.id).toBe('a1');
   });
 
+  // Symmetric normalization: moving_time (shorter) incoming vs elapsed_time (longer) existing
+  // e.g. Strava moving_time=12300s (3:25) vs TP elapsed_time=13560s (3:46) = 9.3% diff
+  it('matches when shorter moving_time is incoming against longer elapsed_time existing', () => {
+    const tpActivity = [{
+      id: 'tp1', source: 'trainingpeaks', source_id: 'tp_abc',
+      started_at: '2025-03-04T14:00:00Z', duration_seconds: 13560, distance_meters: 95000,
+    }];
+    const match = findDuplicate(
+      tpActivity, '2025-03-04T14:00:30Z', 12300, 'strava', null, { distanceMeters: 95200 }
+    );
+    expect(match?.id).toBe('tp1');
+  });
+
   // Backward compat: deprecated wrapper still works
   it('findCrossSourceDuplicate still works as deprecated wrapper', () => {
     const match = findCrossSourceDuplicate(existing, '2025-03-01T08:01:00Z', 3650, 'wahoo');
