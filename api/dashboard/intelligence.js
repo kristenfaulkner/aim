@@ -2,6 +2,7 @@ import { verifySession, cors } from "../_lib/auth.js";
 import { supabaseAdmin } from "../_lib/supabase.js";
 import Anthropic from "@anthropic-ai/sdk";
 import { matchActivitiesToContext, computeAllModels, formatModelsForAI } from "../_lib/performance-models.js";
+import { extractLocationFromActivity, fetchActivityWeather, fetchWeatherForecast } from "../_lib/weather-enrich.js";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -56,6 +57,7 @@ DATA GAP RULES:
 - Each data gap should reference the athlete's specific situation — not generic.
 - If a blood panel or DEXA is older than 6 months, flag it with the date.
 - Frame every gap as unlocking intelligence, never as a requirement.
+- **Check \`connectedSources\` before suggesting any integration.** Eight Sleep, Oura, and Whoop all provide sleep stages, HRV, resting HR, and respiratory rate. If ANY of these is connected, do NOT suggest the others for sleep/HRV data they already have. Only suggest truly incremental metrics: e.g., if Eight Sleep is connected but not Oura/Whoop, the only incremental data would be SpO2, a holistic readiness/recovery score, and true body temperature deviation. Never use generic language like "connecting a recovery tracker would give AIM your nightly HRV" when the athlete already has HRV from another device.
 
 GENERAL RULES:
 - ALWAYS address the athlete by their first name (from athlete.first_name). NEVER say "Athlete".
@@ -165,10 +167,14 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "ANTHROPIC_API_KEY not configured" });
   }
 
-  const { mode: requestedMode } = req.body || {};
+  const { mode: requestedMode, localDate: clientLocalDate } = req.body || {};
 
   try {
-    const today = new Date().toISOString().split("T")[0];
+    // Use client's local date if provided, fall back to UTC
+    const today = clientLocalDate || new Date().toISOString().split("T")[0];
+    // Create generous window for today's activities (covers timezone offsets)
+    const todayStart = today + "T00:00:00";
+    const todayEnd = new Date(new Date(today + "T00:00:00Z").getTime() + 36 * 3600000).toISOString();
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
     // Fetch all context in parallel
@@ -184,19 +190,20 @@ export default async function handler(req, res) {
       travelResult,
       crossTrainingResult,
       goalsResult,
+      integrationsResult,
     ] = await Promise.allSettled([
       supabaseAdmin
         .from("profiles")
-        .select("full_name, sex, ftp_watts, max_hr, weight_kg, weekly_hours, date_of_birth")
+        .select("full_name, sex, ftp_watts, max_hr_bpm, weight_kg, weekly_hours, date_of_birth, timezone, location_lat, location_lng")
         .eq("id", session.userId)
         .single(),
       supabaseAdmin
         .from("activities")
-        .select("*")
+        .select("id, name, activity_type, started_at, duration_seconds, distance_meters, avg_power_watts, normalized_power_watts, max_power_watts, tss, intensity_factor, variability_index, efficiency_factor, hr_drift_pct, avg_hr_bpm, max_hr_bpm, avg_cadence_rpm, avg_speed_mps, calories, work_kj, elevation_gain_meters, temperature_celsius, activity_weather, perceived_exertion, gi_comfort, mental_focus, perceived_recovery_pre, description, source_data, laps, zone_distribution")
         .eq("user_id", session.userId)
-        .gte("start_date", today)
-        .lt("start_date", today + "T23:59:59")
-        .order("start_date", { ascending: false })
+        .gte("started_at", todayStart)
+        .lt("started_at", todayEnd)
+        .order("started_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
       supabaseAdmin
@@ -213,9 +220,9 @@ export default async function handler(req, res) {
         .order("date", { ascending: false }),
       supabaseAdmin
         .from("activities")
-        .select("id, sport_type, name, start_date, duration_seconds, distance_meters, tss, normalized_power, average_power, average_hr, max_hr, intensity_factor, elevation_gain")
+        .select("id, activity_type, name, started_at, duration_seconds, distance_meters, tss, normalized_power_watts, avg_power_watts, avg_hr_bpm, max_hr_bpm, intensity_factor, elevation_gain_meters, source_data")
         .eq("user_id", session.userId)
-        .order("start_date", { ascending: false })
+        .order("started_at", { ascending: false })
         .limit(5),
       supabaseAdmin
         .from("activities")
@@ -246,6 +253,11 @@ export default async function handler(req, res) {
         .select("name, current_value, target_value, unit, trend, active")
         .eq("user_id", session.userId)
         .eq("active", true),
+      supabaseAdmin
+        .from("integrations")
+        .select("provider")
+        .eq("user_id", session.userId)
+        .eq("is_active", true),
     ]);
 
     const getData = (r) => r.status === "fulfilled" ? r.value.data : null;
@@ -255,6 +267,24 @@ export default async function handler(req, res) {
     const todayPlannedWorkout = getData(todayPlannedResult);
     const dailyMetrics = getData(dailyMetricsResult) || [];
     const recentActivities = getData(recentActivitiesResult) || [];
+
+    // Fetch weather — profile location, fallback to recent activity location
+    let weatherLat = profile?.location_lat;
+    let weatherLng = profile?.location_lng;
+    if (!weatherLat || !weatherLng) {
+      const locActivity = recentActivities.find(a => extractLocationFromActivity(a));
+      if (locActivity) {
+        const loc = extractLocationFromActivity(locActivity);
+        weatherLat = loc.lat;
+        weatherLng = loc.lng;
+      }
+    }
+    let weatherForecast = null;
+    try {
+      if (weatherLat && weatherLng) {
+        weatherForecast = await fetchWeatherForecast(weatherLat, weatherLng);
+      }
+    } catch { /* weather is best-effort */ }
 
     // Compute performance models from 90-day history
     const allActivities90d = getData(allActivitiesResult) || [];
@@ -287,16 +317,20 @@ export default async function handler(req, res) {
     const travelEvents = getData(travelResult) || [];
     const crossTrainingLog = getData(crossTrainingResult) || [];
     const workingGoals = getData(goalsResult) || [];
+    const integrations = getData(integrationsResult) || [];
 
     const context = {
       athlete: profileSafe,
+      connectedIntegrations: integrations.map(i => i.provider),
       dailyMetrics,
       recentActivities,
       performanceModels: modelsText || undefined,
       subjectiveCheckin,
+      weatherForecast: weatherForecast || undefined,
       travelEvents: travelEvents.length > 0 ? travelEvents : undefined,
       crossTrainingLog: crossTrainingLog.length > 0 ? crossTrainingLog : undefined,
       workingGoals: workingGoals.length > 0 ? workingGoals : undefined,
+      connectedSources: integrations.map((i) => i.provider),
     };
 
     // Add mode-specific context

@@ -98,3 +98,56 @@ export async function fetchActivityWeather(startedAt, lat, lng) {
     return null;
   }
 }
+
+/**
+ * Fetch current conditions + 7-day daily forecast for a location.
+ * Uses Open-Meteo Forecast API (free, no key needed).
+ *
+ * @param {number} lat - Latitude
+ * @param {number} lng - Longitude
+ * @returns {object|null} { current, daily[] }
+ */
+export async function fetchWeatherForecast(lat, lng) {
+  if (!lat || !lng) return null;
+
+  const params = new URLSearchParams({
+    latitude: Number(lat).toFixed(4),
+    longitude: Number(lng).toFixed(4),
+    current: "temperature_2m,relative_humidity_2m,apparent_temperature,wind_speed_10m,weather_code",
+    daily: "temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,precipitation_sum,wind_speed_10m_max,weather_code,uv_index_max",
+    forecast_days: "7",
+    timezone: "auto",
+  });
+
+  try {
+    const resp = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);
+    if (!resp.ok) return null;
+
+    const data = await resp.json();
+
+    const current = data.current ? {
+      temp_c: data.current.temperature_2m,
+      apparent_temp_c: data.current.apparent_temperature,
+      humidity_pct: data.current.relative_humidity_2m,
+      wind_speed_kmh: data.current.wind_speed_10m,
+      weather_code: data.current.weather_code,
+    } : null;
+
+    const daily = data.daily?.time?.map((date, i) => ({
+      date,
+      temp_max_c: data.daily.temperature_2m_max?.[i],
+      temp_min_c: data.daily.temperature_2m_min?.[i],
+      apparent_max_c: data.daily.apparent_temperature_max?.[i],
+      apparent_min_c: data.daily.apparent_temperature_min?.[i],
+      precip_mm: data.daily.precipitation_sum?.[i],
+      wind_max_kmh: data.daily.wind_speed_10m_max?.[i],
+      weather_code: data.daily.weather_code?.[i],
+      uv_index_max: data.daily.uv_index_max?.[i],
+    })) || [];
+
+    return { current, daily };
+  } catch (err) {
+    console.error("Weather forecast failed:", err.message);
+    return null;
+  }
+}

@@ -668,8 +668,14 @@ These models gain accuracy with more data. When a model has "low" confidence, no
 
 The \`connectedSources\` field tells you which integrations the athlete has connected. When data from a source is missing, include specific suggestions in the \`dataGaps\` array about what insights would be unlocked by connecting it. Be specific — don't just say "connect Oura," say "Connect Oura to see how last night's deep sleep (or lack of it) correlated with today's 8.1% cardiac drift."
 
+**IMPORTANT: Check \`connectedSources\` before suggesting any integration.** Never recommend connecting a device category the athlete already has. Eight Sleep, Oura, and Whoop all provide sleep stages, HRV, resting HR, and respiratory rate — if ANY of these is connected, do NOT suggest the others for sleep/HRV data they already have. Instead, only suggest truly incremental metrics:
+- Eight Sleep already connected but no Oura/Whoop? The only incremental data from Oura/Whoop would be: **SpO2 (blood oxygen)**, **holistic readiness/recovery score** (factors in HRV trends + activity + temperature, not just sleep quality), and **true body temperature deviation** (body/skin sensor vs Eight Sleep's bed/room temp). Suggest these specific gaps only if relevant to the analysis.
+- Oura/Whoop already connected but no Eight Sleep? Eight Sleep adds bed temperature control data and room environment — marginal. Don't suggest it.
+- If the athlete has ANY sleep/recovery source connected, never use generic language like "connecting a recovery tracker would give AIM your nightly HRV" — they already have HRV.
+
 Examples:
-- If no sleep data: "If you connected Oura or Whoop, we could tell you whether last night's sleep quality explains today's cardiac drift of X%."
+- If no sleep/recovery source at all: "If you connected Oura, Whoop, or Eight Sleep, we could tell you whether last night's sleep quality explains today's cardiac drift of X%."
+- If Eight Sleep connected but no Oura/Whoop: "Oura or Whoop would add SpO2 monitoring and a holistic readiness score that factors in HRV trends and activity — Eight Sleep's scores are sleep-focused only."
 - If no body comp: "Connect Withings to track how your weight changes are affecting your climbing W/kg — every kg matters on the 6% grades you rode today."
 - If no blood work: "Upload a blood panel to check if your ferritin levels might be contributing to your VO2max plateau."
 - If no cycle tracking: "If you opt into cycle tracking with Oura, we could identify your personal performance windows across your cycle — research shows 4-8% power variation is common."
