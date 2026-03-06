@@ -22,7 +22,7 @@ export default async function handler(req, res) {
       client_secret: process.env.OURA_CLIENT_SECRET,
       code,
       grant_type: "authorization_code",
-      redirect_uri: `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL || req.headers.host}/api/auth/callback/oura`,
+      redirect_uri: `https://${req.headers.host}/api/auth/callback/oura`,
     }),
   });
 
@@ -36,7 +36,7 @@ export default async function handler(req, res) {
     access_token: data.access_token,
     refresh_token: data.refresh_token || "",
     token_expires_at: new Date((Math.floor(Date.now() / 1000) + data.expires_in) * 1000).toISOString(),
-    scopes: ["personal", "daily", "heartrate", "workout", "session", "tag", "spo2", "email"],
+    scopes: ["personal", "daily", "heartrate", "workout", "session", "spo2"],
     is_active: true,
     sync_status: "pending",
   }, { onConflict: "user_id,provider" });

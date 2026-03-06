@@ -12,16 +12,16 @@ export default async function handler(req, res) {
   const state = crypto.randomUUID();
   await redis.set(`oauth:state:${state}`, session.userId, { ex: 600 });
 
-  const baseUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
-    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-    : `https://${req.headers.host}`;
+  const redirectUri = `https://${req.headers.host}/api/auth/callback/oura`;
   const params = new URLSearchParams({
     client_id: process.env.OURA_CLIENT_ID,
-    redirect_uri: `${baseUrl}/api/auth/callback/oura`,
+    redirect_uri: redirectUri,
     response_type: "code",
-    scope: "personal daily heartrate workout session tag spo2 email",
+    scope: "personal daily heartrate workout session spo2",
     state,
   });
 
-  res.redirect(302, `https://cloud.ouraring.com/oauth/authorize?${params}`);
+  const authUrl = `https://cloud.ouraring.com/oauth/authorize?${params}`;
+  console.log("[oura-connect] redirect_uri:", redirectUri, "client_id:", process.env.OURA_CLIENT_ID?.slice(0, 8) + "...", "authUrl:", authUrl);
+  res.redirect(302, authUrl);
 }
