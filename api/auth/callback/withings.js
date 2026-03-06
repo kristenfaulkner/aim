@@ -8,6 +8,9 @@ export default async function handler(req, res) {
 
   const { code, state, error } = req.query;
 
+  // Withings tests the callback URL and expects 200
+  if (!code && !state && !error) return res.status(200).json({ ok: true });
+
   if (error) return res.redirect(302, "/connect?error=withings_denied");
   if (!code || !state) return res.redirect(302, "/connect?error=withings_missing_params");
 
