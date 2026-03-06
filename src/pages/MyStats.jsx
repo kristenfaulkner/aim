@@ -10,20 +10,43 @@ import { useDurability } from "../hooks/useDurability";
 import { computePowerZones, computeHRZones, computeCPZones } from "../lib/zones";
 import { formatWeight, weightUnit } from "../lib/units";
 import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { LogOut, Menu, X, User, Settings, Edit3, BarChart3, Thermometer, Heart, Zap, Flame, Moon } from "lucide-react";
+import { LogOut, Menu, X, User, Settings, Edit3, BarChart3, Thermometer, Heart, Zap, Flame, Moon, HelpCircle } from "lucide-react";
 import SEO from "../components/SEO";
 
 // ── HELPERS ──
 
-function StatBox({ label, value, unit, sub, color, large }) {
+function StatBox({ label, value, unit, sub, color, large, tooltip }) {
+  const [showTip, setShowTip] = useState(false);
   return (
     <div style={{
       background: T.surface, borderRadius: 10, padding: large ? "14px 16px" : "10px 12px",
-      display: "flex", flexDirection: "column", gap: 2, flex: 1,
+      display: "flex", flexDirection: "column", gap: 2, flex: 1, position: "relative",
     }}>
-      <span style={{ fontSize: 9, fontWeight: 600, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-        {label}
-      </span>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{ fontSize: 9, fontWeight: 600, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+          {label}
+        </span>
+        {tooltip && (
+          <span
+            onMouseEnter={() => setShowTip(true)}
+            onMouseLeave={() => setShowTip(false)}
+            onClick={() => setShowTip(!showTip)}
+            style={{ cursor: "pointer", lineHeight: 0 }}
+          >
+            <HelpCircle size={12} color={T.textDim} />
+          </span>
+        )}
+      </div>
+      {showTip && tooltip && (
+        <div style={{
+          position: "absolute", top: -4, right: 0, transform: "translateY(-100%)",
+          background: T.text, color: T.bg, fontSize: 11, lineHeight: 1.5,
+          padding: "8px 12px", borderRadius: 8, maxWidth: 220, zIndex: 10,
+          boxShadow: "0 4px 12px rgba(0,0,0,0.15)", fontWeight: 400,
+        }}>
+          {tooltip}
+        </div>
+      )}
       <div style={{ display: "flex", alignItems: "baseline" }}>
         <span style={{ fontFamily: mono, fontSize: large ? 26 : 20, fontWeight: 700, color: color || T.text, lineHeight: 1.2 }}>
           {value ?? "—"}
@@ -371,12 +394,12 @@ export default function MyStats() {
           {profile?.ftp_watts || powerProfile?.cp_watts ? (
             <>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <StatBox label="FTP" value={profile?.ftp_watts} unit="W" sub={wkg ? `${wkg} W/kg` : undefined} color={T.accent} large />
+                <StatBox label="FTP" value={profile?.ftp_watts} unit="W" sub={wkg ? `${wkg} W/kg` : undefined} color={T.accent} large tooltip="Functional Threshold Power — the highest power you can sustain for ~1 hour. Sets your training zones and tracks fitness over time." />
                 {powerProfile?.cp_watts && (
                   <>
-                    <StatBox label="CP" value={powerProfile.cp_watts} unit="W" sub={cpWkg ? `${cpWkg} W/kg` : "Aerobic Ceiling"} color="#3b82f6" large />
-                    <StatBox label="W'" value={powerProfile.w_prime_kj} unit="kJ" sub="Anaerobic Reserve" color="#8b5cf6" large />
-                    <StatBox label="Pmax" value={powerProfile.pmax_watts} unit="W" sub="Sprint Power" color="#f59e0b" large />
+                    <StatBox label="CP" value={powerProfile.cp_watts} unit="W" sub={cpWkg ? `${cpWkg} W/kg` : "Aerobic Ceiling"} color="#3b82f6" large tooltip="Critical Power — your aerobic ceiling computed from your best efforts. Above CP, fatigue accumulates rapidly. More precise than FTP for pacing." />
+                    <StatBox label="W'" value={powerProfile.w_prime_kj} unit="kJ" sub="Anaerobic Reserve" color="#8b5cf6" large tooltip="W-prime — your anaerobic work capacity above CP, measured in kilojoules. Determines how long you can sustain efforts above threshold before exhaustion." />
+                    <StatBox label="Pmax" value={powerProfile.pmax_watts} unit="W" sub="Sprint Power" color="#f59e0b" large tooltip="Maximum instantaneous power — your peak neuromuscular output. Important for sprint finishes, short accelerations, and closing gaps." />
                   </>
                 )}
               </div>
