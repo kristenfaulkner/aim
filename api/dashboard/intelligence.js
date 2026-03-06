@@ -9,6 +9,153 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export const config = { maxDuration: 60 };
 
+// ── HISTORICAL PATTERN ANALYSIS ──
+// Pre-compute recovery patterns from 90 days of data so Claude can reference
+// the athlete's personal history instead of giving generic advice.
+
+function computeHistoricalPatterns(activities90d, dailyMetrics90d) {
+  if (!activities90d?.length || activities90d.length < 10) return null;
+
+  const avg = arr => arr.length ? Math.round(arr.reduce((s, v) => s + v, 0) / arr.length * 10) / 10 : null;
+
+  // Build date→metrics lookup
+  const metricsMap = {};
+  for (const m of (dailyMetrics90d || [])) metricsMap[m.date] = m;
+
+  // Group activities by ISO week (Monday start)
+  const weeklyBlocks = {};
+  for (const a of activities90d) {
+    const date = a.started_at.split("T")[0];
+    const d = new Date(date + "T00:00:00Z");
+    const day = d.getUTCDay();
+    const monday = new Date(d);
+    monday.setUTCDate(d.getUTCDate() - ((day + 6) % 7));
+    const weekKey = monday.toISOString().split("T")[0];
+
+    if (!weeklyBlocks[weekKey]) {
+      weeklyBlocks[weekKey] = { weekStart: weekKey, tss: 0, rides: 0, activityDates: new Set() };
+    }
+    weeklyBlocks[weekKey].tss += a.tss || 0;
+    weeklyBlocks[weekKey].rides += 1;
+    weeklyBlocks[weekKey].activityDates.add(date);
+  }
+
+  // Sort weeks chronologically and compute rest days + end-of-week metrics
+  const weeks = Object.values(weeklyBlocks)
+    .sort((a, b) => a.weekStart.localeCompare(b.weekStart))
+    .map(w => {
+      let restDays = 0;
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(w.weekStart + "T00:00:00Z");
+        d.setUTCDate(d.getUTCDate() + i);
+        if (!w.activityDates.has(d.toISOString().split("T")[0])) restDays++;
+      }
+      const endDate = new Date(w.weekStart + "T00:00:00Z");
+      endDate.setUTCDate(endDate.getUTCDate() + 6);
+      const endMetrics = metricsMap[endDate.toISOString().split("T")[0]];
+      return {
+        week: w.weekStart,
+        tss: Math.round(w.tss),
+        rides: w.rides,
+        restDays,
+        endTSB: endMetrics?.tsb != null ? Math.round(endMetrics.tsb) : null,
+      };
+    });
+
+  // Identify high-load weeks (top quartile by TSS)
+  const tssSorted = weeks.map(w => w.tss).filter(t => t > 0).sort((a, b) => a - b);
+  const highLoadThreshold = tssSorted[Math.floor(tssSorted.length * 0.75)] || 800;
+
+  // For each high-load week, analyze what followed (recovery trajectory)
+  const highLoadRecovery = [];
+  for (let i = 0; i < weeks.length; i++) {
+    if (weeks[i].tss < highLoadThreshold) continue;
+    const nextWeek = weeks[i + 1];
+    if (!nextWeek) continue;
+
+    // Count consecutive rest days starting from end of high-load week
+    const weekEnd = new Date(weeks[i].week + "T00:00:00Z");
+    weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
+    let consecutiveRestDays = 0;
+    for (let d = 0; d < 5; d++) {
+      const checkDate = new Date(weekEnd);
+      checkDate.setUTCDate(checkDate.getUTCDate() + d);
+      const dateStr = checkDate.toISOString().split("T")[0];
+      const hadActivity = activities90d.some(a => a.started_at.startsWith(dateStr));
+      if (!hadActivity) consecutiveRestDays++;
+      else break;
+    }
+
+    // HRV trajectory in days after the high-load week
+    const hrvAfter = [];
+    for (let d = 0; d < 5; d++) {
+      const checkDate = new Date(weekEnd);
+      checkDate.setUTCDate(checkDate.getUTCDate() + d);
+      const m = metricsMap[checkDate.toISOString().split("T")[0]];
+      const hrv = m?.hrv_overnight_avg_ms || m?.hrv_ms;
+      if (hrv) hrvAfter.push({ day: d + 1, hrv: Math.round(hrv) });
+    }
+
+    highLoadRecovery.push({
+      weekOf: weeks[i].week,
+      weekTSS: weeks[i].tss,
+      restDaysAfter: consecutiveRestDays,
+      nextWeekTSS: nextWeek.tss,
+      tsbAtEnd: weeks[i].endTSB,
+      hrvRecovery: hrvAfter.length > 0 ? hrvAfter : undefined,
+    });
+  }
+
+  // HR drift correlation with rest: group rides by days off before the ride
+  const activitiesWithDrift = [...activities90d]
+    .filter(a => a.hr_drift_pct != null)
+    .sort((a, b) => a.started_at.localeCompare(b.started_at));
+
+  const driftBuckets = { consecutive: [], after1Rest: [], after2PlusRest: [] };
+  for (let i = 1; i < activitiesWithDrift.length; i++) {
+    const curr = activitiesWithDrift[i];
+    const prev = activitiesWithDrift[i - 1];
+    const daysBetween = Math.round(
+      (new Date(curr.started_at) - new Date(prev.started_at)) / 86400000
+    );
+    if (daysBetween <= 1) driftBuckets.consecutive.push(curr.hr_drift_pct);
+    else if (daysBetween === 2) driftBuckets.after1Rest.push(curr.hr_drift_pct);
+    else driftBuckets.after2PlusRest.push(curr.hr_drift_pct);
+  }
+
+  // EF (efficiency factor) correlation with rest — same bucketing
+  const efBuckets = { consecutive: [], after1Rest: [], after2PlusRest: [] };
+  const activitiesWithEF = [...activities90d]
+    .filter(a => a.efficiency_factor != null)
+    .sort((a, b) => a.started_at.localeCompare(b.started_at));
+  for (let i = 1; i < activitiesWithEF.length; i++) {
+    const curr = activitiesWithEF[i];
+    const prev = activitiesWithEF[i - 1];
+    const daysBetween = Math.round(
+      (new Date(curr.started_at) - new Date(prev.started_at)) / 86400000
+    );
+    if (daysBetween <= 1) efBuckets.consecutive.push(curr.efficiency_factor);
+    else if (daysBetween === 2) efBuckets.after1Rest.push(curr.efficiency_factor);
+    else efBuckets.after2PlusRest.push(curr.efficiency_factor);
+  }
+
+  return {
+    weeklyBlocks: weeks.slice(-12),
+    highLoadThresholdTSS: Math.round(highLoadThreshold),
+    highLoadRecovery: highLoadRecovery.length > 0 ? highLoadRecovery : undefined,
+    hrDriftByRecovery: {
+      consecutiveDays: { avg: avg(driftBuckets.consecutive), n: driftBuckets.consecutive.length },
+      after1RestDay: { avg: avg(driftBuckets.after1Rest), n: driftBuckets.after1Rest.length },
+      after2PlusRestDays: { avg: avg(driftBuckets.after2PlusRest), n: driftBuckets.after2PlusRest.length },
+    },
+    efficiencyByRecovery: {
+      consecutiveDays: { avg: avg(efBuckets.consecutive), n: efBuckets.consecutive.length },
+      after1RestDay: { avg: avg(efBuckets.after1Rest), n: efBuckets.after1Rest.length },
+      after2PlusRestDays: { avg: avg(efBuckets.after2PlusRest), n: efBuckets.after2PlusRest.length },
+    },
+  };
+}
+
 // ── NEW AI-FIRST OUTPUT FORMAT ──
 // All modes return the same shape for the Today page.
 
@@ -52,6 +199,7 @@ INSIGHT FORMAT RULES:
 - Limit to 3-5 insights. Rank by importance — the most actionable and cross-domain insights first.
 - ALWAYS reference the personal heat model if temperature data and performanceModels are present.
 - ALWAYS connect sleep data to performance outcomes when sleep data exists.
+- The "lastNightSleep" object (if present) contains the most recent night's sleep data pre-extracted from daily_metrics. If this field exists, sleep data IS available — do NOT generate a data gap about missing sleep. Sleep may be stored under yesterday's date depending on the provider.
 
 DATA GAP RULES:
 - Include a top-level "dataGaps" array (0-3 items) for major disconnected sources that would unlock new insight categories.
@@ -230,7 +378,7 @@ export default async function handler(req, res) {
         .from("daily_metrics")
         .select("date, ctl, atl, tsb, hrv_ms, hrv_overnight_avg_ms, resting_hr_bpm, resting_hr, sleep_score, recovery_score, weight_kg, total_sleep_seconds, deep_sleep_seconds, rem_sleep_seconds, life_stress_score, motivation_score, muscle_soreness_score, mood_score, checkin_completed_at, respiratory_rate, resting_spo2")
         .eq("user_id", session.userId)
-        .gte("date", sevenDaysAgo)
+        .gte("date", new Date(Date.now() - 90 * 86400000).toISOString().split("T")[0])
         .order("date", { ascending: false }),
       supabaseAdmin
         .from("activities")
@@ -279,7 +427,8 @@ export default async function handler(req, res) {
     const profile = getData(profileResult);
     const todayActivity = getData(todayActivityResult);
     const todayPlannedWorkout = getData(todayPlannedResult);
-    const dailyMetrics = getData(dailyMetricsResult) || [];
+    const dailyMetrics90d = getData(dailyMetricsResult) || [];
+    const dailyMetrics = dailyMetrics90d.filter(d => d.date >= sevenDaysAgo); // 7-day window for context
     const recentActivities = getData(recentActivitiesResult) || [];
     const integrations = getData(integrationsResult) || [];
 
@@ -358,13 +507,40 @@ export default async function handler(req, res) {
       mood: todayMetrics.mood_score,
     } : undefined;
 
+    // Extract last night's sleep from today's daily_metrics row.
+    // All providers (Oura, Whoop, Eight Sleep) store last night's sleep under today's date.
+    const lastNightSleep = (() => {
+      const sleepRow = dailyMetrics.find(d =>
+        d.date === today &&
+        (d.total_sleep_seconds != null || d.sleep_score != null)
+      );
+      if (!sleepRow) return undefined;
+      const s = {};
+      if (sleepRow.date) s.date = sleepRow.date;
+      if (sleepRow.sleep_score != null) s.sleep_score = sleepRow.sleep_score;
+      if (sleepRow.total_sleep_seconds != null) s.total_sleep_hours = Math.round(sleepRow.total_sleep_seconds / 360) / 10;
+      if (sleepRow.deep_sleep_seconds != null) s.deep_sleep_hours = Math.round(sleepRow.deep_sleep_seconds / 360) / 10;
+      if (sleepRow.rem_sleep_seconds != null) s.rem_sleep_hours = Math.round(sleepRow.rem_sleep_seconds / 360) / 10;
+      if (sleepRow.hrv_ms != null) s.hrv_ms = sleepRow.hrv_ms;
+      if (sleepRow.hrv_overnight_avg_ms != null) s.hrv_overnight_avg_ms = sleepRow.hrv_overnight_avg_ms;
+      if (sleepRow.resting_hr_bpm != null) s.resting_hr_bpm = sleepRow.resting_hr_bpm;
+      if (sleepRow.recovery_score != null) s.recovery_score = sleepRow.recovery_score;
+      if (sleepRow.respiratory_rate != null) s.respiratory_rate = sleepRow.respiratory_rate;
+      if (sleepRow.resting_spo2 != null) s.resting_spo2 = sleepRow.resting_spo2;
+      return Object.keys(s).length > 1 ? s : undefined;
+    })();
+
     const travelEvents = getData(travelResult) || [];
     const crossTrainingLog = getData(crossTrainingResult) || [];
     const workingGoals = getData(goalsResult) || [];
 
+    // Compute historical recovery patterns from 90 days of data
+    const historicalPatterns = computeHistoricalPatterns(allActivities90d, dailyMetrics90d);
+
     const context = {
       athlete: profileSafe,
       connectedIntegrations: integrations.map(i => i.provider),
+      lastNightSleep,
       dailyMetrics,
       recentActivities,
       performanceModels: modelsText || undefined,
@@ -374,6 +550,7 @@ export default async function handler(req, res) {
       crossTrainingLog: crossTrainingLog.length > 0 ? crossTrainingLog : undefined,
       workingGoals: workingGoals.length > 0 ? workingGoals : undefined,
       connectedSources: integrations.map((i) => i.provider),
+      historicalPatterns: historicalPatterns || undefined,
     };
 
     let systemPrompt;
