@@ -163,7 +163,7 @@ function buildWelcomeHtml(profile) {
 <div style="color:#4a4a5a;font-size:14px;line-height:1.75;margin-top:16px;">
 <p style="margin:0 0 14px;">Thanks for signing up! I'm Kristen, and I wanted to personally welcome you to AIM.</p>
 
-<p style="margin:0 0 14px;">I've always loved data. As an investor, I spent years building models and looking for patterns. On the bike, I did the same thing, tracking every metric I could get my hands on. Power. Sleep. HRV. Blood work. Body composition. Hormone cycles.</p>
+<p style="margin:0 0 14px;">I've always loved data. As an investor, I spent years building models and looking for patterns. On the bike, I did the same thing, tracking every metric I could get my hands on: Power. Sleep. HRV. Nutrition. Blood work. Body composition. Hormone cycles.</p>
 
 <p style="margin:0 0 14px;">I was overwhelmed with so much data and trying to connect the dots. I didn't need another dashboard. I needed the connections between them.</p>
 
