@@ -1,5 +1,6 @@
 import { verifySession, cors } from "../_lib/auth.js";
 import { supabaseAdmin } from "../_lib/supabase.js";
+import { localDate, getUserTimezone } from "../_lib/date-utils.js";
 
 /**
  * GET /api/checkin/status — Get today's check-in status
@@ -14,7 +15,8 @@ export default async function handler(req, res) {
   const session = await verifySession(req);
   if (!session) return res.status(401).json({ error: "Unauthorized" });
 
-  const today = new Date().toISOString().slice(0, 10);
+  const timezone = await getUserTimezone(supabaseAdmin, session.userId);
+  const today = localDate(timezone);
 
   const { data, error } = await supabaseAdmin
     .from("daily_metrics")

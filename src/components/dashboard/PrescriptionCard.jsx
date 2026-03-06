@@ -301,6 +301,71 @@ export default function PrescriptionCard({
     );
   }
 
+  // Not yet fetched — show "Get Workout" prompt
+  if (!prescription && !loading && !error) {
+    return (
+      <div
+        style={{
+          background: T.card,
+          border: `1px solid ${T.border}`,
+          borderRadius: 16,
+          padding: 18,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 14,
+          }}
+        >
+          <Target size={16} style={{ color: T.accent }} />
+          <span style={{ fontSize: 13, fontWeight: 700 }}>
+            Today's Recommendation
+          </span>
+        </div>
+        <div
+          style={{
+            textAlign: "center",
+            padding: "12px 0 8px",
+          }}
+        >
+          <p
+            style={{
+              fontSize: 13,
+              color: T.textSoft,
+              margin: "0 0 14px",
+              lineHeight: 1.5,
+            }}
+          >
+            Get an AI-generated workout based on your power profile, recovery, and training load.
+          </p>
+          <button
+            onClick={onRefresh}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "10px 24px",
+              background: T.accent,
+              color: T.white,
+              border: "none",
+              borderRadius: 10,
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: "pointer",
+              fontFamily: font,
+            }}
+          >
+            <Target size={14} />
+            Get Workout
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // No prescription (already rode, planned workout, or insufficient data)
   if (!prescription) return null;
 

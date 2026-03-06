@@ -10,6 +10,7 @@ import {
   buildPrescriptionContext,
 } from "../_lib/prescription.js";
 import { getAthleteAnalytics } from "../_lib/athlete-analytics.js";
+import { localDate } from "../_lib/date-utils.js";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -90,7 +91,10 @@ export default async function handler(req, res) {
 
   try {
     const userId = session.userId;
-    const today = new Date().toISOString().split("T")[0];
+    // Fetch timezone early — profile select below piggybacks on the same table
+    const { data: tzRow } = await supabaseAdmin.from("profiles").select("timezone").eq("id", userId).single();
+    const timezone = tzRow?.timezone || "America/New_York";
+    const today = localDate(timezone);
     const fourteenDaysAgo = new Date(Date.now() - 14 * 86400000).toISOString();
     const sevenDaysAgo = new Date(
       Date.now() - 7 * 86400000

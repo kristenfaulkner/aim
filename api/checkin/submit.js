@@ -1,5 +1,6 @@
 import { verifySession, cors } from "../_lib/auth.js";
 import { supabaseAdmin } from "../_lib/supabase.js";
+import { localDate, getUserTimezone } from "../_lib/date-utils.js";
 
 /**
  * POST /api/checkin/submit — Save daily subjective check-in
@@ -37,7 +38,8 @@ export default async function handler(req, res) {
     }
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  const timezone = await getUserTimezone(supabaseAdmin, session.userId);
+  const today = localDate(timezone);
 
   const updates = { checkin_completed_at: new Date().toISOString() };
   if (life_stress != null) updates.life_stress_score = life_stress;

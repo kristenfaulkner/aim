@@ -8,6 +8,7 @@ import { fitCPModel, computeCPZones } from "./cp-model.js";
 import { buildZonesSnapshot } from "./adaptive-zones.js";
 import { aggregateDurability } from "./durability.js";
 import { refreshAthleteAnalytics } from "./athlete-analytics.js";
+import { localDate } from "./date-utils.js";
 
 /**
  * Update daily_metrics with TSS and recompute CTL/ATL/TSB.
@@ -85,7 +86,6 @@ export async function updateDailyMetrics(userId, activity) {
  */
 export async function rebuildPowerProfile(userId) {
   const cutoff = new Date(Date.now() - 90 * 86400000).toISOString();
-  const today = new Date().toISOString().split("T")[0];
 
   // Fetch all activities with power curves in the 90-day window
   const { data: activities } = await supabaseAdmin
@@ -95,13 +95,14 @@ export async function rebuildPowerProfile(userId) {
     .not("power_curve", "is", null)
     .gte("started_at", cutoff);
 
-  // Get user weight for W/kg
+  // Get user weight + timezone for W/kg and local date
   const { data: profile } = await supabaseAdmin
     .from("profiles")
-    .select("weight_kg")
+    .select("weight_kg, timezone")
     .eq("id", userId)
     .single();
   const weightKg = profile?.weight_kg;
+  const today = localDate(profile?.timezone);
 
   const durationKeys = ["5s", "30s", "1m", "5m", "20m", "60m"];
   const durationMap = {
@@ -222,7 +223,8 @@ export async function rebuildPowerProfile(userId) {
  * Check and update power profile with any new personal bests.
  */
 export async function updatePowerProfile(userId, newCurve, weightKg) {
-  const today = new Date().toISOString().split("T")[0];
+  const { data: tzProf } = await supabaseAdmin.from("profiles").select("timezone").eq("id", userId).single();
+  const today = localDate(tzProf?.timezone);
 
   // Get or create current power profile (90-day rolling)
   const { data: existing } = await supabaseAdmin

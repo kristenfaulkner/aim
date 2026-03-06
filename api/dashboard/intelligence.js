@@ -4,6 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { trackTokenUsage } from "../_lib/token-tracking.js";
 import { extractLocationFromActivity, fetchWeatherForecast } from "../_lib/weather-enrich.js";
 import { getAthleteAnalytics } from "../_lib/athlete-analytics.js";
+import { localDate, getUserTimezone } from "../_lib/date-utils.js";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -197,8 +198,12 @@ export default async function handler(req, res) {
   const { mode: requestedMode, localDate: clientLocalDate } = req.body || {};
 
   try {
-    // Use client's local date if provided, fall back to UTC
-    const today = clientLocalDate || new Date().toISOString().split("T")[0];
+    // Use client's local date if provided, fall back to profile timezone
+    let today = clientLocalDate;
+    if (!today) {
+      const tz = await getUserTimezone(supabaseAdmin, session.userId);
+      today = localDate(tz);
+    }
     // Create generous window for today's activities (covers timezone offsets)
     const todayStart = today + "T00:00:00";
     const todayEnd = new Date(new Date(today + "T00:00:00Z").getTime() + 36 * 3600000).toISOString();

@@ -1,44 +1,30 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { apiFetch } from "../lib/api";
 
 /**
  * Hook to fetch the next workout prescription from the AI engine.
+ * Lazy — does NOT auto-fetch. Call refetch() to trigger.
  * Returns prescription, gaps, readiness, loading state, and error.
  */
 export function usePrescription() {
   const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const fetchPrescription = useCallback(async () => {
-    let cancelled = false;
     setLoading(true);
     setError(null);
 
     try {
       const res = await apiFetch("/prescription/next-workout");
-      if (!cancelled) {
-        setData(res);
-        setError(null);
-      }
+      setData(res);
+      setError(null);
     } catch (err) {
-      if (!cancelled) {
-        setError(err.message || "Failed to load prescription");
-      }
+      setError(err.message || "Failed to load prescription");
     } finally {
-      if (!cancelled) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
-
-    return () => {
-      cancelled = true;
-    };
   }, []);
-
-  useEffect(() => {
-    fetchPrescription();
-  }, [fetchPrescription]);
 
   const addToCalendar = useCallback(
     async (prescription) => {

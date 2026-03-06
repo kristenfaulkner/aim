@@ -2,6 +2,7 @@ import { verifySession, cors } from "../_lib/auth.js";
 import { supabaseAdmin } from "../_lib/supabase.js";
 import Anthropic from "@anthropic-ai/sdk";
 import { trackTokenUsage } from "../_lib/token-tracking.js";
+import { localDate, localDateDaysAgo, getUserTimezone } from "../_lib/date-utils.js";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -50,9 +51,10 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Fetch last night's sleep data
-    const today = new Date().toISOString().split("T")[0];
-    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    // Fetch last night's sleep data (using user's local timezone)
+    const timezone = await getUserTimezone(supabaseAdmin, session.userId);
+    const today = localDate(timezone);
+    const yesterday = localDateDaysAgo(1, timezone);
 
     const [todayResult, historyResult, profileResult, recentActivitiesResult] = await Promise.allSettled([
       // Today's metrics (or yesterday's — Eight Sleep reports the night before)

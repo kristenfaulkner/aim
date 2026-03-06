@@ -1,5 +1,6 @@
 import { verifySession, cors } from "../_lib/auth.js";
 import { supabaseAdmin } from "../_lib/supabase.js";
+import { localDate, getUserTimezone } from "../_lib/date-utils.js";
 
 const WEATHER_CODES = {
   0: "Clear",
@@ -48,7 +49,7 @@ export default async function handler(req, res) {
     if (!lat || !lng) {
       const { data: profile } = await supabaseAdmin
         .from("profiles")
-        .select("location_lat, location_lng")
+        .select("location_lat, location_lng, timezone")
         .eq("id", session.userId)
         .single();
 
@@ -100,8 +101,9 @@ export default async function handler(req, res) {
       }));
     }
 
-    // Cache in daily_metrics for today
-    const today = new Date().toISOString().slice(0, 10);
+    // Cache in daily_metrics for today (using user's local date)
+    const tz = await getUserTimezone(supabaseAdmin, session.userId);
+    const today = localDate(tz);
     await supabaseAdmin.from("daily_metrics").upsert(
       {
         user_id: session.userId,
