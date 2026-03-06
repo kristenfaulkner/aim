@@ -1,6 +1,4 @@
 import { supabaseAdmin } from "../_lib/supabase.js";
-import { fullOuraSync } from "../integrations/sync/oura.js";
-import { fullWhoopSync } from "../integrations/sync/whoop.js";
 import { fullWithingsSync } from "../integrations/sync/withings.js";
 
 export const config = {
@@ -8,14 +6,13 @@ export const config = {
 };
 
 const PROVIDERS = [
-  { name: "oura", syncFn: fullOuraSync },
-  { name: "whoop", syncFn: fullWhoopSync },
   { name: "withings", syncFn: fullWithingsSync },
 ];
 
 /**
  * GET /api/cron/sync-recovery
- * Hourly cron that syncs the last 2 days of Oura, Whoop, and Withings data.
+ * Hourly cron that syncs the last 2 days of Withings data.
+ * Oura, Whoop, and Eight Sleep sync on-demand when user opens the app.
  * Skips users who have already synced in the last 6 hours.
  */
 export default async function handler(req, res) {

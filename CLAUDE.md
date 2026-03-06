@@ -297,6 +297,7 @@ All AI-generated content, hardcoded text, and UI copy must follow these rules:
 - **Icons**: Lucide React
 - **Auth tokens**: Bearer token via `Authorization` header; `apiFetch()` handles this automatically on frontend
 - OAuth integrations use connect/callback file pairs in `/api/auth/`; credential-based auth (EightSleep) stores AES-256-GCM encrypted email/password in `integrations.metadata`; file import (TrainingPeaks) uses client-side JSZip extraction → batched base64 upload (no Supabase Storage needed)
+- **New integration checklist**: When adding a new device/app integration, you MUST add it to the `INTEGRATION_PROVIDERS` registry in `src/context/AuthContext.jsx` with its `tracks` categories (e.g. `["sleep", "recovery"]`). This controls on-demand sync on page load — any provider that tracks `"sleep"` is automatically synced once per day when the user opens the app. Forgetting this means the integration only syncs via cron (if configured) and sleep data may be stale.
 - **Consent flow**: signup requires Terms checkbox → AcceptTerms interstitial for SSO → health data consent in Onboarding Step 1 → ProtectedRoute enforces `terms_accepted_at` before access
 
 ### Responsive Breakpoints

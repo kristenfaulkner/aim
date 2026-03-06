@@ -12,6 +12,11 @@ async function syncDay(userId, date, accessToken, eightSleepUserId, timezone) {
   if (!days || days.length === 0) return null;
 
   const dayData = days[0];
+
+  // Skip nights that are still being recorded/processed by Eight Sleep
+  // (e.g., bathroom breaks mid-sleep before the night is finalized)
+  if (dayData.processing) return null;
+
   const mapped = mapEightSleepToMetrics(dayData);
   if (!mapped || Object.keys(mapped).length === 0) return null;
 
