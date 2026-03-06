@@ -3,6 +3,16 @@ import { createHmac } from "crypto";
 import { supabaseAdmin } from "./supabase.js";
 import { encrypt, decrypt } from "./crypto.js";
 
+// Convert epoch timestamp (seconds) to local time "HH:MM:SS" string in the given IANA timezone.
+function toLocalTime(epochSeconds, timezone) {
+  if (!epochSeconds) return null;
+  try {
+    return new Date(epochSeconds * 1000).toLocaleTimeString("en-GB", { timeZone: timezone || "UTC", hour12: false });
+  } catch {
+    return new Date(epochSeconds * 1000).toTimeString().slice(0, 8);
+  }
+}
+
 // ── Garmin Health API Base URLs ──
 const BASE_URL = "https://apis.garmin.com";
 const REQUEST_TOKEN_URL = "https://connectapi.garmin.com/oauth-service/oauth/request_token";
@@ -286,7 +296,7 @@ export function mapGarminDaily(dailySummary) {
 /**
  * Map Garmin sleep data to daily_metrics columns.
  */
-export function mapGarminSleep(sleepData) {
+export function mapGarminSleep(sleepData, timezone) {
   const metrics = {};
 
   if (sleepData.durationInSeconds != null) {
@@ -321,16 +331,12 @@ export function mapGarminSleep(sleepData) {
     metrics.resting_spo2 = sleepData.lowestSpO2Value;
   }
 
-  // Bed/wake times
+  // Bed/wake times (in user's local timezone)
   if (sleepData.startTimeInSeconds) {
-    try {
-      metrics.sleep_onset_time = new Date(sleepData.startTimeInSeconds * 1000).toTimeString().slice(0, 8);
-    } catch {}
+    try { metrics.sleep_onset_time = toLocalTime(sleepData.startTimeInSeconds, timezone); } catch {}
   }
   if (sleepData.startTimeInSeconds && sleepData.durationInSeconds) {
-    try {
-      metrics.wake_time = new Date((sleepData.startTimeInSeconds + sleepData.durationInSeconds) * 1000).toTimeString().slice(0, 8);
-    } catch {}
+    try { metrics.wake_time = toLocalTime(sleepData.startTimeInSeconds + sleepData.durationInSeconds, timezone); } catch {}
   }
 
   return Object.keys(metrics).length > 0 ? metrics : null;

@@ -1,5 +1,15 @@
 import { supabaseAdmin } from "./supabase.js";
 
+// Convert epoch timestamp (seconds) to local time "HH:MM:SS" string in the given IANA timezone.
+function toLocalTime(epochSeconds, timezone) {
+  if (!epochSeconds) return null;
+  try {
+    return new Date(epochSeconds * 1000).toLocaleTimeString("en-GB", { timeZone: timezone || "UTC", hour12: false });
+  } catch {
+    return new Date(epochSeconds * 1000).toTimeString().slice(0, 8);
+  }
+}
+
 const TOKEN_URL = "https://wbsapi.withings.net/v2/oauth2";
 const MEASURE_URL = "https://wbsapi.withings.net/measure";
 const MEASURE_V2_URL = "https://wbsapi.withings.net/v2/measure";
@@ -224,7 +234,7 @@ function groupMeasurementsByDate(measureGroups) {
 /**
  * Map Withings data for a single day to partial daily_metrics columns.
  */
-export function mapWithingsToMetrics(dayDate, withingsData) {
+export function mapWithingsToMetrics(dayDate, withingsData, timezone) {
   const metrics = {};
 
   // ── Body measurements ──
@@ -271,12 +281,12 @@ export function mapWithingsToMetrics(dayDate, withingsData) {
       metrics.sleep_efficiency_pct = Math.round((totalSleep / (totalSleep + wakeTime)) * 100 * 10) / 10;
     }
 
-    // Bed/wake times from timestamps
+    // Bed/wake times from timestamps (in user's local timezone)
     if (sleepDay.startdate) {
-      try { metrics.sleep_onset_time = new Date(sleepDay.startdate * 1000).toTimeString().slice(0, 8); } catch {}
+      try { metrics.sleep_onset_time = toLocalTime(sleepDay.startdate, timezone); } catch {}
     }
     if (sleepDay.enddate) {
-      try { metrics.wake_time = new Date(sleepDay.enddate * 1000).toTimeString().slice(0, 8); } catch {}
+      try { metrics.wake_time = toLocalTime(sleepDay.enddate, timezone); } catch {}
     }
   }
 

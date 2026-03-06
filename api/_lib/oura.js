@@ -1,5 +1,15 @@
 import { supabaseAdmin } from "./supabase.js";
 
+// Convert ISO timestamp to local time "HH:MM:SS" string in the given IANA timezone.
+function toLocalTime(isoTimestamp, timezone) {
+  if (!isoTimestamp) return null;
+  try {
+    return new Date(isoTimestamp).toLocaleTimeString("en-GB", { timeZone: timezone || "UTC", hour12: false });
+  } catch {
+    return new Date(isoTimestamp).toTimeString().slice(0, 8);
+  }
+}
+
 const BASE_URL = "https://api.ouraring.com";
 
 /**
@@ -127,7 +137,7 @@ export async function fetchOuraData(accessToken, startDate, endDate) {
  * Map Oura data for a single day to partial daily_metrics columns.
  * Combines sleep, readiness, activity, and SpO2 data.
  */
-export function mapOuraToMetrics(dayDate, ouraData) {
+export function mapOuraToMetrics(dayDate, ouraData, timezone) {
   const metrics = {};
 
   // ── Sleep (detailed period) ──
@@ -145,12 +155,12 @@ export function mapOuraToMetrics(dayDate, ouraData) {
     if (sleepPeriod.average_hrv != null) metrics.hrv_overnight_avg_ms = sleepPeriod.average_hrv;
     if (sleepPeriod.average_breath != null) metrics.respiratory_rate = sleepPeriod.average_breath;
 
-    // Extract bed/wake times
+    // Extract bed/wake times (in user's local timezone)
     if (sleepPeriod.bedtime_start) {
-      try { metrics.sleep_onset_time = new Date(sleepPeriod.bedtime_start).toTimeString().slice(0, 8); } catch {}
+      try { metrics.sleep_onset_time = toLocalTime(sleepPeriod.bedtime_start, timezone); } catch {}
     }
     if (sleepPeriod.bedtime_end) {
-      try { metrics.wake_time = new Date(sleepPeriod.bedtime_end).toTimeString().slice(0, 8); } catch {}
+      try { metrics.wake_time = toLocalTime(sleepPeriod.bedtime_end, timezone); } catch {}
     }
   }
 

@@ -9,6 +9,7 @@ import {
   countRecentIntensityDays,
   buildPrescriptionContext,
 } from "../_lib/prescription.js";
+import { getAthleteAnalytics } from "../_lib/athlete-analytics.js";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -34,6 +35,8 @@ Rules:
 13. NEVER give direct medical advice. Frame supplement/nutrition guidance as "Research suggests..." or "Consider..."
 14. Sleep and recovery data is from LAST NIGHT, not tonight.
 15. NEVER HALLUCINATE — every number and metric about past data must come from the actual data provided. Do not fabricate data points. Recommendations, estimates, and projections derived from real data (e.g., fueling targets based on actual workout intensity) are encouraged.
+16. If historicalPatterns is provided, USE IT to ground your prescription rationale. Reference how the athlete has historically responded to similar training loads — e.g., "After your last 900+ TSS week, you needed 2 rest days before EF rebounded" or "Your HR drift averages X% on consecutive training days vs Y% after a rest day." This makes prescriptions feel personalized, not generic.
+17. If trainingLoadTrend is provided, reference it in your readiness_note — mention CTL trend direction, current TSB, and ramp rate when relevant.
 
 Return ONLY valid JSON matching this exact structure:
 {
@@ -93,7 +96,7 @@ export default async function handler(req, res) {
       Date.now() - 7 * 86400000
     ).toISOString().split("T")[0];
 
-    // Fetch all context in parallel
+    // Fetch real-time queries + cached analytics in parallel
     const [
       profileResult,
       powerProfileResult,
@@ -105,6 +108,7 @@ export default async function handler(req, res) {
       travelResult,
       racesResult,
       checkinResult,
+      analyticsResult,
     ] = await Promise.allSettled([
       supabaseAdmin
         .from("profiles")
@@ -190,9 +194,11 @@ export default async function handler(req, res) {
         .eq("user_id", userId)
         .eq("date", today)
         .maybeSingle(),
+      getAthleteAnalytics(userId),
     ]);
 
     const getData = (r) => (r.status === "fulfilled" ? r.value.data : null);
+    const athleteAnalytics = analyticsResult.status === "fulfilled" ? analyticsResult.value : {};
 
     const profile = getData(profileResult);
     const powerProfile = getData(powerProfileResult);
@@ -310,6 +316,14 @@ export default async function handler(req, res) {
       travelEvents,
       races,
     });
+
+    // Enrich with cached analytics (historical patterns + training load)
+    if (athleteAnalytics.historicalPatterns) {
+      context.historicalPatterns = athleteAnalytics.historicalPatterns;
+    }
+    if (athleteAnalytics.trainingLoad) {
+      context.trainingLoadTrend = athleteAnalytics.trainingLoad;
+    }
 
     // If readiness is red and we already have a recovery template, skip AI call
     if (selected.readinessCheck === "red" && selected.template.type === "rest") {

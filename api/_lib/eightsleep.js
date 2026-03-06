@@ -1,6 +1,17 @@
 import { supabaseAdmin } from "./supabase.js";
 import { decrypt } from "./crypto.js";
 
+// Convert ISO timestamp to local time "HH:MM:SS" string in the given IANA timezone.
+// Falls back to UTC toTimeString() if timezone is invalid.
+function toLocalTime(isoTimestamp, timezone) {
+  if (!isoTimestamp) return null;
+  try {
+    return new Date(isoTimestamp).toLocaleTimeString("en-GB", { timeZone: timezone || "UTC", hour12: false });
+  } catch {
+    return new Date(isoTimestamp).toTimeString().slice(0, 8);
+  }
+}
+
 const AUTH_URL = "https://auth-api.8slp.net/v1/tokens";
 const BASE_URL = "https://client-api.8slp.net/v1";
 const DEFAULT_CLIENT_ID = "0894c7f33bb94800a03f1f4df13a4f38";
@@ -171,7 +182,7 @@ export async function fetchSleepData(accessToken, eightSleepUserId, fromDate, to
  *   sleepFitnessScore: { total },
  *   sessions[]: { stages[]: { stage, duration }, timeseries: { heartRate, tempBedC, tempRoomC } }
  */
-export function mapEightSleepToMetrics(dayData) {
+export function mapEightSleepToMetrics(dayData, timezone) {
   if (!dayData) return null;
 
   const sq = dayData.sleepQualityScore || {};
@@ -184,14 +195,14 @@ export function mapEightSleepToMetrics(dayData) {
     sleepEfficiency = Math.round((totalSleep / presenceDuration) * 100 * 10) / 10;
   }
 
-  // Extract bed/wake times from presence timestamps
+  // Extract bed/wake times from presence timestamps (in user's local timezone)
   let sleepOnset = null;
   let wakeTime = null;
   if (dayData.presenceStart) {
-    try { sleepOnset = new Date(dayData.presenceStart).toTimeString().slice(0, 8); } catch {}
+    try { sleepOnset = toLocalTime(dayData.presenceStart, timezone); } catch {}
   }
   if (dayData.presenceEnd) {
-    try { wakeTime = new Date(dayData.presenceEnd).toTimeString().slice(0, 8); } catch {}
+    try { wakeTime = toLocalTime(dayData.presenceEnd, timezone); } catch {}
   }
 
   const metrics = {};

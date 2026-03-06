@@ -103,6 +103,11 @@ export default async function handler(req, res) {
 
   const { accessToken } = tokenResult;
 
+  // Get user timezone for local bed/wake times
+  const { data: tzProfile } = await supabaseAdmin
+    .from("profiles").select("timezone").eq("id", userId).single();
+  const timezone = tzProfile?.timezone || "America/New_York";
+
   // Process before responding — Vercel can terminate the function after res is sent
   try {
     if (type === "recovery.updated") {
@@ -111,7 +116,7 @@ export default async function handler(req, res) {
       if (recovery?.score_state === "SCORED" && recovery.created_at) {
         const date = recovery.created_at.slice(0, 10);
         const whoopData = { recovery: [recovery], sleep: [], body: null };
-        const metrics = mapWhoopToMetrics(date, whoopData);
+        const metrics = mapWhoopToMetrics(date, whoopData, timezone);
         const extended = extractWhoopExtended(date, whoopData);
         if (metrics) await syncDayFromWebhook(userId, date, metrics, extended);
         console.log(`[Whoop Webhook] Recovery synced for ${userId} on ${date}`);
@@ -121,7 +126,7 @@ export default async function handler(req, res) {
       if (sleepData?.score_state === "SCORED" && sleepData.end) {
         const date = sleepData.end.slice(0, 10);
         const whoopData = { recovery: [], sleep: [sleepData], body: null };
-        const metrics = mapWhoopToMetrics(date, whoopData);
+        const metrics = mapWhoopToMetrics(date, whoopData, timezone);
         const extended = extractWhoopExtended(date, whoopData);
         if (metrics) await syncDayFromWebhook(userId, date, metrics, extended);
         console.log(`[Whoop Webhook] Sleep synced for ${userId} on ${date}`);

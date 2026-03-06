@@ -17,7 +17,7 @@ async function syncDay(userId, date, accessToken, eightSleepUserId, timezone) {
   // (e.g., bathroom breaks mid-sleep before the night is finalized)
   if (dayData.processing) return null;
 
-  const mapped = mapEightSleepToMetrics(dayData);
+  const mapped = mapEightSleepToMetrics(dayData, timezone);
   if (!mapped || Object.keys(mapped).length === 0) return null;
 
   // Extract extended metrics (all scores, HRV details, temp, disruptions, etc.)

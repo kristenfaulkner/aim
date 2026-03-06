@@ -7,8 +7,8 @@ import { getOuraToken, fetchOuraData, mapOuraToMetrics, extractOuraExtended } fr
  * Uses selective merge — only updates fields Oura provides,
  * preserving fields set by other sources (Strava TSS, Eight Sleep, etc.).
  */
-async function syncDay(userId, date, ouraData) {
-  const mapped = mapOuraToMetrics(date, ouraData);
+async function syncDay(userId, date, ouraData, timezone) {
+  const mapped = mapOuraToMetrics(date, ouraData, timezone);
   if (!mapped) return null;
 
   const extended = extractOuraExtended(date, ouraData);
@@ -70,6 +70,11 @@ export async function fullOuraSync(userId, days = 7) {
   startDateObj.setDate(startDateObj.getDate() - days);
   const startDate = startDateObj.toISOString().split("T")[0];
 
+  // Get user timezone for local bed/wake times
+  const { data: tzProfile } = await supabaseAdmin
+    .from("profiles").select("timezone").eq("id", userId).single();
+  const timezone = tzProfile?.timezone || "America/New_York";
+
   try {
     // Fetch all data for the range in one batch (more efficient than per-day)
     const ouraData = await fetchOuraData(accessToken, startDate, endDate);
@@ -88,7 +93,7 @@ export async function fullOuraSync(userId, days = 7) {
 
     for (const date of [...dates].sort()) {
       try {
-        const result = await syncDay(userId, date, ouraData);
+        const result = await syncDay(userId, date, ouraData, timezone);
         if (result) results.push(result);
       } catch (err) {
         errors.push({ date, error: err.message });

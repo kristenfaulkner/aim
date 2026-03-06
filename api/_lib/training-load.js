@@ -7,6 +7,7 @@ import { computeTrainingLoad, findNewBests } from "./metrics.js";
 import { fitCPModel, computeCPZones } from "./cp-model.js";
 import { buildZonesSnapshot } from "./adaptive-zones.js";
 import { aggregateDurability } from "./durability.js";
+import { refreshAthleteAnalytics } from "./athlete-analytics.js";
 
 /**
  * Update daily_metrics with TSS and recompute CTL/ATL/TSB.
@@ -72,6 +73,9 @@ export async function updateDailyMetrics(userId, activity) {
         .eq("date", day.date);
     }
   }
+
+  // Refresh cached athlete analytics (fire-and-forget — don't block sync)
+  refreshAthleteAnalytics(userId).catch(() => {});
 }
 
 /**

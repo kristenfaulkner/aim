@@ -7,8 +7,8 @@ import { getWithingsToken, fetchWithingsData, mapWithingsToMetrics, extractWithi
  * Uses selective merge — only updates fields Withings provides,
  * preserving fields set by other sources.
  */
-async function syncDay(userId, date, withingsData) {
-  const mapped = mapWithingsToMetrics(date, withingsData);
+async function syncDay(userId, date, withingsData, timezone) {
+  const mapped = mapWithingsToMetrics(date, withingsData, timezone);
   if (!mapped) return null;
 
   const extended = extractWithingsExtended(date, withingsData);
@@ -64,6 +64,11 @@ export async function fullWithingsSync(userId, days = 7) {
   startDateObj.setDate(startDateObj.getDate() - days);
   const startDate = startDateObj.toISOString().split("T")[0];
 
+  // Get user timezone for local bed/wake times
+  const { data: tzProfile } = await supabaseAdmin
+    .from("profiles").select("timezone").eq("id", userId).single();
+  const timezone = tzProfile?.timezone || "America/New_York";
+
   try {
     // Fetch all data for the range in one batch
     const withingsData = await fetchWithingsData(accessToken, startDate, endDate);
@@ -85,7 +90,7 @@ export async function fullWithingsSync(userId, days = 7) {
 
     for (const date of [...dates].sort()) {
       try {
-        const result = await syncDay(userId, date, withingsData);
+        const result = await syncDay(userId, date, withingsData, timezone);
         if (result) results.push(result);
       } catch (err) {
         errors.push({ date, error: err.message });

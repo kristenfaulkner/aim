@@ -27,6 +27,11 @@ async function syncFromNotification(userId, appli, startdate, enddate) {
   const startDate = new Date(startdate * 1000).toISOString().split("T")[0];
   const endDate = new Date(enddate * 1000).toISOString().split("T")[0];
 
+  // Get user timezone for local bed/wake times
+  const { data: tzProfile } = await supabaseAdmin
+    .from("profiles").select("timezone").eq("id", userId).single();
+  const timezone = tzProfile?.timezone || "America/New_York";
+
   // Fetch the relevant data based on appli type
   let withingsData = { measurements: [], activity: [], sleep: [] };
 
@@ -54,7 +59,7 @@ async function syncFromNotification(userId, appli, startdate, enddate) {
   }
 
   for (const date of dates) {
-    const metrics = mapWithingsToMetrics(date, withingsData);
+    const metrics = mapWithingsToMetrics(date, withingsData, timezone);
     if (!metrics) continue;
 
     const extended = extractWithingsExtended(date, withingsData);

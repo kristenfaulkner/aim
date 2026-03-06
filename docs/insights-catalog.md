@@ -786,6 +786,10 @@ The 34-category catalog below defines what patterns AIM looks for in athlete dat
 - Optimal sleep window from their data
 - Weekday vs weekend patterns
 
+**Gold-standard example:**
+- "🕐 **Later Bedtime = Sharply Lower EF (r=-0.63)** — This is your strongest single performance signal in the dataset: on nights you went to bed later, your efficiency factor the following day dropped substantially (r=-0.63, n=10). Similarly, later bedtimes correlated with worse HR drift (r=-0.52) and lower normalized power (r=-0.66). Your average bedtime is 7.2 hours past midnight (roughly 7:12 AM adjusted — check your device timezone), with a standard deviation of just 0.6 hours, suggesting you're fairly consistent."
+- Why this works: Reports Pearson r and sample size for credibility. Connects bedtime TIMING (not just duration) to THREE performance outputs (EF, HR drift, NP). Flags potential timezone artifact honestly. Derives a personal statistical model rather than cherry-picking one night.
+
 ### 2F. Environment → Sleep Quality → Performance
 - Bed temperature (Eight Sleep) → deep sleep duration → morning HRV
 - Seasonal patterns

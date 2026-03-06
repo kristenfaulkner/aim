@@ -7,8 +7,8 @@ import { getWhoopToken, fetchWhoopData, mapWhoopToMetrics, extractWhoopExtended 
  * Uses selective merge — only updates fields Whoop provides,
  * preserving fields set by other sources.
  */
-async function syncDay(userId, date, whoopData) {
-  const mapped = mapWhoopToMetrics(date, whoopData);
+async function syncDay(userId, date, whoopData, timezone) {
+  const mapped = mapWhoopToMetrics(date, whoopData, timezone);
   if (!mapped) return null;
 
   const extended = extractWhoopExtended(date, whoopData);
@@ -70,6 +70,11 @@ export async function fullWhoopSync(userId, days = 7) {
   startDateObj.setDate(startDateObj.getDate() - days);
   const startDate = startDateObj.toISOString().split("T")[0];
 
+  // Get user timezone for local bed/wake times
+  const { data: tzProfile } = await supabaseAdmin
+    .from("profiles").select("timezone").eq("id", userId).single();
+  const timezone = tzProfile?.timezone || "America/New_York";
+
   try {
     // Fetch all data for the range in one batch
     const whoopData = await fetchWhoopData(accessToken, startDate, endDate);
@@ -88,7 +93,7 @@ export async function fullWhoopSync(userId, days = 7) {
 
     for (const date of [...dates].sort()) {
       try {
-        const result = await syncDay(userId, date, whoopData);
+        const result = await syncDay(userId, date, whoopData, timezone);
         if (result) results.push(result);
       } catch (err) {
         errors.push({ date, error: err.message });

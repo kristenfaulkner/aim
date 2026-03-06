@@ -1,5 +1,15 @@
 import { supabaseAdmin } from "./supabase.js";
 
+// Convert ISO timestamp to local time "HH:MM:SS" string in the given IANA timezone.
+function toLocalTime(isoTimestamp, timezone) {
+  if (!isoTimestamp) return null;
+  try {
+    return new Date(isoTimestamp).toLocaleTimeString("en-GB", { timeZone: timezone || "UTC", hour12: false });
+  } catch {
+    return new Date(isoTimestamp).toTimeString().slice(0, 8);
+  }
+}
+
 const BASE_URL = "https://api.prod.whoop.com/developer";
 
 /**
@@ -123,7 +133,7 @@ export async function fetchWhoopData(accessToken, startDate, endDate) {
  * Map Whoop data for a single day to partial daily_metrics columns.
  * Groups recovery + sleep by date.
  */
-export function mapWhoopToMetrics(dayDate, whoopData) {
+export function mapWhoopToMetrics(dayDate, whoopData, timezone) {
   const metrics = {};
 
   // ── Recovery ──
@@ -171,12 +181,12 @@ export function mapWhoopToMetrics(dayDate, whoopData) {
     if (sc.sleep_performance_percentage != null) metrics.sleep_score = sc.sleep_performance_percentage;
     if (sc.respiratory_rate != null) metrics.respiratory_rate = sc.respiratory_rate;
 
-    // Extract bed/wake times
+    // Extract bed/wake times (in user's local timezone)
     if (sleepRecord.start) {
-      try { metrics.sleep_onset_time = new Date(sleepRecord.start).toTimeString().slice(0, 8); } catch {}
+      try { metrics.sleep_onset_time = toLocalTime(sleepRecord.start, timezone); } catch {}
     }
     if (sleepRecord.end) {
-      try { metrics.wake_time = new Date(sleepRecord.end).toTimeString().slice(0, 8); } catch {}
+      try { metrics.wake_time = toLocalTime(sleepRecord.end, timezone); } catch {}
     }
   }
 
