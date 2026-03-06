@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "../_lib/supabase.js";
 import { verifySession, cors } from "../_lib/auth.js";
+import { updateDailyMetrics } from "../_lib/training-load.js";
 
 export default async function handler(req, res) {
   cors(res);
@@ -12,10 +13,10 @@ export default async function handler(req, res) {
   const id = req.query.id;
   if (!id) return res.status(400).json({ error: "Missing activity id" });
 
-  // Verify ownership
+  // Verify ownership (fetch started_at for metrics recomputation)
   const { data: activity, error: fetchErr } = await supabaseAdmin
     .from("activities")
-    .select("id, user_id")
+    .select("id, user_id, started_at")
     .eq("id", id)
     .single();
 
@@ -36,6 +37,13 @@ export default async function handler(req, res) {
     .eq("id", id);
 
   if (deleteErr) return res.status(500).json({ error: deleteErr.message });
+
+  // Recompute daily TSS + CTL/ATL/TSB for the affected date
+  try {
+    await updateDailyMetrics(session.userId, { started_at: activity.started_at });
+  } catch (_) {
+    // Non-fatal: activity is already deleted, metrics will self-correct on next sync
+  }
 
   return res.status(200).json({ success: true });
 }

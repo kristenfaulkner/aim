@@ -11,7 +11,7 @@ export default function Contact() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    window.location.href = `mailto:info@kristenfaulkner.com?subject=${encodeURIComponent(form.subject || "AIM Inquiry")}&body=${encodeURIComponent(`From: ${form.name} (${form.email})\n\n${form.message}`)}`;
+    window.location.href = `mailto:support@aimfitness.ai?subject=${encodeURIComponent(form.subject || "AIM Inquiry")}&body=${encodeURIComponent(`From: ${form.name} (${form.email})\n\n${form.message}`)}`;
     setSent(true);
   };
 
@@ -48,7 +48,7 @@ export default function Contact() {
           <div style={{ textAlign: "center", padding: "48px 24px", background: T.card, borderRadius: 20, border: `1px solid ${T.border}` }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>&#10003;</div>
             <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 8px" }}>Opening your email client</h2>
-            <p style={{ fontSize: 15, color: T.textSoft, margin: "0 0 24px" }}>If it didn't open automatically, email us directly at <a href="mailto:info@kristenfaulkner.com" style={{ color: T.accent }}>info@kristenfaulkner.com</a></p>
+            <p style={{ fontSize: 15, color: T.textSoft, margin: "0 0 24px" }}>If it didn't open automatically, email us directly at <a href="mailto:support@aimfitness.ai" style={{ color: T.accent }}>support@aimfitness.ai</a></p>
             <button onClick={() => setSent(false)} style={{ ...btn(false), fontSize: 14, padding: "10px 24px" }}>Send Another</button>
           </div>
         ) : (
@@ -78,7 +78,7 @@ export default function Contact() {
         )}
 
         <div style={{ textAlign: "center", marginTop: 48 }}>
-          <p style={{ fontSize: 14, color: T.textDim }}>Or email us directly at <a href="mailto:info@kristenfaulkner.com" style={{ color: T.accent, textDecoration: "none" }}>info@kristenfaulkner.com</a></p>
+          <p style={{ fontSize: 14, color: T.textDim }}>Or email us directly at <a href="mailto:support@aimfitness.ai" style={{ color: T.accent, textDecoration: "none" }}>support@aimfitness.ai</a></p>
         </div>
       </div>
     </div>

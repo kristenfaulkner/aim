@@ -82,7 +82,7 @@ export default function Terms() {
           <li style={li}>Maintain and promptly update your account information to keep it accurate, current, and complete;</li>
           <li style={li}>Maintain the security and confidentiality of your login credentials, including your password;</li>
           <li style={li}>Not share your account credentials with any third party;</li>
-          <li style={li}>Immediately notify AIM of any unauthorized use of your account or any other breach of security at <span style={bold}>legal@aim.ai</span>;</li>
+          <li style={li}>Immediately notify AIM of any unauthorized use of your account or any other breach of security at <span style={bold}>legal@aimfitness.ai</span>;</li>
           <li style={li}>Accept responsibility for all activities that occur under your account, whether or not authorized by you.</li>
         </ul>
         <p style={p}>
@@ -183,12 +183,12 @@ export default function Terms() {
 
         <h3 style={h3}>6.5 Cancellation</h3>
         <p style={p}>
-          You may cancel your subscription at any time through your account settings or by contacting us at <span style={bold}>legal@aim.ai</span>. Cancellation will take effect at the end of your current billing period. You will continue to have access to your subscribed tier's features until the end of the billing period for which you have already paid. No partial refunds will be issued for unused portions of a billing period, except as described in Section 6.6.
+          You may cancel your subscription at any time through your account settings or by contacting us at <span style={bold}>legal@aimfitness.ai</span>. Cancellation will take effect at the end of your current billing period. You will continue to have access to your subscribed tier's features until the end of the billing period for which you have already paid. No partial refunds will be issued for unused portions of a billing period, except as described in Section 6.6.
         </p>
 
         <h3 style={h3}>6.6 Refund Policy</h3>
         <p style={p}>
-          If you cancel your subscription within the first thirty (30) days following your initial paid subscription charge (not including the free trial period), you are eligible for a pro-rated refund for the unused portion of your subscription period. Refund requests must be submitted to <span style={bold}>legal@aim.ai</span> within this thirty (30) day window.
+          If you cancel your subscription within the first thirty (30) days following your initial paid subscription charge (not including the free trial period), you are eligible for a pro-rated refund for the unused portion of your subscription period. Refund requests must be submitted to <span style={bold}>legal@aimfitness.ai</span> within this thirty (30) day window.
         </p>
         <p style={p}>
           After the initial thirty (30) day period, all subscription fees are non-refundable, except as required by applicable law. AIM reserves the right to issue refunds or credits at its sole discretion in other circumstances.
@@ -403,7 +403,7 @@ export default function Terms() {
 
         <h3 style={h3}>14.4 Opt-Out</h3>
         <p style={p}>
-          You have the right to opt out of the arbitration and class action waiver provisions of this Section 14 by sending written notice of your decision to opt out to <span style={bold}>legal@aim.ai</span> within thirty (30) days of first accepting these Terms. Your notice must include your full name, mailing address, and a clear statement that you wish to opt out of the arbitration and class action waiver provisions. If you opt out, neither you nor AIM will be bound by the arbitration provisions of this section, but all other provisions of these Terms will continue to apply.
+          You have the right to opt out of the arbitration and class action waiver provisions of this Section 14 by sending written notice of your decision to opt out to <span style={bold}>legal@aimfitness.ai</span> within thirty (30) days of first accepting these Terms. Your notice must include your full name, mailing address, and a clear statement that you wish to opt out of the arbitration and class action waiver provisions. If you opt out, neither you nor AIM will be bound by the arbitration provisions of this section, but all other provisions of these Terms will continue to apply.
         </p>
 
         <h3 style={h3}>14.5 Waiver of Jury Trial</h3>
@@ -421,7 +421,7 @@ export default function Terms() {
 
         <h3 style={h3}>15.1 Termination by You</h3>
         <p style={p}>
-          You may terminate your account and these Terms at any time by canceling your subscription and deleting your account through your account settings, or by contacting us at <span style={bold}>legal@aim.ai</span>. Termination of your account will result in the cancellation of your subscription at the end of the current billing period.
+          You may terminate your account and these Terms at any time by canceling your subscription and deleting your account through your account settings, or by contacting us at <span style={bold}>legal@aimfitness.ai</span>. Termination of your account will result in the cancellation of your subscription at the end of the current billing period.
         </p>
 
         <h3 style={h3}>15.2 Termination by AIM</h3>
@@ -526,7 +526,7 @@ export default function Terms() {
         <div style={{ padding: "24px", background: T.surface, borderRadius: 12, border: `1px solid ${T.border}`, marginBottom: 16 }}>
           <p style={{ ...p, marginBottom: 8 }}><span style={bold}>AIM Performance Intelligence, Inc.</span></p>
           <p style={{ ...p, marginBottom: 8 }}>San Francisco, California, United States</p>
-          <p style={{ ...p, marginBottom: 8 }}>Email: <span style={{ color: T.accent }}>legal@aim.ai</span></p>
+          <p style={{ ...p, marginBottom: 8 }}>Email: <span style={{ color: T.accent }}>legal@aimfitness.ai</span></p>
           <p style={{ ...p, marginBottom: 0 }}>Please include "Terms of Service Inquiry" in the subject line of your email to ensure prompt routing of your correspondence.</p>
         </div>
 

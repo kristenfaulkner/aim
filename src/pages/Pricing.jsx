@@ -89,7 +89,7 @@ const FAQ = [
   { q: "Is there really no credit card required?", a: "Correct. Start your 14-day free trial with just an email. You'll only be asked for payment details when you choose to subscribe." },
   { q: "Can I change plans later?", a: "Yes. Upgrade, downgrade, or cancel anytime from your Settings page. Changes take effect at the next billing cycle." },
   { q: "What happens when my trial ends?", a: "Your account drops to the Free tier. All your data is preserved — you just lose access to premium features until you subscribe." },
-  { q: "Can I get a refund?", a: "We offer a 30-day money-back guarantee on your first subscription. Contact us at hello@aimfitness.ai." },
+  { q: "Can I get a refund?", a: "We offer a 30-day money-back guarantee on your first subscription. Contact us at support@aimfitness.ai." },
 ];
 
 export default function Pricing() {

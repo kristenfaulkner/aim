@@ -9,7 +9,7 @@ Non-engineering tasks that need to happen before/at/after launch. Organized by c
 - [ ] **Stripe production keys** — Switch from test mode to live keys in Vercel env vars; verify webhook endpoint receives real events
 - [ ] **Stripe promo codes / coupons** — Set up promotional codes in Stripe Dashboard for early adopters, influencers, beta testers
 - [ ] **Stripe pricing finalization** — Confirm Starter $19 / Pro $49 / Elite $99 tiers and 14-day free trial config in Stripe product catalog
-- [ ] **Domain email** — Set up support@aimfitness.ai, hello@aimfitness.ai (for Resend sender, support replies)
+- [x] **Domain email** — Set up support@, sales@, legal@, kristen@, coach@ (alias) on aimfitness.ai via Google Workspace
 - [ ] **Demo video** — Record product demo for landing page; re-add "Watch Demo" button once ready
 - [ ] **Terms of Service / Privacy Policy review** — Legal review of existing pages before public launch
 - [ ] **TCPA / SMS compliance audit** — Confirm opt-in flows, disclosures, and Twilio toll-free verification URL updated to `https://aimfitness.ai`
