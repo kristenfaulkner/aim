@@ -18,7 +18,8 @@ vi.mock('./pages/legal/DataProcessing', () => ({ default: () => <div data-testid
 vi.mock('./pages/legal/GDPR', () => ({ default: () => <div data-testid="gdpr">GDPR</div> }));
 
 // Mock protected route pages — ProtectedRoute will redirect if not authed
-vi.mock('./pages/Dashboard', () => ({ default: () => <div data-testid="dashboard">Dashboard</div> }));
+vi.mock('./pages/Today', () => ({ default: () => <div data-testid="today">Today</div> }));
+vi.mock('./pages/DashboardLegacy', () => ({ default: () => <div data-testid="dashboard-legacy">DashboardLegacy</div> }));
 vi.mock('./pages/ConnectApps', () => ({ default: () => <div data-testid="connect">Connect</div> }));
 vi.mock('./pages/Boosters', () => ({ default: () => <div data-testid="boosters">Boosters</div> }));
 vi.mock('./pages/HealthLab', () => ({ default: () => <div data-testid="healthlab">HealthLab</div> }));
@@ -94,9 +95,9 @@ describe('App routing', () => {
   });
 
   // Protected routes (ProtectedRoute mocked to pass through)
-  it('renders dashboard at /dashboard', () => {
+  it('renders today page at /dashboard', () => {
     renderApp('/dashboard');
-    expect(screen.getByTestId('dashboard')).toBeInTheDocument();
+    expect(screen.getByTestId('today')).toBeInTheDocument();
   });
 
   it('renders connect apps at /connect', () => {

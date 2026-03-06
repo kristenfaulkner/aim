@@ -32,7 +32,7 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 
 ### Frontend (`/src/`)
 
-20 route-level pages, 12+ reusable components, 10 custom hooks, shared libs. Key entry points: `App.jsx` (routes), `context/AuthContext.jsx` (auth), `hooks/useDashboardData.js` (parallel queries), `lib/api.js` (`apiFetch()` with Bearer token), `theme/tokens.js` (design tokens as `T`).
+20 route-level pages, 12+ reusable components, 10 custom hooks, shared libs. Today page (AI-first, single-column centered layout at 700px max-width). Key entry points: `App.jsx` (routes), `context/AuthContext.jsx` (auth), `hooks/useDashboardData.js` (parallel queries), `lib/api.js` (`apiFetch()` with Bearer token), `theme/tokens.js` (design tokens as `T`).
 
 **Full file-by-file reference:** See `docs/codebase-map.md` → Frontend section.
 
@@ -94,7 +94,7 @@ AIM is the performance intelligence layer that sits on top of all athlete health
 All plans include 14-day free trial, no credit card required. Monthly billing only (annual billing planned for future release).
 
 **Tier Features (defined in `src/lib/entitlements.js`):**
-- **Free:** Dashboard, activities, basic analysis (3 AI/day, 2 integrations, 30-day history)
+- **Free:** Today, activities, basic analysis (3 AI/day, 2 integrations, 30-day history)
 - **Starter:** + Sleep, Health Lab, Workout DB, Nutrition Logger, Check-in, Boosters (10 AI/day, 4 integrations, full history)
 - **Pro:** + CP Model, Durability, Adaptive Zones, Segments, Similar Sessions, Race Intelligence, Prescriptions, SMS Coach (unlimited AI, unlimited integrations)
 - **Elite:** + Data Export, API Access, Priority Support, Custom Models, Coach Dashboard
@@ -198,12 +198,13 @@ See `docs/build-status.md` for the full detailed log. Summary of what's built:
 **Core**: Auth (email/password/Google SSO/magic link), onboarding, Vercel deployment, mobile-responsive, testing (574 tests), SEO, legal compliance, account management
 **Integrations**: Strava (full), EightSleep (full + hourly cron), Wahoo (full sync + backfill + webhook + FIT stream processing), Garmin (scaffolded — OAuth 1.0a, webhook, sync, data mappers, awaiting API keys), TrainingPeaks (file import), Twilio SMS, Resend email, Oura (full + hourly cron), Whoop (full + hourly cron), Withings (full + hourly cron)
 **AI (12 features)**: Post-ride analysis, email summaries, SMS coach, chat coach, sleep summary, blood panel OCR, nutrition parsing, dashboard intelligence, adaptive 3-mode AI, athlete bio generation, insight feedback loop (thumbs up/down + personalized AI prompt injection), training prescription engine (power profile gap analysis → AI-generated structured workouts with readiness/weather/cross-training guards)
-**Pages**: Dashboard V2, Sleep Intelligence, ActivityDetail V3 (two-column AI+Data layout), HealthLab, Boosters, ConnectApps, Settings, WorkoutDatabase, Landing, Legal pages
+**Pages**: Dashboard V2 (superseded by Today page — legacy preserved at /dashboard-legacy), Sleep Intelligence, ActivityDetail V3 (two-column AI+Data layout), HealthLab, Boosters, ConnectApps, Settings, WorkoutDatabase, Landing, Legal pages
 **Structured Workouts (5 phases)**: Interval extraction, canonical tagging (32+14 tags), weather enrichment, interval execution coaching, performance models (heat/sleep/HRV/fueling/durability), searchable workout database
 **Power Analytics**: Critical Power (CP) & W' model — hyperbolic fitting from power profile bests, auto-computed on sync, CPModelCard on dashboard, AI context enrichment, backfill endpoint. Adaptive training zones (readiness-adjusted -3% to -8%, zone evolution history, preference auto/CP/Coggan). Durability & fatigue resistance (per-activity fatigue-bucket power curves, retention scoring, aggregate durability score, race predictions, backfill endpoint). W' Balance tracking (Skiba differential reconstitution, real-time anaerobic reserve depletion/recovery, empty tank detection, WbalChart on ActivityDetail, backfill endpoint, AI Category 29). Similar Session Finder (weighted 5-dimension matching, cross-domain context enrichment, expandable comparison cards with AI analysis on ActivityDetail). Segment Comparison (auto-import from Strava sync, cross-domain adjusted performance scoring with heat/HRV/fatigue/sleep/wind penalties, PR detection, SegmentComparisonPanel on ActivityDetail with expandable effort history, AI Category 30, backfill endpoint, 27 tests)
 **Expansion (P1)**: Daily subjective check-in (4 sliders: stress/motivation/soreness/mood), activity subjective fields (GI comfort, mental focus, pre-ride recovery), travel & timezone auto-detection (GPS-based + browser geolocation, jet lag + altitude tracking, TravelStatusCard on dashboard with collapse/expand, timezone recovery bar, 14-segment altitude acclimation bar, power penalty mini chart, auto-dismiss), cross-training logger (replaced by unified LogActivityModal on Activities page: 8 activity types, file upload with FIT/GPX/TCX/CSV parsing, body region for strength, intensity 1-5, duration spinner, performance data accordion, saves to both activities + cross_training_log tables, TrainingWeekChart stacked bars), 6 new AI insight categories (23-28), 10 new workout tags
 **HR Source Prioritization (P2)**: 3-context priority engine (exercise/sleep/resting HR), smart defaults from device accuracy research, SourceBadge component on all HR metrics, Settings "Data Sources" tab with arrow reordering, source tracking on activities + daily_metrics sync pipelines, AI data quality awareness (Rule 11), 45 tests
 **Other**: SessionNotes + tag normalization, markdown rendering, AI voice fix, theme migration (dark→light), activity browser, working goals, nutrition logger
+**Today Page (AI-first rebuild)**: Replaces Dashboard V2. Single-column centered layout (700px max-width), AI narrative as primary content, three-layer insight depth (headline→takeaway→evidence), morning-to-post-ride collapse pattern, contextual data gap nudges, inline feedback with explanation. Three modes: MORNING_WITH_PLAN, MORNING_RECOVERY, POST_RIDE. New components: AIBriefing, InsightCard, WorkoutCard, CollapsedMorning, AskClaude, DataGaps. Hook: useTodayIntelligence. Legacy Dashboard preserved at /dashboard-legacy.
 
 ### Remaining — Prioritized Feature Backlog
 

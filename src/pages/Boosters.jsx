@@ -204,7 +204,7 @@ export default function Boosters() {
           </div>
           {!isMobile && (
             <div style={{ display: "flex", gap: 3 }}>
-              {["Dashboard", "Calendar", "Trends", "Boosters", "Race Planner"].map(item => (
+              {["Today", "Calendar", "Trends", "Boosters", "Race Planner"].map(item => (
                 <button key={item} style={{ background: item === "Boosters" ? "rgba(16,185,129,0.1)" : "none", border: "none", padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, color: item === "Boosters" ? T.accent : T.textDim, cursor: "pointer", fontFamily: font }}>{item}</button>
               ))}
             </div>
@@ -227,7 +227,7 @@ export default function Boosters() {
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
               <button onClick={() => setMenuOpen(false)} style={{ background: "none", border: "none", color: T.text, cursor: "pointer", padding: 8, minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}><X size={20} /></button>
             </div>
-            {["Dashboard", "Calendar", "Trends", "Boosters", "Race Planner"].map(item => (
+            {["Today", "Calendar", "Trends", "Boosters", "Race Planner"].map(item => (
               <button key={item} onClick={() => setMenuOpen(false)} style={{ background: item === "Boosters" ? "rgba(16,185,129,0.1)" : "none", border: "none", padding: "12px 14px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: item === "Boosters" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font, textAlign: "left" }}>{item}</button>
             ))}
           </div>

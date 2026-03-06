@@ -12,7 +12,7 @@ import { LogOut, Menu, X, User, Settings, Thermometer, Heart, Zap, Flame, Moon }
 // ── NAV ──
 
 const NAV_LINKS = [
-  { label: "Dashboard", path: "/dashboard" },
+  { label: "Today", path: "/dashboard" },
   { label: "Activities", path: "/activities" },
   { label: "Performance", path: "/performance" },
   { label: "My Stats", path: "/my-stats" },

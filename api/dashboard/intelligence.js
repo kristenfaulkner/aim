@@ -7,114 +7,146 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export const config = { maxDuration: 60 };
 
+// ── NEW AI-FIRST OUTPUT FORMAT ──
+// All modes return the same shape for the Today page.
+
+const SHARED_FORMAT = `
+Return valid JSON matching this exact shape:
+{
+  "briefing": "2-4 sentence AI narrative paragraph. References readiness, key metrics, planned workout or ride results, conditions. Written in second person, warm but specific.",
+  "insights": [
+    {
+      "type": "positive|warning|action|insight",
+      "icon": "emoji",
+      "headline": "Short, specific title with a key number",
+      "takeaway": "1-2 sentences: what to DO about this. Always actionable. Always visible.",
+      "narrative": "Full paragraph with evidence, comparisons, historical context.",
+      "evidence": [
+        { "label": "HRV today", "value": "123ms", "color": "green" },
+        { "label": "90-day avg", "value": "94ms", "color": "dim" }
+      ],
+      "crossDomain": "Which sources contributed and why only AIM can connect them. Null if single-source insight.",
+      "sources": ["Oura", "Wahoo"],
+      "dataGap": "Contextual prompt to connect a missing data source. Null if no gap."
+    }
+  ],
+  "contextCards": [
+    { "icon": "emoji", "label": "17C", "sub": "Contextual note about this metric", "color": "blue|green|dim" }
+  ],
+  "collapsedMorning": "Single-line summary of morning briefing. Only for POST_RIDE mode, null otherwise.",
+  "dataGaps": [
+    { "source": "Blood Panel", "lastUpdated": "9 months ago", "prompt": "Specific reason to upload/connect." }
+  ]
+}`;
+
+const SHARED_RULES = `
+INSIGHT FORMAT RULES:
+- Every insight MUST have a "takeaway" that tells the athlete what to DO. No insight exists without an action or decision.
+- Headlines should contain a specific number and be understandable without reading anything else.
+- The "narrative" field is the full evidence paragraph — specific numbers, historical comparisons, model references.
+- The "crossDomain" field should explain which data sources contributed and why this insight requires AIM. Set to null for single-source insights.
+- The "dataGap" field should ONLY appear when a missing data source would have added specific value to THIS insight.
+- Include "evidence" array with 3-5 key data points that support the insight. Use color hints: "green" for good, "red" for bad, "yellow" for caution, "dim" for reference values.
+- Limit to 3-5 insights. Rank by importance — the most actionable and cross-domain insights first.
+- ALWAYS reference the personal heat model if temperature data and performanceModels are present.
+- ALWAYS connect sleep data to performance outcomes when sleep data exists.
+
+DATA GAP RULES:
+- Include a top-level "dataGaps" array (0-3 items) for major disconnected sources that would unlock new insight categories.
+- Each data gap should reference the athlete's specific situation — not generic.
+- If a blood panel or DEXA is older than 6 months, flag it with the date.
+- Frame every gap as unlocking intelligence, never as a requirement.
+
+GENERAL RULES:
+- ALWAYS address the athlete by their first name (from athlete.first_name). NEVER say "Athlete".
+- Always second person ("your power", "your sleep"). Never "athletes in the bottom quartile".
+- Sleep and recovery data is from LAST NIGHT, not tonight. Always say "last night" when referring to the most recent sleep data.
+- When performanceModels data is present, reference specific model predictions.
+- NEVER HALLUCINATE — every number about past data must come from the actual data provided.
+- NEVER give direct medical/supplement advice — use "Research suggests..." language.
+- Return ONLY valid JSON, no markdown or explanation.`;
+
 const POST_RIDE_PROMPT = `You are the AI coach inside AIM, a performance intelligence platform for endurance athletes built by Kristen Faulkner (2x Olympic Gold Medalist, Paris 2024).
 
 Analyze today's ride using the athlete's actual data. Be specific — reference their real numbers.
 
-Return valid JSON:
+${SHARED_FORMAT}
+
+${SHARED_RULES}
+
+POST-RIDE SPECIFIC RULES:
+- The "briefing" should summarize the ride: what they did, key metrics, how it went relative to expectations.
+- Generate the "collapsedMorning" field — a single sentence summarizing this morning's readiness. Example: "This morning: readiness 82, HRV 121ms (top quartile), 6h03m sleep. You were cleared for sweet spot work."
+- Post-ride insights should reference the morning's predictions when possible for narrative continuity.
+- Connect ride data to recent trends (CTL/ATL/TSB, HRV, sleep).
+- Include 2-4 contextCards showing conditions during the ride (weather, elevation, etc.).
+- Include recovery-focused takeaways: refueling, hydration, sleep targets.
+
+RIDE-TO-RIDE COMPARISON RULES (when similarSessions data is provided):
+- Include at least one comparison insight referencing the most similar past session.
+- Compare today's key metrics (EF, NP, HR drift, cadence) to the most similar past session.
+- Explain WHAT changed AND WHY using cross-domain context differences.
+- After adjusting for conditions, give a NET FITNESS ASSESSMENT.
+- If no similar sessions exist, skip comparison insights.`;
+
+const MORNING_WITH_PLAN_PROMPT = `You are the AI coach inside AIM, a performance intelligence platform for endurance athletes built by Kristen Faulkner (2x Olympic Gold Medalist, Paris 2024).
+
+The athlete has a planned workout today. Brief them on readiness and how to execute.
+
+${SHARED_FORMAT}
+
+Also include a "workout" object in your response:
 {
-  "summary": "2-3 sentence ride summary with key metrics",
-  "actionItems": [
-    { "text": "Specific actionable recommendation", "timeframe": "right_now" },
-    { "text": "Training adjustment for the week", "timeframe": "this_week" },
-    { "text": "Longer-term consideration", "timeframe": "big_picture" }
-  ],
-  "insights": [
-    { "type": "positive|warning|info", "title": "Short title with key number", "body": "Explanation connecting multiple data points with actionable takeaway" }
-  ]
+  "workout": {
+    "name": "Workout name from the plan",
+    "source": "Source of the workout",
+    "structure": "Human-readable structure with line breaks",
+    "duration_min": 85,
+    "target_power": "265-280W",
+    "est_tss": 142,
+    "fueling": {
+      "carbs_per_hour": 80,
+      "fluid_ml_per_hour": 750,
+      "sodium_mg_per_hour": 600
+    }
+  }
 }
 
-Rules:
-- ALWAYS address the athlete by their first name (from athlete.first_name in the data). NEVER say "Athlete" — use their actual name.
-- Reference specific watts, HR, TSS, IF, and zone data from the ride
-- Connect ride data to recent trends (CTL/ATL/TSB, HRV, sleep)
-- Sleep and recovery data is from LAST NIGHT, not tonight. Always say "last night" when referring to the most recent sleep data.
-- actionItems timeframes: "right_now" (recovery window), "this_week" (training adjustments), "big_picture" (periodization/goals)
-- 3-5 insights, each connecting 2+ data points
-- Be encouraging but honest
-- When performanceModels data is present, reference specific model predictions (e.g., "Your heat model predicts..." or "Your HRV readiness threshold...")
-- NEVER HALLUCINATE — every number and metric about past data must come from the actual data provided. Do not fabricate data points. Recommendations and estimates derived from real data are encouraged.
-- Return ONLY valid JSON, no markdown or explanation`;
+${SHARED_RULES}
 
-const PRE_RIDE_PLANNED_PROMPT = `You are the AI coach inside AIM, a performance intelligence platform for endurance athletes built by Kristen Faulkner (2x Olympic Gold Medalist, Paris 2024).
+MORNING WITH PLAN SPECIFIC RULES:
+- The "briefing" MUST reference the specific workout by name and targets.
+- Assess readiness AGAINST that specific workout (not generic readiness).
+- Set "collapsedMorning" to null.
+- If sleep or HRV suggest reduced readiness, recommend adjusted power targets in the takeaway.
+- Fueling recommendations should scale to workout duration and intensity.
+- Include contextCards for weather conditions and how they interact with the heat model.
+- Tips should reference their actual FTP and power targets: "Target 265-280W" not "ride at threshold".`;
 
-Brief the athlete on their planned workout. Assess readiness based on recovery data.
-
-Return valid JSON:
-{
-  "readinessStatement": "1-2 sentence readiness assessment based on HRV, sleep, TSB, and recent training load",
-  "fuelingPlan": {
-    "calories": 450,
-    "carbs_g": 90,
-    "fluid_ml": 1500,
-    "sodium_mg": 800
-  },
-  "actionItems": [
-    { "text": "Specific pre-ride preparation step", "timeframe": "before_ride" }
-  ],
-  "tips": [
-    "Workout-specific execution tip referencing their power zones",
-    "Pacing or fueling strategy for this session type"
-  ]
-}
-
-Rules:
-- ALWAYS address the athlete by their first name (from athlete.first_name in the data). NEVER say "Athlete" — use their actual name.
-- Assess readiness using TSB, HRV trend, sleep quality, and recent training stress
-- Sleep and recovery data is from LAST NIGHT, not tonight. Always say "last night" when referring to the most recent sleep data.
-- Fueling plan should scale to workout duration and intensity
-- Action items should be things to do in the next 1-3 hours before the ride
-- Tips should reference their actual FTP, zones, and power targets for the planned workout
-- Be specific: "Target 265-280W for the intervals" not "ride at threshold"
-- When performanceModels data is present, use model predictions in readiness assessment and fueling plan (e.g., "Your HRV is in green zone — your model predicts strong execution today")
-- NEVER HALLUCINATE — every number and metric about past data must come from the actual data provided. Do not fabricate data points. Recommendations and estimates derived from real data are encouraged.
-- Return ONLY valid JSON, no markdown or explanation`;
-
-const DAILY_COACH_PROMPT = `You are the AI coach inside AIM, a performance intelligence platform for endurance athletes built by Kristen Faulkner (2x Olympic Gold Medalist, Paris 2024).
+const MORNING_RECOVERY_PROMPT = `You are the AI coach inside AIM, a performance intelligence platform for endurance athletes built by Kristen Faulkner (2x Olympic Gold Medalist, Paris 2024).
 
 No ride today and no planned workout. Provide daily coaching guidance.
 
-Return valid JSON:
-{
-  "headline": "One-line daily coaching headline",
-  "sections": {
-    "training": "2-3 sentences about where they are in their training load and what today means for recovery/adaptation",
-    "nutrition": "1-2 sentences on nutrition focus for a rest/easy day",
-    "recovery": "1-2 sentences on recovery activities based on recent load",
-    "sleep": "1-2 sentences referencing their recent sleep data if available",
-    "supplements": "1 sentence — frame as 'Research suggests...' or 'Consider discussing with your doctor...'. NEVER prescribe."
-  },
-  "workoutRecommendations": [
-    {
-      "name": "Easy Spin",
-      "type": "recovery",
-      "duration_min": 45,
-      "tss": 25,
-      "why": "Reason based on their current CTL/ATL/TSB",
-      "structure": "Brief workout structure with specific power targets based on their FTP"
-    }
-  ]
-}
+${SHARED_FORMAT}
 
-Rules:
-- ALWAYS address the athlete by their first name (from athlete.first_name in the data). NEVER say "Athlete" — use their actual name.
-- Reference their actual CTL, ATL, TSB, and recent trends
-- Sleep and recovery data is from LAST NIGHT, not tonight. Always say "last night" when referring to the most recent sleep data.
-- Workout recommendations should use their real FTP for power targets
-- 1-3 workout recommendations appropriate for their current fatigue/fitness balance
-- If TSB is very negative, emphasize rest; if positive, suggest productive training
-- NEVER give direct medical/supplement advice — use "Research suggests..." language
-- When performanceModels data is present, reference model insights in workout recommendations (e.g., "Your durability model shows best performance below 22 kJ/kg — today's easy ride keeps you well under")
-- NEVER HALLUCINATE — every number and metric about past data must come from the actual data provided. Do not fabricate data points. Recommendations and estimates derived from real data are encouraged.
-- Return ONLY valid JSON, no markdown or explanation`;
+${SHARED_RULES}
+
+MORNING RECOVERY / REST DAY SPECIFIC RULES:
+- The "briefing" should assess overall state: where they are in training load, recovery status, what today means.
+- Set "collapsedMorning" to null.
+- Include training load context in insights (CTL/ATL/TSB).
+- If TSB is very negative, emphasize rest. If positive, suggest productive training.
+- Include recovery-focused insights: sleep optimization, nutrition, mobility.
+- contextCards should show current training status (TSB color, sleep trend).
+- If they should train, suggest specific workout options in insights with power targets from their FTP.`;
 
 /**
  * Auto-detect intelligence mode based on today's data.
  */
 function detectMode(todayActivity, todayPlannedWorkout) {
   if (todayActivity) return "POST_RIDE";
-  if (todayPlannedWorkout) return "PRE_RIDE_PLANNED";
-  return "DAILY_COACH";
+  if (todayPlannedWorkout) return "MORNING_WITH_PLAN";
+  return "MORNING_RECOVERY";
 }
 
 /**
@@ -151,6 +183,7 @@ export default async function handler(req, res) {
       nutritionResult,
       travelResult,
       crossTrainingResult,
+      goalsResult,
     ] = await Promise.allSettled([
       supabaseAdmin
         .from("profiles")
@@ -208,6 +241,11 @@ export default async function handler(req, res) {
         .eq("user_id", session.userId)
         .gte("date", new Date(Date.now() - 7 * 86400000).toISOString().split("T")[0])
         .order("date", { ascending: false }),
+      supabaseAdmin
+        .from("working_goals")
+        .select("name, current_value, target_value, unit, trend, active")
+        .eq("user_id", session.userId)
+        .eq("active", true),
     ]);
 
     const getData = (r) => r.status === "fulfilled" ? r.value.data : null;
@@ -228,8 +266,10 @@ export default async function handler(req, res) {
       performanceModels = computeAllModels(pairs);
     }
 
-    // Determine mode
-    const mode = requestedMode || detectMode(todayActivity, todayPlannedWorkout);
+    // Determine mode (support legacy mode names for backward compat)
+    let mode = requestedMode || detectMode(todayActivity, todayPlannedWorkout);
+    if (mode === "PRE_RIDE_PLANNED") mode = "MORNING_WITH_PLAN";
+    if (mode === "DAILY_COACH") mode = "MORNING_RECOVERY";
 
     // Build context for Claude
     const firstName = profile?.full_name?.split(" ")[0] || "Athlete";
@@ -246,6 +286,7 @@ export default async function handler(req, res) {
 
     const travelEvents = getData(travelResult) || [];
     const crossTrainingLog = getData(crossTrainingResult) || [];
+    const workingGoals = getData(goalsResult) || [];
 
     const context = {
       athlete: profileSafe,
@@ -255,6 +296,7 @@ export default async function handler(req, res) {
       subjectiveCheckin,
       travelEvents: travelEvents.length > 0 ? travelEvents : undefined,
       crossTrainingLog: crossTrainingLog.length > 0 ? crossTrainingLog : undefined,
+      workingGoals: workingGoals.length > 0 ? workingGoals : undefined,
     };
 
     // Add mode-specific context
@@ -262,16 +304,16 @@ export default async function handler(req, res) {
     if (mode === "POST_RIDE") {
       context.todayActivity = todayActivity;
       systemPrompt = POST_RIDE_PROMPT;
-    } else if (mode === "PRE_RIDE_PLANNED") {
+    } else if (mode === "MORNING_WITH_PLAN") {
       context.plannedWorkout = todayPlannedWorkout;
-      systemPrompt = PRE_RIDE_PLANNED_PROMPT;
+      systemPrompt = MORNING_WITH_PLAN_PROMPT;
     } else {
-      systemPrompt = DAILY_COACH_PROMPT;
+      systemPrompt = MORNING_RECOVERY_PROMPT;
     }
 
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 3000,
+      max_tokens: 4000,
       system: systemPrompt,
       messages: [{
         role: "user",

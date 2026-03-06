@@ -3,51 +3,55 @@
 ## Navigation
 
 Top nav bar (always visible):
-`[AIM logo]  Dashboard  Health Lab  Connect  Settings  [sync status]  [avatar]`
+`[AIM logo]  Today  Performance  Health Lab  Connect  Settings  [sync status]  [avatar]`
 
 ---
 
-## Page 1: Dashboard (/)
+## Page 1: Today (/)
 
-The home screen. What you see every day when you open AIM.
+The home screen. What you see every day when you open AIM. AI-first single-column layout.
 
-### Layout: Two columns
+> **Note:** The old two-column Dashboard is preserved at `/dashboard-legacy` for reference.
+
+### Layout: Single-column AI-first centered layout (700px max-width)
 
 ```
-┌─────────────────────────────────────┐ ┌──────────────────────┐
-│  READINESS CARD                     │ │  AI INTELLIGENCE     │
-│  Ring + headline + weather + vitals │ │  PANEL (sticky)      │
-├─────────────────────────────────────┤ │                      │
-│  TODAY'S CARD (adaptive)            │ │  [Today's Intel]     │
-│  • Post-ride: recovery actions      │ │  [Working Goals]     │
-│  • Pre-ride: workout + fueling plan │ │  [Ask Claude]        │
-│  • No plan: AI recommendations      │ │                      │
-├─────────────────────────────────────┤ │  Content changes     │
-│  LAST RIDE (compact card)           │ │  based on active tab │
-│  Name, date, 8 key metrics         │ │                      │
-│  "View Full Analysis →" button      │ │                      │
-├──────────────────┬──────────────────┤ │                      │
-│  THIS WEEK'S     │  FITNESS &       │ │                      │
-│  PLAN (bars)     │  FORM (chart)    │ │                      │
-│  TSS by day      │  CTL/ATL/TSB     │ │                      │
-└──────────────────┴──────────────────┘ └──────────────────────┘
+┌───────────────────────────────────────────┐
+│           TODAY (centered, 700px)          │
+│                                           │
+│  AI INTELLIGENCE (adaptive, full-width)   │
+│  • Post-ride: analysis + insights         │
+│  • Pre-ride: briefing + fueling plan      │
+│  • No plan: AI coaching + recommendations │
+│                                           │
+│  READINESS CARD                           │
+│  Ring + headline + weather + vitals       │
+│                                           │
+│  LAST RIDE (compact card)                 │
+│  Name, date, 8 key metrics               │
+│  "View Full Analysis →" button            │
+│                                           │
+│  WORKING GOALS                            │
+│  Active goals with progress bars          │
+│                                           │
+│  ASK CLAUDE                               │
+│  Freeform chat with full athlete context  │
+└───────────────────────────────────────────┘
 ```
 
-### Right panel tabs:
-
-**Tab 1: Today's Intelligence**
+### AI Intelligence section:
 - Adapts by dashboard mode (see AIM-ADAPTIVE-DASHBOARD-SPEC.md)
 - POST_RIDE: Post-ride analysis, cross-domain insights, recovery actions
 - PRE_RIDE_PLANNED: Pre-ride briefing, readiness check, fueling reminders
 - DAILY_COACH: Full daily intelligence across all domains
 
-**Tab 2: Working Goals**
+### Working Goals:
 - Active goals with progress bars, sparklines, weekly checklists
 - Each goal expands to: Action Plan / Why It Matters / This Week
 - Suggested goals from AIM with "+ Start This Goal"
 - AI observations connecting compliance to results
 
-**Tab 3: Ask Claude**
+### Ask Claude:
 - Freeform chat with full athlete context
 - Suggested questions based on recent data
 - Streaming responses
@@ -270,7 +274,9 @@ Multi-step form (after first signup):
 ## URL Structure
 
 ```
-/                     → Dashboard (authenticated) or Landing (unauthenticated)
+/                     → Today (authenticated) or Landing (unauthenticated)
+/dashboard-legacy     → Legacy two-column Dashboard (preserved for reference)
+/performance          → Performance (analytics, charts, fitness/form)
 /auth                 → Sign in / Sign up
 /onboarding           → Post-signup profile setup
 /connect              → Connect Apps
@@ -292,15 +298,13 @@ Multi-step form (after first signup):
 
 ## Mobile Layout Notes
 
-On mobile (< 768px), the two-column layout collapses:
-- Left column content stacks vertically (full width)
-- Right panel (AI Intelligence) moves BELOW the main content
-- OR: Right panel becomes a bottom sheet / drawer that slides up
+On mobile (< 768px):
+- Today page is already single-column (700px max-width), so it adapts naturally to mobile
+- Content stacks vertically at full width
 - Readiness card stays at top
-- Today's card is full width
 - Charts are full width, single column
 - Working Goals accessible via a floating button or tab bar
 
 Consider a bottom tab bar on mobile:
-`[Dashboard] [Calendar] [Health Lab] [Connect] [Settings]`
+`[Today] [Performance] [Health Lab] [Connect] [Settings]`
 With the AI panel accessible via a floating "✦" button in bottom-right corner.

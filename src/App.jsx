@@ -2,7 +2,8 @@ import { Routes, Route } from "react-router-dom";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import ConnectApps from "./pages/ConnectApps";
-import Dashboard from "./pages/Dashboard";
+import Today from "./pages/Today";
+import DashboardLegacy from "./pages/DashboardLegacy";
 import Boosters from "./pages/Boosters";
 import HealthLab from "./pages/HealthLab";
 import Sleep from "./pages/Sleep";
@@ -38,7 +39,8 @@ export default function App() {
       <Route path="/accept-terms" element={<ProtectedRoute><AcceptTerms /></ProtectedRoute>} />
       <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
       <Route path="/connect" element={<ProtectedRoute><ConnectApps /></ProtectedRoute>} />
-      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/dashboard" element={<ProtectedRoute><Today /></ProtectedRoute>} />
+      <Route path="/dashboard-legacy" element={<ProtectedRoute><DashboardLegacy /></ProtectedRoute>} />
       <Route path="/activities" element={<ProtectedRoute><Activities /></ProtectedRoute>} />
       <Route path="/workout-db" element={<ProtectedRoute><WorkoutDatabase /></ProtectedRoute>} />
       <Route path="/performance" element={<ProtectedRoute><Performance /></ProtectedRoute>} />
