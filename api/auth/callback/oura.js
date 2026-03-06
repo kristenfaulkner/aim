@@ -22,7 +22,7 @@ export default async function handler(req, res) {
       client_secret: process.env.OURA_CLIENT_SECRET,
       code,
       grant_type: "authorization_code",
-      redirect_uri: "https://aimfitness.ai/api/auth/callback/oura",
+      redirect_uri: `${process.env.APP_URL || `https://${req.headers.host}`}/api/auth/callback/oura`,
     }),
   });
 
