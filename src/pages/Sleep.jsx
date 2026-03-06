@@ -436,11 +436,18 @@ export default function Sleep() {
                     {sleepSummary.greeting && (
                       <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>{sleepSummary.greeting}</div>
                     )}
-                    {sleepSummary.metrics_line && (
-                      <div style={{ fontSize: 11, color: T.accent, fontFamily: mono, marginBottom: 10, padding: "8px 12px", background: T.bg, borderRadius: 8 }}>
-                        {sleepSummary.metrics_line}
-                      </div>
-                    )}
+                    {sleepSummary.metrics_line && (() => {
+                      const parts = sleepSummary.metrics_line.split(" · ");
+                      const mid = Math.ceil(parts.length / 2);
+                      const line1 = parts.slice(0, mid).join(" · ");
+                      const line2 = parts.slice(mid).join(" · ");
+                      return (
+                        <div style={{ fontSize: 11, color: T.accent, fontFamily: mono, marginBottom: 10, padding: "8px 12px", background: T.bg, borderRadius: 8, lineHeight: 1.8 }}>
+                          <div>{line1}</div>
+                          {line2 && <div>{line2}</div>}
+                        </div>
+                      );
+                    })()}
                     {sleepSummary.summary && (
                       <div style={{ fontSize: 12, color: T.textSoft, lineHeight: 1.7, marginBottom: 8 }}>
                         <FormattedText text={sleepSummary.summary} />
