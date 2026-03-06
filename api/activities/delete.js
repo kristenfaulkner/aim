@@ -1,6 +1,6 @@
 import { supabaseAdmin } from "../_lib/supabase.js";
 import { verifySession, cors } from "../_lib/auth.js";
-import { updateDailyMetrics } from "../_lib/training-load.js";
+import { updateDailyMetrics, rebuildPowerProfile } from "../_lib/training-load.js";
 
 export default async function handler(req, res) {
   cors(res);
@@ -42,7 +42,14 @@ export default async function handler(req, res) {
   try {
     await updateDailyMetrics(session.userId, { started_at: activity.started_at });
   } catch (_) {
-    // Non-fatal: activity is already deleted, metrics will self-correct on next sync
+    // Non-fatal: metrics will self-correct on next sync
+  }
+
+  // Rebuild power profile bests + CP model + durability from remaining activities
+  try {
+    await rebuildPowerProfile(session.userId);
+  } catch (_) {
+    // Non-fatal: will self-correct on next sync
   }
 
   return res.status(200).json({ success: true });

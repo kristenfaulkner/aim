@@ -75,6 +75,146 @@ export async function updateDailyMetrics(userId, activity) {
 }
 
 /**
+ * Rebuild power profile bests from scratch by scanning all activities in the 90-day window.
+ * Used after activity deletion to ensure stale bests from deleted rides are removed.
+ * Also recomputes CP model and durability aggregate.
+ */
+export async function rebuildPowerProfile(userId) {
+  const cutoff = new Date(Date.now() - 90 * 86400000).toISOString();
+  const today = new Date().toISOString().split("T")[0];
+
+  // Fetch all activities with power curves in the 90-day window
+  const { data: activities } = await supabaseAdmin
+    .from("activities")
+    .select("power_curve")
+    .eq("user_id", userId)
+    .not("power_curve", "is", null)
+    .gte("started_at", cutoff);
+
+  // Get user weight for W/kg
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("weight_kg")
+    .eq("id", userId)
+    .single();
+  const weightKg = profile?.weight_kg;
+
+  const durationKeys = ["5s", "30s", "1m", "5m", "20m", "60m"];
+  const durationMap = {
+    "5s": { watts: "best_5s_watts", wkg: "best_5s_wkg" },
+    "30s": { watts: "best_30s_watts", wkg: "best_30s_wkg" },
+    "1m": { watts: "best_1m_watts", wkg: "best_1m_wkg" },
+    "5m": { watts: "best_5m_watts", wkg: "best_5m_wkg" },
+    "20m": { watts: "best_20m_watts", wkg: "best_20m_wkg" },
+    "60m": { watts: "best_60m_watts", wkg: "best_60m_wkg" },
+  };
+
+  // Find actual bests across all remaining activities
+  const bests = {};
+  for (const key of durationKeys) {
+    let maxWatts = 0;
+    for (const a of (activities || [])) {
+      const val = a.power_curve?.[key];
+      if (val && val > maxWatts) maxWatts = val;
+    }
+    bests[durationMap[key].watts] = maxWatts || null;
+    bests[durationMap[key].wkg] = (maxWatts && weightKg) ? Math.round((maxWatts / weightKg) * 100) / 100 : null;
+  }
+
+  // Get existing power profile
+  const { data: existing } = await supabaseAdmin
+    .from("power_profiles")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("period_days", 90)
+    .order("computed_date", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (existing) {
+    await supabaseAdmin
+      .from("power_profiles")
+      .update(bests)
+      .eq("id", existing.id);
+  } else if (activities?.length) {
+    await supabaseAdmin
+      .from("power_profiles")
+      .upsert({
+        user_id: userId,
+        computed_date: today,
+        period_days: 90,
+        ...bests,
+      }, { onConflict: "user_id,computed_date,period_days" });
+  }
+
+  // Recompute CP model + durability from the rebuilt profile
+  try {
+    const { data: rebuilt } = await supabaseAdmin
+      .from("power_profiles")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("period_days", 90)
+      .order("computed_date", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (rebuilt) {
+      const cpResult = fitCPModel(rebuilt);
+      if (cpResult) {
+        const cpZones = computeCPZones(cpResult.cp_watts);
+        const snapshot = buildZonesSnapshot(cpResult.cp_watts, cpZones, today);
+        const existingHistory = rebuilt.zones_history || [];
+        const updatedHistory = [...existingHistory, snapshot].slice(-52);
+
+        await supabaseAdmin
+          .from("power_profiles")
+          .update({
+            cp_watts: cpResult.cp_watts,
+            w_prime_kj: cpResult.w_prime_kj,
+            pmax_watts: cpResult.pmax_watts,
+            cp_model_r_squared: cpResult.r_squared,
+            cp_model_data: cpResult.model_data,
+            cp_zones: cpZones,
+            zones_history: updatedHistory,
+          })
+          .eq("id", rebuilt.id);
+      }
+
+      // Re-aggregate durability
+      const { data: recentDurability } = await supabaseAdmin
+        .from("activities")
+        .select("started_at, durability_data")
+        .eq("user_id", userId)
+        .not("durability_data", "is", null)
+        .gte("started_at", cutoff)
+        .order("started_at", { ascending: false })
+        .limit(50);
+
+      if (recentDurability?.length >= 3) {
+        const agg = aggregateDurability(
+          recentDurability.map((a) => ({
+            date: a.started_at.split("T")[0],
+            durability_data: a.durability_data,
+          }))
+        );
+        if (agg) {
+          await supabaseAdmin
+            .from("power_profiles")
+            .update({
+              durability_score: agg.avgScore,
+              durability_buckets: agg.bestBuckets,
+              durability_trend: agg.trend,
+            })
+            .eq("id", rebuilt.id);
+        }
+      }
+    }
+  } catch (err) {
+    console.error("CP/durability rebuild failed (non-blocking):", err.message);
+  }
+}
+
+/**
  * Check and update power profile with any new personal bests.
  */
 export async function updatePowerProfile(userId, newCurve, weightKg) {
