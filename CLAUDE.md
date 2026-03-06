@@ -137,7 +137,7 @@ Cross-domain insights are the product. Every AI insight must connect 2+ data sou
 6. **Blood panel analysis** — PDF/image OCR extraction + cross-reference with training data
 7. **Chat coach** — real-time Q&A via `/api/chat/ask` with conversation history
 8. **Nutrition parsing** — Claude-powered free-text → structured nutrition items with per-hour calculations via `/api/nutrition/parse`
-9. **Adaptive dashboard intelligence** — 3-mode AI (POST_RIDE/PRE_RIDE_PLANNED/DAILY_COACH) via `/api/dashboard/intelligence`
+9. **Adaptive dashboard intelligence** — 3-mode AI (POST_RIDE/MORNING_WITH_PLAN/MORNING_RECOVERY) via `/api/dashboard/intelligence`, Claude Opus 4.6, server-side cache (`intelligence_cache` table) + frontend SWR cache (sessionStorage), weather+models parallelized
 10. **Athlete bio generation** — AI-generated 2-3 sentence profile description from activity history via `/api/profile/generate-bio`
 11. **Insight feedback loop** — thumbs up/down per insight, personalized category preferences injected into AI system prompt, global quality tracking via `/api/feedback/`
 12. **Training prescription engine** — power profile gap analysis (CP model comparison), readiness/TSB/race/weather/cross-training guards, Claude-generated structured workout with power targets, fueling, alternative. PrescriptionCard on Dashboard with Add to Calendar integration via `/api/prescription/next-workout`
@@ -147,6 +147,7 @@ Cross-domain insights are the product. Every AI insight must connect 2+ data sou
 See `docs/insights-catalog.md` for the full list with detailed examples. Active categories span: Body Comp→Performance, Sleep→Performance, HRV→Training, Environmental, Fatigue Signatures, Long-Term Adaptations, Nutrition, Predictive Analytics, Benchmarking, Menstrual Cycle, Boosters, Blood Work, DEXA, Workout Tagging, Weather Context, Interval Execution, Durability, Fueling Causality, Readiness-to-Response, Workout Progression, Anomaly Detection, Race-Specific Analysis, Subjective-Objective Alignment, Respiratory & Illness Warning, GI Tolerance, Perceived vs Actual Recovery, Travel & Environmental Disruption, Cross-Training Impact, W' Balance & Anaerobic Reserve, Segment Performance Analysis. Planned (P2/P3): Periodization, Personal Models, Plateau Detection, Team Health, Team Training Load, Shared Race Prep.
 
 ### Insight Quality Rules
+- **NEVER use the word "Athlete" as a name or greeting** in ANY AI prompt output — always use the user's actual first name from `profile.full_name`. All fallbacks should use `"there"` (for display text) or `null` (for AI context). Every AI system prompt must include this rule.
 - Connect 2+ data sources in most insights
 - Use specific numbers from the athlete's own data
 - Compare to athlete's own history before population benchmarks

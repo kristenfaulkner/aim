@@ -165,6 +165,7 @@ function detectMode(todayActivity, todayPlannedWorkout) {
 /**
  * POST /api/dashboard/intelligence
  * AI-powered daily intelligence briefing with auto-detected mode.
+ * Uses server-side caching to avoid redundant Claude calls.
  */
 export default async function handler(req, res) {
   cors(res);
@@ -188,7 +189,7 @@ export default async function handler(req, res) {
     const todayEnd = new Date(new Date(today + "T00:00:00Z").getTime() + 36 * 3600000).toISOString();
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
-    // Fetch all context in parallel
+    // ── Step 1: Fetch all context in parallel ──
     const ninetyDaysAgo = new Date(Date.now() - 90 * 86400000).toISOString();
     const [
       profileResult,
@@ -210,7 +211,7 @@ export default async function handler(req, res) {
         .single(),
       supabaseAdmin
         .from("activities")
-        .select("id, name, activity_type, started_at, duration_seconds, distance_meters, avg_power_watts, normalized_power_watts, max_power_watts, tss, intensity_factor, variability_index, efficiency_factor, hr_drift_pct, avg_hr_bpm, max_hr_bpm, avg_cadence_rpm, avg_speed_mps, calories, work_kj, elevation_gain_meters, temperature_celsius, activity_weather, perceived_exertion, gi_comfort, mental_focus, perceived_recovery_pre, description, source_data, laps, zone_distribution")
+        .select("id, name, activity_type, started_at, duration_seconds, distance_meters, avg_power_watts, normalized_power_watts, max_power_watts, tss, intensity_factor, variability_index, efficiency_factor, hr_drift_pct, avg_hr_bpm, max_hr_bpm, avg_cadence_rpm, avg_speed_mps, calories, work_kj, elevation_gain_meters, temperature_celsius, activity_weather, perceived_exertion, gi_comfort, mental_focus, perceived_recovery_pre, description, laps, zone_distribution")
         .eq("user_id", session.userId)
         .gte("started_at", todayStart)
         .lt("started_at", todayEnd)
@@ -231,7 +232,7 @@ export default async function handler(req, res) {
         .order("date", { ascending: false }),
       supabaseAdmin
         .from("activities")
-        .select("id, activity_type, name, started_at, duration_seconds, distance_meters, tss, normalized_power_watts, avg_power_watts, avg_hr_bpm, max_hr_bpm, intensity_factor, elevation_gain_meters, source_data")
+        .select("id, activity_type, name, started_at, duration_seconds, distance_meters, tss, normalized_power_watts, avg_power_watts, avg_hr_bpm, max_hr_bpm, intensity_factor, elevation_gain_meters")
         .eq("user_id", session.userId)
         .order("started_at", { ascending: false })
         .limit(5),
@@ -278,8 +279,35 @@ export default async function handler(req, res) {
     const todayPlannedWorkout = getData(todayPlannedResult);
     const dailyMetrics = getData(dailyMetricsResult) || [];
     const recentActivities = getData(recentActivitiesResult) || [];
+    const integrations = getData(integrationsResult) || [];
 
-    // Fetch weather — profile location, fallback to recent activity location
+    // Determine mode
+    let mode = requestedMode || detectMode(todayActivity, todayPlannedWorkout);
+    if (mode === "PRE_RIDE_PLANNED") mode = "MORNING_WITH_PLAN";
+    if (mode === "DAILY_COACH") mode = "MORNING_RECOVERY";
+
+    // ── Step 2: Check server-side cache ──
+    // Cache key includes: date, mode, latest activity, latest metrics timestamp
+    const latestMetricsKey = dailyMetrics[0]
+      ? `${dailyMetrics[0].date}|${dailyMetrics[0].checkin_completed_at || ""}`
+      : "";
+    const cacheKey = `${today}|${mode}|${todayActivity?.id || ""}|${latestMetricsKey}`;
+
+    try {
+      const { data: cached } = await supabaseAdmin
+        .from("intelligence_cache")
+        .select("mode, intelligence")
+        .eq("user_id", session.userId)
+        .eq("cache_key", cacheKey)
+        .single();
+      if (cached) {
+        return res.status(200).json({ mode: cached.mode, intelligence: cached.intelligence, cached: true });
+      }
+    } catch {
+      // Table may not exist yet or no cache hit — continue to generate fresh
+    }
+
+    // ── Step 3: Weather + performance models in parallel ──
     let weatherLat = profile?.location_lat;
     let weatherLng = profile?.location_lng;
     if (!weatherLat || !weatherLng) {
@@ -290,33 +318,32 @@ export default async function handler(req, res) {
         weatherLng = loc.lng;
       }
     }
-    let weatherForecast = null;
-    try {
-      if (weatherLat && weatherLng) {
-        weatherForecast = await fetchWeatherForecast(weatherLat, weatherLng);
-      }
-    } catch { /* weather is best-effort */ }
 
-    // Compute performance models from 90-day history
     const allActivities90d = getData(allActivitiesResult) || [];
     const nutritionLogs = getData(nutritionResult) || [];
-    let performanceModels = null;
-    if (allActivities90d.length >= 5) {
-      const dailyMetrics90d = getData(dailyMetricsResult) || [];
-      const pairs = matchActivitiesToContext(allActivities90d, dailyMetrics90d, nutritionLogs, profile?.weight_kg);
-      performanceModels = computeAllModels(pairs);
-    }
 
-    // Determine mode (support legacy mode names for backward compat)
-    let mode = requestedMode || detectMode(todayActivity, todayPlannedWorkout);
-    if (mode === "PRE_RIDE_PLANNED") mode = "MORNING_WITH_PLAN";
-    if (mode === "DAILY_COACH") mode = "MORNING_RECOVERY";
+    // Run weather fetch and model computation concurrently
+    const [weatherResult, modelsResult] = await Promise.allSettled([
+      weatherLat && weatherLng
+        ? fetchWeatherForecast(weatherLat, weatherLng)
+        : Promise.resolve(null),
+      Promise.resolve(
+        allActivities90d.length >= 5
+          ? computeAllModels(
+              matchActivitiesToContext(allActivities90d, dailyMetrics, nutritionLogs, profile?.weight_kg)
+            )
+          : null
+      ),
+    ]);
 
-    // Build context for Claude
+    const weatherForecast = weatherResult.status === "fulfilled" ? weatherResult.value : null;
+    const performanceModels = modelsResult.status === "fulfilled" ? modelsResult.value : null;
+
+    // ── Step 4: Build context for Claude ──
     const firstName = profile?.full_name?.split(" ")[0] || null;
     const profileSafe = profile ? { ...profile, first_name: firstName } : {};
     const modelsText = performanceModels ? formatModelsForAI(performanceModels) : "";
-    // Subjective check-in from today's daily metrics
+
     const todayMetrics = dailyMetrics.find((d) => d.date === today);
     const subjectiveCheckin = todayMetrics?.life_stress_score ? {
       lifeStress: todayMetrics.life_stress_score,
@@ -328,7 +355,6 @@ export default async function handler(req, res) {
     const travelEvents = getData(travelResult) || [];
     const crossTrainingLog = getData(crossTrainingResult) || [];
     const workingGoals = getData(goalsResult) || [];
-    const integrations = getData(integrationsResult) || [];
 
     const context = {
       athlete: profileSafe,
@@ -344,7 +370,6 @@ export default async function handler(req, res) {
       connectedSources: integrations.map((i) => i.provider),
     };
 
-    // Add mode-specific context
     let systemPrompt;
     if (mode === "POST_RIDE") {
       context.todayActivity = todayActivity;
@@ -356,9 +381,10 @@ export default async function handler(req, res) {
       systemPrompt = MORNING_RECOVERY_PROMPT;
     }
 
+    // ── Step 5: Call Claude Opus ──
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 4000,
+      model: "claude-opus-4-6",
+      max_tokens: 2500,
       system: systemPrompt,
       messages: [{
         role: "user",
@@ -387,6 +413,19 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: "Failed to parse AI intelligence response" });
       }
     }
+
+    // ── Step 6: Cache result (fire-and-forget) ──
+    supabaseAdmin
+      .from("intelligence_cache")
+      .upsert({
+        user_id: session.userId,
+        cache_key: cacheKey,
+        mode,
+        intelligence,
+        created_at: new Date().toISOString(),
+      })
+      .then(() => {})
+      .catch(() => {});
 
     return res.status(200).json({ mode, intelligence });
   } catch (err) {
