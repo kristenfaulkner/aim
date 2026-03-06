@@ -341,7 +341,7 @@ export default function Landing() {
     return () => window.removeEventListener("scroll", h);
   }, []);
 
-  const ctaText = user ? "Go to Dashboard" : "Start free \u2014 connect your apps";
+  const ctaText = user ? "Go to Dashboard" : "Create Account";
   const ctaRoute = user ? "/dashboard" : "/signup";
   const visibleInsights = isMobile && !showAllInsights ? INSIGHTS.slice(0, 4) : INSIGHTS;
 
@@ -386,7 +386,7 @@ export default function Landing() {
         transition: "all 0.3s", display: "flex", alignItems: "center",
         padding: isMobile ? "0 16px" : "0 40px",
       }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", maxWidth: 1120, margin: "0 auto" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
           <Link to="/" style={{ display: "flex", alignItems: "center", gap: isMobile ? 7 : 8, textDecoration: "none", color: T.text }}>
             <div style={{ width: isMobile ? 28 : 30, height: isMobile ? 28 : 30, borderRadius: isMobile ? 7 : 8, background: T.gradient, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <span style={{ color: "white", fontWeight: 800, fontSize: isMobile ? 12 : 13 }}>AI</span>

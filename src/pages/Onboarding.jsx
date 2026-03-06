@@ -4,6 +4,7 @@ import { T, font } from "../theme/tokens";
 import { btn, inputStyle } from "../theme/styles";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabase";
+import { apiFetch } from "../lib/api";
 import { computePowerZones, computeHRZones } from "../lib/zones";
 import { ArrowRight, Loader2, Shield } from "lucide-react";
 import { useResponsive } from "../hooks/useResponsive";
@@ -110,6 +111,9 @@ export default function Onboarding() {
           if (settingsErr) console.error("Settings save failed:", settingsErr.message);
         });
       }
+
+      // Send welcome email (fire-and-forget)
+      apiFetch("/email/welcome", { method: "POST" }).catch(() => {});
 
       navigate("/connect");
     } catch (err) {
