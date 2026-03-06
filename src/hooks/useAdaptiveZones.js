@@ -14,10 +14,8 @@ export function useAdaptiveZones() {
     if (!user) return;
     setLoading(true);
     try {
-      const res = await apiFetch("/api/zones/adaptive");
-      if (res.ok) {
-        setData(await res.json());
-      }
+      const data = await apiFetch("/zones/adaptive");
+      setData(data);
     } catch {
       // non-blocking
     } finally {

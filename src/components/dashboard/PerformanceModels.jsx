@@ -188,8 +188,8 @@ export default function PerformanceModels({ isMobile }) {
     (async () => {
       try {
         const [modelsData, durData] = await Promise.all([
-          apiFetch("/api/models/summary"),
-          apiFetch("/api/durability/summary").catch(() => null),
+          apiFetch("/models/summary"),
+          apiFetch("/durability/summary").catch(() => null),
         ]);
         setModels(modelsData.models || null);
         if (durData?.score != null) setDurabilityScore(durData.score);

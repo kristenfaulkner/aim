@@ -130,7 +130,7 @@ export default function Settings() {
       } catch (e) { /* use defaults */ }
       // Load HR priority config
       try {
-        const hrRes = await apiFetch("/api/settings/hr-priority");
+        const hrRes = await apiFetch("/settings/hr-priority");
         if (hrRes?.configs) {
           setHrConfigs(hrRes.configs);
           setHrConnectedProviders(hrRes.connectedProviders || []);
@@ -513,7 +513,7 @@ export default function Settings() {
                       setHrConfigs(prev => ({ ...prev, [ctx]: { ...prev[ctx], priority: newPriority, is_custom: true } }));
                       setHrSaving(true);
                       try {
-                        await apiFetch("/api/settings/hr-priority", { method: "PUT", body: JSON.stringify({ context: ctx, priority: newPriority }) });
+                        await apiFetch("/settings/hr-priority", { method: "PUT", body: JSON.stringify({ context: ctx, priority: newPriority }) });
                         setHrSaved(true);
                         setTimeout(() => setHrSaved(false), 2000);
                       } catch (e) {
@@ -525,9 +525,9 @@ export default function Settings() {
                     const resetToDefaults = async () => {
                       setHrSaving(true);
                       try {
-                        await apiFetch("/api/settings/hr-priority", { method: "DELETE", body: JSON.stringify({ context: ctx }) });
+                        await apiFetch("/settings/hr-priority", { method: "DELETE", body: JSON.stringify({ context: ctx }) });
                         // Re-fetch
-                        const hrRes = await apiFetch("/api/settings/hr-priority");
+                        const hrRes = await apiFetch("/settings/hr-priority");
                         if (hrRes?.configs) setHrConfigs(hrRes.configs);
                         setHrSaved(true);
                         setTimeout(() => setHrSaved(false), 2000);
@@ -990,7 +990,7 @@ export default function Settings() {
                   try {
                     while (rounds < 20) {
                       rounds++;
-                      const res = await apiFetch("/api/activities/backfill-intervals", { method: "POST", body: { mode: "all" } });
+                      const res = await apiFetch("/activities/backfill-intervals", { method: "POST", body: { mode: "all" } });
                       totalIntervals += res.intervals || 0;
                       totalTags += res.tags || 0;
                       totalWeather += res.weather || 0;

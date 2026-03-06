@@ -37,7 +37,7 @@ export default function InsightFeedback({
   const submitFeedback = useCallback(async (value, text) => {
     setSubmitting(true);
     try {
-      await apiFetch("/api/feedback/submit", {
+      await apiFetch("/feedback/submit", {
         method: "POST",
         body: JSON.stringify({
           activity_id: activityId || null,

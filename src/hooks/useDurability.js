@@ -14,10 +14,8 @@ export function useDurability() {
     if (!user) return;
     setLoading(true);
     try {
-      const res = await apiFetch("/api/durability/summary");
-      if (res.ok) {
-        setData(await res.json());
-      }
+      const data = await apiFetch("/durability/summary");
+      setData(data);
     } catch {
       // non-blocking
     } finally {

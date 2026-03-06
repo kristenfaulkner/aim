@@ -339,7 +339,7 @@ export default function WorkoutDatabase() {
 
   // Load smart chips on mount
   useEffect(() => {
-    apiFetch("/api/activities/smart-chips")
+    apiFetch("/activities/smart-chips")
       .then(data => {
         setChips(data.chips || []);
         setTagCounts(data.tagCounts || {});
@@ -364,7 +364,7 @@ export default function WorkoutDatabase() {
         limit: 100,
         ...queryOverrides,
       };
-      const data = await apiFetch("/api/activities/query", {
+      const data = await apiFetch("/activities/query", {
         method: "POST",
         body: JSON.stringify(body),
       });
