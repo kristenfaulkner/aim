@@ -672,8 +672,9 @@ export default function Settings() {
                     />
                     <span style={{ fontSize: 12, color: T.textSoft, lineHeight: 1.6 }}>
                       I agree to receive automated text messages from AIM Performance at the phone number provided, including AI-powered workout summaries, training insights, and coaching messages. Message frequency varies. Msg & data rates may apply. Reply <strong style={{ color: T.text }}>STOP</strong> to unsubscribe at any time. Reply <strong style={{ color: T.text }}>HELP</strong> for help. View our{" "}
-                      <a href="https://aimfitness.ai/privacy" target="_blank" rel="noopener noreferrer" style={{ color: T.accent, textDecoration: "underline" }}>Privacy Policy</a> and{" "}
-                      <a href="https://aimfitness.ai/terms" target="_blank" rel="noopener noreferrer" style={{ color: T.accent, textDecoration: "underline" }}>Terms & Conditions</a>.
+                      <a href="/sms-consent" target="_blank" rel="noopener noreferrer" style={{ color: T.accent, textDecoration: "underline" }}>SMS Terms</a>,{" "}
+                      <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: T.accent, textDecoration: "underline" }}>Privacy Policy</a>, and{" "}
+                      <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: T.accent, textDecoration: "underline" }}>Terms & Conditions</a>.
                     </span>
                   </label>
                 </div>

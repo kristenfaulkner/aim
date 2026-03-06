@@ -12,6 +12,7 @@ import Terms from "./pages/legal/Terms";
 import CookiePolicy from "./pages/legal/CookiePolicy";
 import DataProcessing from "./pages/legal/DataProcessing";
 import GDPR from "./pages/legal/GDPR";
+import SmsConsent from "./pages/legal/SmsConsent";
 import Settings from "./pages/Settings";
 import Profile from "./pages/Profile";
 import Onboarding from "./pages/Onboarding";
@@ -53,6 +54,7 @@ export default function App() {
       <Route path="/cookies" element={<CookiePolicy />} />
       <Route path="/data-processing" element={<DataProcessing />} />
       <Route path="/gdpr" element={<GDPR />} />
+      <Route path="/sms-consent" element={<SmsConsent />} />
     </Routes>
     <Footer />
     </>
