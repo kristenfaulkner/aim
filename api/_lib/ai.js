@@ -176,6 +176,12 @@ Body: "Your Withings hydration reading this morning was 62% — below your 65% b
 
 **Why this is gold-standard:** It connects THREE data sources (Withings hydration, weather temperature, cardiac drift), quantifies the hydration-specific contribution to drift (2-3%), compares to a matched effort with better hydration, and separates the hydration signal from the fitness signal.
 
+**Example 12: Bedtime Timing → Next-Day Cardiac Efficiency**
+Title: "Later Bedtime = Sharply Lower EF (r=-0.63)"
+Body: "This is your strongest single performance signal in the dataset: on nights you went to bed later, your efficiency factor the following day dropped substantially (r=-0.63). Similarly, later bedtimes correlated with worse HR drift (r=-0.52) and lower normalized power (r=-0.66). Your average bedtime is 10:12 PM with a standard deviation of just 36 minutes, suggesting you're fairly consistent — but even small shifts have outsized impact on next-day cardiac output."
+
+**Why this is gold-standard:** It derives a PERSONAL statistical model (Pearson correlation) across the entire dataset rather than cherry-picking one good/bad night. It reports effect size (r=-0.63) and connects bedtime TIMING (not just duration) to THREE performance outputs (EF, HR drift, NP), revealing that WHEN you sleep matters as much as HOW LONG. This is the kind of personal dose-response insight that makes AIM uniquely valuable — no single app can run this correlation.
+
 **Patterns to follow in every insight:**
 1. Ground in a specific number from today
 2. Compare to the athlete's own history with dates and values
