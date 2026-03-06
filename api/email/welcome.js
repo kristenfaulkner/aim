@@ -10,6 +10,20 @@ const PHOTO_URL = `${BASE_URL}/kristen.jpg`;
 const LOGO_URL = `${BASE_URL}/logos/aim-logo-2x.png`;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Reusable CTA button HTML
+// ─────────────────────────────────────────────────────────────────────────────
+
+function connectButton(text = "Connect Your Devices") {
+  return `<table width="100%" cellpadding="0" cellspacing="0">
+<tr><td style="padding:20px 0 4px;text-align:center;">
+<a href="${BASE_URL}/connect" style="display:inline-block;background:linear-gradient(135deg,#10b981,#3b82f6);color:#ffffff;font-weight:700;font-size:13px;padding:12px 32px;border-radius:8px;text-decoration:none;">
+${text} &rarr;
+</a>
+</td></tr>
+</table>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Personalized insight examples based on athlete profile
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -24,7 +38,7 @@ function getInsightExamples(profile) {
     icon: "&#128164;",
     label: "Sleep &#8594; Performance",
     title: "Poor Sleep Explained Today's Cardiac Drift",
-    body: "Your HRV dropped to 38ms after 5.2 hours of sleep. Historically, when your HRV is below 45ms, cardiac drift averages 8-12% vs. 3-4% on well-rested days. Today's 9.1% drift confirms the pattern &mdash; your fitness is fine, your recovery wasn't.",
+    body: "Your HRV dropped to 38ms after 5.2 hours of sleep. Historically, when your HRV is below 45ms, cardiac drift averages 8 to 12% vs. 3 to 4% on well-rested days. Today's 9.1% drift confirms the pattern. Your fitness is fine, your recovery wasn't.",
   });
 
   // Everyone gets a heat/environment example
@@ -32,7 +46,7 @@ function getInsightExamples(profile) {
     icon: "&#127777;&#65039;",
     label: "Environment &#8594; Power Output",
     title: "Heat Cost You 4.2% Today",
-    body: "At 91&deg;F, your Efficiency Factor dropped to 1.68 vs. your cool-weather average of 1.79. Your personal heat model shows EF degrades 0.005 per &deg;F above 65&deg;F. After adjusting for temperature, today's effort was actually equivalent to 285W in ideal conditions &mdash; stronger than it felt.",
+    body: "At 91&deg;F, your Efficiency Factor dropped to 1.68 vs. your cool-weather average of 1.79. Your personal heat model shows EF degrades 0.005 per &deg;F above 65&deg;F. After adjusting for temperature, today's effort was actually equivalent to 285W in ideal conditions. Stronger than it felt.",
   });
 
   // Elite cyclists get granular power analytics
@@ -41,15 +55,15 @@ function getInsightExamples(profile) {
       icon: "&#9889;",
       label: "Power Profile &#8594; Race Readiness",
       title: "VO2max is Your Weakest Link: Cat 3 vs. Cat 1 Threshold",
-      body: "Your 5-min power classifies two tiers below your 20-min threshold. Your VO2/FTP ratio is 1.19 &mdash; well below the 1.25 target. You need +19W at 5-min to close the gap. Consider adding 2&times; per week VO2 sessions for 6-8 weeks.",
+      body: "Your 5-min power classifies two tiers below your 20-min threshold. Your VO2/FTP ratio is 1.19, well below the 1.25 target. You need +19W at 5-min to close the gap. Consider adding 2&times; per week VO2 sessions for 6 to 8 weeks.",
     });
   } else {
     // Recreational/intermediate get a training load example
     examples.push({
       icon: "&#128200;",
       label: "Training Load &#8594; Recovery",
-      title: "Your Fitness Is Up 12% &mdash; But Watch the Fatigue",
-      body: "Your CTL has climbed from 52 to 68 over 6 weeks &mdash; great progress. But your acute:chronic ratio hit 1.4 this week, which historically precedes a performance dip within 5 days. A recovery day tomorrow would protect your gains.",
+      title: "Your Fitness Is Up 12%, But Watch the Fatigue",
+      body: "Your CTL has climbed from 52 to 68 over 6 weeks. Great progress. But your acute:chronic ratio hit 1.4 this week, which historically precedes a performance dip within 5 days. A recovery day tomorrow would protect your gains.",
     });
   }
 
@@ -59,7 +73,7 @@ function getInsightExamples(profile) {
       icon: "&#127800;",
       label: "Cycle Phase &#8594; Performance",
       title: "Luteal Phase: Expect Higher HR at Same Power",
-      body: "Based on your Oura temperature data, you're likely in your mid-luteal phase. Your resting HR is 4bpm above your follicular baseline and HRV is 15% lower. This is normal &mdash; your body is working harder at the same effort. Consider shifting today's intervals to tempo/sweet spot instead of VO2.",
+      body: "Based on your Oura temperature data, you're likely in your mid-luteal phase. Your resting HR is 4bpm above your follicular baseline and HRV is 15% lower. This is normal. Your body is working harder at the same effort. Consider shifting today's intervals to tempo/sweet spot instead of VO2.",
     });
   }
 
@@ -68,7 +82,7 @@ function getInsightExamples(profile) {
     icon: "&#127828;",
     label: "Nutrition &#8594; Power Fade",
     title: "Under-Fueled: Power Dropped 11% in Final Hour",
-    body: "You consumed ~40g carbs/hr on a 3-hour ride, but your intensity demanded 60-80g/hr. Your power in the last 30 minutes averaged 228W vs. 256W in the first hour &mdash; classic glycogen depletion. On your Feb 18 ride where you fueled at 70g/hr, you held power within 3% for the full duration.",
+    body: "You consumed ~40g carbs/hr on a 3-hour ride, but your intensity demanded 60 to 80g/hr. Your power in the last 30 minutes averaged 228W vs. 256W in the first hour. Classic glycogen depletion. On your Feb 18 ride where you fueled at 70g/hr, you held power within 3% for the full duration.",
   });
 
   return examples;
@@ -127,11 +141,9 @@ function buildWelcomeHtml(profile) {
 <tr><td align="center" style="padding:24px 16px;">
 <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
 
-<!-- Header -->
+<!-- Header: Logo -->
 <tr><td style="padding:20px 0 24px;text-align:center;">
-<span style="font-size:28px;font-weight:800;color:#1a1a2e;letter-spacing:-0.03em;">
-<span style="background:linear-gradient(135deg,#10b981,#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">AI</span>M
-</span>
+<img src="${LOGO_URL}" width="80" alt="AIM" style="display:inline-block;" />
 </td></tr>
 
 <!-- Founder photo + letter -->
@@ -139,7 +151,7 @@ function buildWelcomeHtml(profile) {
 <table width="100%" cellpadding="0" cellspacing="0">
 <tr>
 <td style="vertical-align:top;padding-right:20px;" width="90">
-<img src="${PHOTO_URL}" width="80" height="80" alt="Kristen Faulkner" style="border-radius:50%;display:block;object-fit:cover;border:2px solid #e8e8ec;" />
+<img src="${PHOTO_URL}" width="80" height="80" alt="Kristen Faulkner" style="border-radius:50%;display:block;object-fit:cover;object-position:center 20%;border:2px solid #e8e8ec;" />
 </td>
 <td style="vertical-align:top;">
 <h2 style="color:#1a1a2e;font-size:20px;font-weight:700;margin:0 0 2px;">Welcome to AIM, ${firstName}!</h2>
@@ -151,33 +163,35 @@ function buildWelcomeHtml(profile) {
 <div style="color:#4a4a5a;font-size:14px;line-height:1.75;margin-top:16px;">
 <p style="margin:0 0 14px;">Thanks for signing up! I'm Kristen, and I wanted to personally welcome you to AIM.</p>
 
-<p style="margin:0 0 14px;">I've always been obsessed with data. In venture capital, I built models to find patterns others missed. On the bike, I did the same thing &mdash; tracking every metric I could get my hands on. Power. Sleep. HRV. Blood work. Body composition. Hormone cycles.</p>
+<p style="margin:0 0 14px;">I've always been obsessed with data. As an investor, I spent years building models and looking for patterns. On the bike, I did the same thing, tracking every metric I could get my hands on. Power. Sleep. HRV. Blood work. Body composition. Hormone cycles.</p>
 
-<p style="margin:0 0 14px;">The more data I collected, the more overwhelmed I became. Not because any single metric was confusing &mdash; but because the connections between them were invisible. I knew my sleep affected my power. I knew my ferritin affected my endurance. I knew my cycle affected my heart rate. But I was the only one connecting those dots, and I was exhausted from trying.</p>
+<p style="margin:0 0 14px;">The more data I collected, the more overwhelmed I became. Not because any single metric was confusing, but because the connections between them were invisible. I knew my sleep affected my power. I knew my ferritin affected my endurance. I knew my cycle affected my heart rate. But I was the only one connecting those dots, and I was exhausted from trying.</p>
 
-<p style="margin:0 0 14px;">So I built the tool I wished existed. AIM is everything I learned on the way to two Olympic gold medals &mdash; the biomarker patterns, the recovery frameworks, the cross-domain analysis that actually changed how I trained and raced.</p>
+<p style="margin:0 0 14px;">So I built the tool I wished existed. AIM is everything I learned on the way to two Olympic gold medals: the biomarker patterns, the recovery frameworks, the cross-domain analysis that actually changed how I trained and raced.</p>
 
-<p style="margin:0 0 14px;">Your health is your most valuable asset. I want every athlete to have access to this kind of intelligence &mdash; not just professionals.</p>
+<p style="margin:0 0 14px;">Our health is our most valuable asset. I want every athlete to have access to this kind of intelligence, not just professionals.</p>
 
-<p style="margin:0 0 14px;">If you have any questions or feature requests, reply to this email &mdash; I read every one. We are here to serve you.</p>
+<p style="margin:0 0 14px;">If you have any questions or feature requests, reply to this email. I read every one. We are here to serve you.</p>
 
-<p style="margin:0 0 14px;">Let's aim higher together. I can't wait to see what we achieve.</p>
+<p style="margin:0 0 14px;">Welcome to the community. Let's aim higher together.</p>
 
 <p style="margin:0;">
 <strong>Kristen Faulkner</strong><br/>
-<span style="color:#6b6b7b;font-size:12px;">Founder, AIM &mdash; 2x Olympic Gold Medalist, Paris 2024</span>
+<span style="color:#6b6b7b;font-size:12px;">Founder, AIM &bull; 2x Olympic Gold Medalist, Paris 2024</span>
 </p>
 </div>
+
+${connectButton("Get Started")}
 </td></tr>
 
 <!-- Divider -->
-<tr><td style="background-color:#ffffff;padding:24px 32px 0;border-left:1px solid #e8e8ec;border-right:1px solid #e8e8ec;">
+<tr><td style="background-color:#ffffff;padding:20px 32px 0;border-left:1px solid #e8e8ec;border-right:1px solid #e8e8ec;">
 <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="border-top:1px solid #e8e8ec;"></td></tr></table>
 </td></tr>
 
 <!-- Get Started Section -->
 <tr><td style="background-color:#ffffff;padding:24px 32px;border-left:1px solid #e8e8ec;border-right:1px solid #e8e8ec;">
-<h3 style="color:#1a1a2e;font-size:16px;font-weight:700;margin:0 0 16px;">Get Started in 3 Steps</h3>
+<h3 style="color:#1a1a2e;font-size:16px;font-weight:700;margin:0 0 16px;">How It Works</h3>
 <table width="100%" cellpadding="0" cellspacing="0">
 <tr><td style="padding:0 0 12px;">
 <table cellpadding="0" cellspacing="0"><tr>
@@ -186,7 +200,7 @@ function buildWelcomeHtml(profile) {
 </td>
 <td style="vertical-align:top;">
 <div style="font-size:14px;font-weight:700;color:#1a1a2e;">Connect your devices</div>
-<div style="font-size:12px;color:#6b6b7b;line-height:1.5;">Link Strava, Wahoo, Oura, Whoop, Eight Sleep, Withings &mdash; whatever you use. Each connection unlocks new cross-domain insights.</div>
+<div style="font-size:12px;color:#6b6b7b;line-height:1.5;">Link Strava, Wahoo, Oura, Whoop, Eight Sleep, Withings. Whatever you use. Each connection unlocks new cross-domain insights.</div>
 </td>
 </tr></table>
 </td></tr>
@@ -208,11 +222,13 @@ function buildWelcomeHtml(profile) {
 </td>
 <td style="vertical-align:top;">
 <div style="font-size:14px;font-weight:700;color:#1a1a2e;">Get smarter every day</div>
-<div style="font-size:12px;color:#6b6b7b;line-height:1.5;">The more data AIM has, the better it gets. After 2-3 weeks, AIM builds your personal performance models &mdash; your own dose-response curves for sleep, heat, nutrition, and more.</div>
+<div style="font-size:12px;color:#6b6b7b;line-height:1.5;">The more data AIM has, the better it gets. After 2 to 3 weeks, AIM builds your personal performance models: your own dose-response curves for sleep, heat, nutrition, and more.</div>
 </td>
 </tr></table>
 </td></tr>
 </table>
+
+${connectButton("Connect Your Devices")}
 </td></tr>
 
 <!-- Divider -->
@@ -223,10 +239,12 @@ function buildWelcomeHtml(profile) {
 <!-- The More You Connect Section -->
 <tr><td style="background-color:#ffffff;padding:24px 32px;border-left:1px solid #e8e8ec;border-right:1px solid #e8e8ec;">
 <h3 style="color:#1a1a2e;font-size:16px;font-weight:700;margin:0 0 4px;">The More You Connect, The Smarter AIM Gets</h3>
-<p style="color:#6b6b7b;font-size:13px;margin:0 0 16px;line-height:1.5;">Each device adds a new dimension to your analysis. AIM's magic is connecting data <em>across</em> sources &mdash; patterns no single app can see.</p>
+<p style="color:#6b6b7b;font-size:13px;margin:0 0 16px;line-height:1.5;">Each device adds a new dimension to your analysis. AIM's power is connecting data <em>across</em> sources, finding patterns no single app can see.</p>
 <table width="100%" cellpadding="0" cellspacing="0">
 ${integrationsHtml}
 </table>
+
+${connectButton("Connect Your Devices")}
 </td></tr>
 
 <!-- Divider -->
@@ -237,13 +255,15 @@ ${integrationsHtml}
 <!-- Insight Examples Section -->
 <tr><td style="background-color:#ffffff;padding:24px 32px 32px;border-radius:0 0 12px 12px;border:1px solid #e8e8ec;border-top:none;">
 <h3 style="color:#1a1a2e;font-size:16px;font-weight:700;margin:0 0 4px;">Here's What AIM Can Tell You</h3>
-<p style="color:#6b6b7b;font-size:13px;margin:0 0 16px;line-height:1.5;">These are real examples of cross-domain insights AIM generates by connecting your data sources:</p>
+<p style="color:#6b6b7b;font-size:13px;margin:0 0 16px;line-height:1.5;">Real examples of cross-domain insights AIM generates by connecting your data sources:</p>
 <table width="100%" cellpadding="0" cellspacing="0">
 ${examplesHtml}
 </table>
+
+${connectButton("Unlock These Insights")}
 </td></tr>
 
-<!-- CTA Button -->
+<!-- Final CTA Button -->
 <tr><td style="padding:28px 0;text-align:center;">
 <a href="${BASE_URL}/connect" style="display:inline-block;background:linear-gradient(135deg,#10b981,#3b82f6);color:#ffffff;font-weight:700;font-size:15px;padding:16px 48px;border-radius:10px;text-decoration:none;letter-spacing:-0.01em;">
 Connect Your Devices &rarr;
@@ -252,7 +272,7 @@ Connect Your Devices &rarr;
 
 <!-- Footer -->
 <tr><td style="padding:16px 0 8px;text-align:center;font-size:11px;color:#999;">
-<p style="margin:0;">AIM &mdash; AI-Powered Performance Intelligence</p>
+<p style="margin:0;">AIM &bull; AI-Powered Performance Intelligence</p>
 <p style="margin:4px 0 0;">
 <a href="${BASE_URL}/settings" style="color:#999;text-decoration:underline;">Manage email preferences</a>
 </p>
@@ -292,7 +312,7 @@ export async function sendWelcomeEmail(userId) {
 
   const result = await sendEmail(
     profile.email,
-    "Welcome to AIM — Let's Aim Higher Together",
+    "Welcome to AIM",
     html,
   );
 
@@ -307,7 +327,7 @@ export async function sendWelcomeEmail(userId) {
 
 /**
  * POST /api/email/welcome — Trigger welcome email (called from onboarding).
- * Also supports ?preview=true to send a test email to the authenticated user.
+ * Supports { preview: true } to send a test email to the authenticated user.
  */
 export default async function handler(req, res) {
   cors(res);
@@ -331,7 +351,7 @@ export default async function handler(req, res) {
       if (!profile?.email) return res.status(400).json({ error: "No email on profile" });
 
       const html = buildWelcomeHtml(profile);
-      const result = await sendEmail(profile.email, "[Preview] Welcome to AIM", html);
+      const result = await sendEmail(profile.email, "Welcome to AIM", html);
       return res.status(200).json({ sent: true, id: result.id, preview: true });
     } catch (err) {
       console.error("Welcome email preview error:", err);
