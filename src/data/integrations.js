@@ -1,7 +1,7 @@
 export const integrations = [
   { name: "Strava", logo: "/images/integrations/strava.svg", category: "activity", desc: "Activities, segments, routes, social", color: "#fc4c02" },
   { name: "Wahoo", logo: "/images/integrations/wahoo.svg", category: "activity", desc: "Ride data, power, HR, cadence", color: "#0078d4" },
-  { name: "Garmin", logo: "/images/integrations/garmin.svg", category: "activity", desc: "Activities, body battery, stress", color: "#00a2ad" },
+  { name: "Garmin", logo: "/images/integrations/garmin.svg", category: "activity", desc: "Activities, body battery, stress", color: "#00a2ad", note: "Coming soon — awaiting API approval" },
   { name: "TrainingPeaks", logo: "/images/integrations/trainingpeaks.svg", category: "activity", desc: "TSS, workouts, training plans", color: "#1a1a2e" },
   { name: "Zwift", logo: "/images/integrations/zwift.svg", category: "activity", desc: "Indoor rides, races, workouts", color: "#f26522" },
   { name: "TrainerRoad", logo: "/images/integrations/trainerroad.svg", category: "activity", desc: "Adaptive plans, compliance", color: "#e63946" },

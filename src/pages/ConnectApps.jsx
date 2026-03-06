@@ -16,7 +16,6 @@ const OAUTH_APPS = {
   Whoop: "/api/auth/connect/whoop",
   "Oura Ring": "/api/auth/connect/oura",
   Withings: "/api/auth/connect/withings",
-  Garmin: "/api/auth/connect/garmin",
 };
 
 // Apps that use email/password credentials instead of OAuth
