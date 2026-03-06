@@ -300,10 +300,10 @@ export default async function handler(req, res) {
     // Cache key includes: date, mode, latest activity, latest metrics timestamp, sleep data presence
     const todayDm = dailyMetrics.find(d => d.date === today);
     const sleepFingerprint = todayDm
-      ? `${todayDm.total_sleep_seconds || ""}|${todayDm.sleep_score || ""}|${todayDm.hrv_ms || todayDm.hrv_overnight_avg_ms || ""}`
+      ? `${todayDm.total_sleep_seconds || ""}|${todayDm.sleep_score || ""}`
       : "";
     const latestMetricsKey = dailyMetrics[0]
-      ? `${dailyMetrics[0].date}|${dailyMetrics[0].checkin_completed_at || ""}|${sleepFingerprint}`
+      ? `${dailyMetrics[0].date}|${sleepFingerprint}`
       : "";
     const cacheKey = `${today}|${mode}|${todayActivity?.id || ""}|${latestMetricsKey}`;
 
@@ -318,7 +318,25 @@ export default async function handler(req, res) {
         return res.status(200).json({ mode: cached.mode, intelligence: cached.intelligence, cached: true });
       }
     } catch {
-      // Table may not exist yet or no cache hit — continue to generate fresh
+      // No exact cache hit — continue
+    }
+
+    // Stale cache fallback: return any recent intelligence (<6h old) instantly
+    // The next page load will regenerate fresh data via SWR
+    try {
+      const { data: staleCache } = await supabaseAdmin
+        .from("intelligence_cache")
+        .select("mode, intelligence, created_at")
+        .eq("user_id", session.userId)
+        .gte("created_at", new Date(Date.now() - 6 * 3600000).toISOString())
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (staleCache) {
+        return res.status(200).json({ mode: staleCache.mode, intelligence: staleCache.intelligence, cached: true, stale: true });
+      }
+    } catch {
+      // No stale cache — continue to generate fresh
     }
 
     // ── Step 3: Weather + cached athlete analytics in parallel ──
@@ -412,9 +430,9 @@ export default async function handler(req, res) {
       systemPrompt = MORNING_RECOVERY_PROMPT;
     }
 
-    // ── Step 5: Call Claude Opus ──
+    // ── Step 5: Call Claude Sonnet (fast synthesis — deep analysis lives in activity/sleep endpoints) ──
     const response = await anthropic.messages.create({
-      model: "claude-opus-4-6",
+      model: "claude-sonnet-4-6",
       max_tokens: 2500,
       system: systemPrompt,
       messages: [{
@@ -422,7 +440,7 @@ export default async function handler(req, res) {
         content: JSON.stringify(context),
       }],
     });
-    trackTokenUsage(session.userId, "dashboard_intelligence", "claude-opus-4-6", response.usage);
+    trackTokenUsage(session.userId, "dashboard_intelligence", "claude-sonnet-4-6", response.usage);
 
     const raw = response.content[0].text;
 
@@ -441,8 +459,8 @@ export default async function handler(req, res) {
         }
       }
       if (!intelligence) {
-        console.error("Dashboard intelligence response:", raw.substring(0, 300));
-        return res.status(500).json({ error: "Failed to parse AI intelligence response" });
+        console.error("Dashboard intelligence parse failure. Raw response:", raw.substring(0, 500));
+        return res.status(500).json({ error: "Failed to parse AI response. Please retry." });
       }
     }
 

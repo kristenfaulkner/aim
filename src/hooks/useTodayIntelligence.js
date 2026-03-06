@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "../lib/api";
 
 const CACHE_KEY = "aim_today_intelligence";
-const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
 function loadCached() {
   try {
