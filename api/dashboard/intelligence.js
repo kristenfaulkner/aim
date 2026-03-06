@@ -430,9 +430,9 @@ export default async function handler(req, res) {
       systemPrompt = MORNING_RECOVERY_PROMPT;
     }
 
-    // ── Step 5: Call Claude Sonnet (fast synthesis — deep analysis lives in activity/sleep endpoints) ──
+    // ── Step 5: Call Claude Opus (flagship quality — caching ensures this runs rarely) ──
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-opus-4-6",
       max_tokens: 2500,
       system: systemPrompt,
       messages: [{
@@ -440,7 +440,7 @@ export default async function handler(req, res) {
         content: JSON.stringify(context),
       }],
     });
-    trackTokenUsage(session.userId, "dashboard_intelligence", "claude-sonnet-4-6", response.usage);
+    trackTokenUsage(session.userId, "dashboard_intelligence", "claude-opus-4-6", response.usage);
 
     const raw = response.content[0].text;
 
