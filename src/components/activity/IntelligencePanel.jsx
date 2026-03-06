@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { T, font, mono } from "../../theme/tokens";
+import { RefreshCw } from "lucide-react";
 import { FormattedText } from "../../lib/formatText.jsx";
 import InsightFeedback from "../InsightFeedback";
 import { useResponsive } from "../../hooks/useResponsive";
@@ -142,12 +143,27 @@ export default function IntelligencePanel({
               border: `1px solid ${T.accentMid}`,
               display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12,
             }}>{"\u2726"}</div>
-            <div>
+            <div style={{ flex: 1 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: T.text, fontFamily: font, lineHeight: 1 }}>AIM Intelligence</div>
               <div style={{ fontSize: 9, fontWeight: 600, color: T.accent, textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: font }}>
                 Post-Ride Analysis {"\u00B7"} {insights.length} insight{insights.length !== 1 ? "s" : ""}
               </div>
             </div>
+            {onRegenerate && (
+              <button
+                onClick={onRegenerate}
+                title="Refresh analysis"
+                style={{
+                  background: "none", border: `1px solid ${T.border}`, borderRadius: 8,
+                  padding: 6, cursor: "pointer", display: "flex", alignItems: "center",
+                  justifyContent: "center", color: T.textSoft, transition: "all 0.15s",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.color = T.accent; e.currentTarget.style.borderColor = T.accent; }}
+                onMouseLeave={e => { e.currentTarget.style.color = T.textSoft; e.currentTarget.style.borderColor = T.border; }}
+              >
+                <RefreshCw size={13} />
+              </button>
+            )}
           </div>
         </div>
 
