@@ -367,7 +367,7 @@ export default function ConnectApps() {
 
       {/* Toast notification */}
       {toast && (
-        <div style={{ position: "fixed", top: 24, left: "50%", transform: "translateX(-50%)", padding: "12px 24px", borderRadius: 12, fontSize: 14, fontWeight: 600, zIndex: 1000,
+        <div style={{ position: "fixed", top: 56, left: "50%", transform: "translateX(-50%)", padding: "12px 24px", borderRadius: 12, fontSize: 14, fontWeight: 600, zIndex: 1000,
           background: toast.includes("failed") ? "rgba(239,68,68,0.12)" : "rgba(16,185,129,0.12)",
           border: `1px solid ${toast.includes("failed") ? "rgba(239,68,68,0.3)" : "rgba(16,185,129,0.3)"}`,
           color: toast.includes("failed") ? "#ef4444" : T.accent }}>
