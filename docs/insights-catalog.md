@@ -786,9 +786,15 @@ The 34-category catalog below defines what patterns AIM looks for in athlete dat
 - Optimal sleep window from their data
 - Weekday vs weekend patterns
 
-**Gold-standard example:**
+**Gold-standard examples:**
 - "🕐 **Later Bedtime = Sharply Lower EF (r=-0.63)** — This is your strongest single performance signal in the dataset: on nights you went to bed later, your efficiency factor the following day dropped substantially (r=-0.63, n=10). Similarly, later bedtimes correlated with worse HR drift (r=-0.52) and lower normalized power (r=-0.66). Your average bedtime is 7.2 hours past midnight (roughly 7:12 AM adjusted — check your device timezone), with a standard deviation of just 0.6 hours, suggesting you're fairly consistent."
 - Why this works: Reports Pearson r and sample size for credibility. Connects bedtime TIMING (not just duration) to THREE performance outputs (EF, HR drift, NP). Flags potential timezone artifact honestly. Derives a personal statistical model rather than cherry-picking one night.
+- "⚠️ **Single bad sleep nights don't hurt you — but streaks do** — Your body absorbs single short nights. But 3+ consecutive nights under 7 hours → 8-12% NP drop within 48 hours. You're at three right now. Across 93 sleep-matched activities: nights under 6 hours followed by normal performance the next day. But 3+ consecutive nights under 7 hours correlates with 8-12% NP drop and 2× cardiac drift. The effect compounds — night 3 is worse than night 2. Recovery takes 2 nights of 7+ hours."
+- Why this works: Counterintuitive lead ("single bad nights don't hurt you") creates wow factor. Distinguishes acute vs cumulative sleep debt with specific thresholds. Uses a large sample (93 matched activities) for credibility. Gives a concrete recovery prescription (2 nights of 7+ hours). Flags the athlete's current streak — making it immediately actionable.
+- "😴 **Each extra hour above 6.5h is worth +4.2% EF the next day** — The gain is linear up to about 8 hours. Your top quartile performances averaged 7h24m sleep the night before. Linear regression across 93 matched pairs. The slope is consistent and significant. Your bottom quartile averaged 5h48m — a 1.5h gap that translates to ~6% EF difference."
+- Why this works: Gives a precise dose-response number (+4.2% per hour) the athlete can internalize. Compares their own top vs bottom quartile performances. Reports the regression method and sample size. Shows diminishing returns (linear up to ~8h) so the athlete doesn't over-optimize.
+- "🕐 **Your optimal bedtime is 9:30-10:15 PM** — Late bedtimes compress deep sleep even when total hours are adequate. Your top 10% rides all followed sleep starting before 10:15 PM. Nights starting before 10:15 PM average 1h12m deep sleep vs 47m for nights after 11 PM. Deep sleep is the recovery phase — bedtime timing is one of the easiest levers you have."
+- Why this works: Gives a specific actionable window (9:30-10:15 PM) derived from the athlete's own data. Explains the mechanism (deep sleep compression). Quantifies the deep sleep difference (1h12m vs 47m). Connects to their top 10% rides — the athlete sees what their best performances had in common. Frames it as "easiest lever" — motivating because it's free.
 
 ### 2F. Environment → Sleep Quality → Performance
 - Bed temperature (Eight Sleep) → deep sleep duration → morning HRV
@@ -827,6 +833,12 @@ The 34-category catalog below defines what patterns AIM looks for in athlete dat
 ### 4A. Heat Adaptation Tracking
 ### 4B. Altitude Impact
 ### 4C. Wind-Adjusted Power
+
+**Gold-standard examples:**
+- "🌡️ **You're a cool-weather performer — breakpoint at 14°C** — Peak performance: 8-14°C. Above 14°C, EF declines 0.005 per degree. For summer races above 22°C, plan 5-7 days of heat acclimation. Your heat model shows cool conditions avg EF 1.67, hot (>25°C) avg 1.44. That's a 14% penalty. High humidity above 60% compounds by another 5.2%. This is one of your most statistically robust models."
+- Why this works: Identifies a specific breakpoint temperature from the athlete's own data. Quantifies the EF penalty (14%) with exact averages. Gives an actionable recommendation (heat acclimation timeline). Notes humidity compounding effect. Calls out model robustness — tells the athlete how much to trust this.
+- "🌡️ **Humidity above 60% adds a 5.2% EF penalty on top of heat** — On warm days (>20°C), check humidity. Above 60%: increase sodium to 700mg/hr and reduce targets an additional 3-5%. Low humidity (<60%): avg EF 1.54. High humidity (≥60%): avg EF 1.46. Combined with heat, a hot humid day can cost 18-20% vs cool and dry."
+- Why this works: Isolates humidity as a separate factor from temperature. Gives specific fueling advice (sodium). Quantifies the combined worst-case scenario (18-20%). Connects two weather variables into a compound model the athlete can act on race day.
 
 ---
 

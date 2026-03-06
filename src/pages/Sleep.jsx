@@ -38,6 +38,7 @@ function scoreColor(score) {
 }
 
 const PERIODS = [
+  { id: "today", label: "Today" },
   { id: "7d", label: "7 Days" },
   { id: "30d", label: "30 Days" },
   { id: "90d", label: "90 Days" },
@@ -178,7 +179,7 @@ export default function Sleep() {
   const { isMobile, isTablet } = useResponsive();
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [period, setPeriod] = useState("30d");
+  const [period, setPeriod] = useState("today");
   const [expandedNight, setExpandedNight] = useState(null);
   const { sleepHistory, latestNight, averages, loading } = useSleepData(period);
 
@@ -263,13 +264,13 @@ export default function Sleep() {
     }
   }, []);
 
-  // Auto-trigger sleep analysis when enough data exists
+  // Auto-trigger sleep analysis when sleep data exists
   useEffect(() => {
     if (sleepAnalysisFetchedRef.current || sleepAnalysisLoading) return;
-    if (sleepHistory.length < 7) return;
+    if (!latestNight) return;
     sleepAnalysisFetchedRef.current = true;
     triggerSleepAnalysis();
-  }, [sleepHistory.length, sleepAnalysisLoading, triggerSleepAnalysis]);
+  }, [latestNight, sleepAnalysisLoading, triggerSleepAnalysis]);
 
   const handleSignout = async () => { await signout(); navigate("/"); };
 
@@ -387,26 +388,6 @@ export default function Sleep() {
           <p style={{ fontSize: 14, color: T.textSoft, margin: 0 }}>Track sleep patterns, recovery metrics, and trends from Eight Sleep, Oura, Whoop, and more.</p>
         </div>
 
-        {/* Time Period Pills */}
-        <div style={{ display: "flex", gap: 4, marginBottom: isMobile ? 16 : 20, overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
-          {PERIODS.map(p => (
-            <button key={p.id} onClick={() => setPeriod(p.id)} style={{
-              padding: isMobile ? "8px 14px" : "6px 14px",
-              fontSize: 12,
-              fontWeight: 600,
-              fontFamily: font,
-              border: "none",
-              borderRadius: 8,
-              cursor: "pointer",
-              background: period === p.id ? T.accentDim : T.surface,
-              color: period === p.id ? T.accent : T.textSoft,
-              transition: "all 0.15s",
-              whiteSpace: "nowrap",
-              minHeight: isMobile ? 44 : "auto",
-            }}>{p.label}</button>
-          ))}
-        </div>
-
         {loading ? (
           <div style={{ textAlign: "center", padding: "60px 0" }}>
             <div style={{ fontSize: 14, color: T.textDim }}>Loading your sleep data...</div>
@@ -475,42 +456,68 @@ export default function Sleep() {
               </div>
             )}
 
-            {/* Summary Cards */}
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : isTablet ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: isMobile ? 10 : 14 }}>
-              <SummaryCard
-                label="Sleep Score"
-                value={averages?.sleep_score != null ? Math.round(averages.sleep_score) : "—"}
-                unit="/ 100"
-                color={scoreColor(averages?.sleep_score)}
-                sparkData={scoreSparkData.length > 1 ? scoreSparkData : null}
-                sparkColor={scoreColor(averages?.sleep_score)}
-              />
-              <SummaryCard
-                label="Avg Duration"
-                value={averages?.total_sleep_seconds ? formatSleepHours(averages.total_sleep_seconds) : "—"}
-                color={T.blue}
-                sparkData={sleepSparkData.length > 1 ? sleepSparkData : null}
-                sparkColor={T.blue}
-              />
-              <SummaryCard
-                label="Sleep Efficiency"
-                value={averages?.sleep_efficiency_pct != null ? `${Math.round(averages.sleep_efficiency_pct)}%` : "—"}
-                color={T.purple}
-                sparkData={effSparkData.length > 1 ? effSparkData : null}
-                sparkColor={T.purple}
-              />
-              <SummaryCard
-                label="Avg HRV"
-                value={averages?.hrv_overnight_avg_ms != null ? Math.round(averages.hrv_overnight_avg_ms) : averages?.hrv_ms != null ? Math.round(averages.hrv_ms) : "—"}
-                unit="ms"
-                color={T.accent}
-                sparkData={hrvSparkData.length > 1 ? hrvSparkData : null}
-                badge={latestNight?.hrv_source ? <SourceBadge source={latestNight.hrv_source} context="sleep" compact /> : null}
-              />
+            {/* Time Period Pills */}
+            <div style={{ display: "flex", gap: 4, overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+              {PERIODS.map(p => (
+                <button key={p.id} onClick={() => setPeriod(p.id)} style={{
+                  padding: isMobile ? "8px 14px" : "6px 14px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  fontFamily: font,
+                  border: "none",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  background: period === p.id ? T.accentDim : T.surface,
+                  color: period === p.id ? T.accent : T.textSoft,
+                  transition: "all 0.15s",
+                  whiteSpace: "nowrap",
+                  minHeight: isMobile ? 44 : "auto",
+                }}>{p.label}</button>
+              ))}
             </div>
 
+            {/* Summary Cards */}
+            {(() => {
+              const isToday = period === "today";
+              const src = isToday ? latestNight : averages;
+              return (
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : isTablet ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: isMobile ? 10 : 14 }}>
+                  <SummaryCard
+                    label="Sleep Score"
+                    value={src?.sleep_score != null ? Math.round(src.sleep_score) : "—"}
+                    unit="/ 100"
+                    color={scoreColor(src?.sleep_score)}
+                    sparkData={!isToday && scoreSparkData.length > 1 ? scoreSparkData : null}
+                    sparkColor={scoreColor(src?.sleep_score)}
+                  />
+                  <SummaryCard
+                    label={isToday ? "Duration" : "Avg Duration"}
+                    value={src?.total_sleep_seconds ? formatSleepHours(src.total_sleep_seconds) : "—"}
+                    color={T.blue}
+                    sparkData={!isToday && sleepSparkData.length > 1 ? sleepSparkData : null}
+                    sparkColor={T.blue}
+                  />
+                  <SummaryCard
+                    label="Sleep Efficiency"
+                    value={src?.sleep_efficiency_pct != null ? `${Math.round(src.sleep_efficiency_pct)}%` : "—"}
+                    color={T.purple}
+                    sparkData={!isToday && effSparkData.length > 1 ? effSparkData : null}
+                    sparkColor={T.purple}
+                  />
+                  <SummaryCard
+                    label={isToday ? "HRV" : "Avg HRV"}
+                    value={src?.hrv_overnight_avg_ms != null ? Math.round(src.hrv_overnight_avg_ms) : src?.hrv_ms != null ? Math.round(src.hrv_ms) : "—"}
+                    unit="ms"
+                    color={T.accent}
+                    sparkData={!isToday && hrvSparkData.length > 1 ? hrvSparkData : null}
+                    badge={latestNight?.hrv_source ? <SourceBadge source={latestNight.hrv_source} context="sleep" compact /> : null}
+                  />
+                </div>
+              );
+            })()}
+
             {/* Sleep Architecture Chart */}
-            {architectureData.some(d => d.deep > 0 || d.rem > 0 || d.light > 0) && (
+            {period !== "today" && architectureData.some(d => d.deep > 0 || d.rem > 0 || d.light > 0) && (
               <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: isMobile ? "14px" : "18px 20px" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
                   <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0 }}>Sleep Architecture</h3>
@@ -554,6 +561,7 @@ export default function Sleep() {
             )}
 
             {/* Trend Charts */}
+            {period !== "today" && (
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1fr 1fr" : "repeat(3, 1fr)", gap: isMobile ? 12 : 14 }}>
               {scoreTrend.length > 1 && (
                 <TrendChart title="Sleep Score" data={scoreTrend} color={T.accent} avg={averages?.sleep_score} isMobile={isMobile} />
@@ -565,16 +573,17 @@ export default function Sleep() {
                 <TrendChart title="Resting HR" data={rhrTrend} color={T.pink} unit="bpm" avg={averages?.resting_hr_bpm} isMobile={isMobile} />
               )}
             </div>
+            )}
 
             {/* Nightly Detail */}
             <div>
-              <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 12px" }}>Nightly Detail</h3>
+              <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 12px" }}>{period === "today" ? "Last Night" : "Nightly Detail"}</h3>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {nightlyRows.map(row => (
+                {(period === "today" ? nightlyRows.slice(0, 1) : nightlyRows).map(row => (
                   <NightlyRow
                     key={row.date}
                     row={row}
-                    expanded={expandedNight === row.date}
+                    expanded={period === "today" ? true : expandedNight === row.date}
                     onToggle={() => setExpandedNight(expandedNight === row.date ? null : row.date)}
                     isMobile={isMobile}
                   />

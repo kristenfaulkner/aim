@@ -14,6 +14,7 @@ export function useMyStats() {
   const [latestRecovery, setLatestRecovery] = useState(null);
   const [recentMetrics, setRecentMetrics] = useState([]);
   const [latestDexa, setLatestDexa] = useState(null);
+  const [observedMaxHR, setObservedMaxHR] = useState(null);
   const [models, setModels] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -32,6 +33,7 @@ export function useMyStats() {
         latestRecoveryResult,
         recentMetricsResult,
         dexaResult,
+        maxHRResult,
         modelsResult,
       ] = await Promise.allSettled([
         // Latest power profile (bests + CP model)
@@ -79,6 +81,16 @@ export function useMyStats() {
           .limit(1)
           .single(),
 
+        // Observed max HR from activities (fallback if profile.max_hr_bpm not set)
+        supabase
+          .from("activities")
+          .select("max_hr_bpm")
+          .eq("user_id", user.id)
+          .not("max_hr_bpm", "is", null)
+          .order("max_hr_bpm", { ascending: false })
+          .limit(1)
+          .single(),
+
         // Performance models
         apiFetch("/models/summary").catch(() => null),
       ]);
@@ -97,6 +109,9 @@ export function useMyStats() {
       }
       if (dexaResult.status === "fulfilled" && dexaResult.value.data) {
         setLatestDexa(dexaResult.value.data);
+      }
+      if (maxHRResult.status === "fulfilled" && maxHRResult.value.data?.max_hr_bpm) {
+        setObservedMaxHR(Math.round(maxHRResult.value.data.max_hr_bpm));
       }
       if (modelsResult.status === "fulfilled" && modelsResult.value) {
         setModels(modelsResult.value.models || null);
@@ -121,6 +136,7 @@ export function useMyStats() {
     latestMetrics,
     latestRecovery,
     latestDexa,
+    observedMaxHR,
     averages,
     models,
     loading,

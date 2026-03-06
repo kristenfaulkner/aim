@@ -31,7 +31,7 @@ import {
 // ── Fingerprint: auto-invalidates when data changes ──
 
 async function computeFingerprint(userId) {
-  const [latestActivity, latestMetrics, profile] = await Promise.all([
+  const [latestActivity, latestMetrics, profile, sleepCount] = await Promise.all([
     supabaseAdmin
       .from("activities")
       .select("id, started_at")
@@ -51,6 +51,12 @@ async function computeFingerprint(userId) {
       .select("ftp_watts, weight_kg")
       .eq("id", userId)
       .single(),
+    // Count rows with sleep data — invalidates cache when sleep syncs add data
+    supabaseAdmin
+      .from("daily_metrics")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .not("total_sleep_seconds", "is", null),
   ]);
 
   const parts = [
@@ -59,6 +65,7 @@ async function computeFingerprint(userId) {
     latestMetrics?.data?.date || "none",
     profile?.data?.ftp_watts || 0,
     profile?.data?.weight_kg || 0,
+    sleepCount?.count || 0,
   ];
   return parts.join("|");
 }

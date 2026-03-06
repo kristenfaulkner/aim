@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 
-const PERIOD_DAYS = { "7d": 7, "30d": 30, "90d": 90, "1y": 365, all: null };
+const PERIOD_DAYS = { today: 2, "7d": 7, "30d": 30, "90d": 90, "1y": 365, all: null };
 
 /**
  * Custom hook that fetches sleep data from daily_metrics.

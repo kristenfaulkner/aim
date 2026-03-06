@@ -138,10 +138,18 @@ export default async function handler(req, res) {
       ]);
 
     const getData = (r) => r.status === "fulfilled" ? r.value.data : null;
-    const athleteAnalytics = analyticsResult.status === "fulfilled" ? analyticsResult.value : {};
+    let athleteAnalytics = analyticsResult.status === "fulfilled" ? analyticsResult.value : {};
     const profile = getData(profileResult) || {};
     const integrations = (getData(integrationsResult) || []).map(i => i.provider);
-    const sleepPerf = athleteAnalytics.sleepPerformance;
+    let sleepPerf = athleteAnalytics.sleepPerformance;
+
+    // Cache may be stale from before sleep data was synced — force refresh once
+    if (!sleepPerf) {
+      try {
+        athleteAnalytics = await getAthleteAnalytics(session.userId, { forceRefresh: true });
+        sleepPerf = athleteAnalytics.sleepPerformance;
+      } catch { /* fall through to insufficient data message */ }
+    }
 
     if (!sleepPerf) {
       return res.status(200).json({

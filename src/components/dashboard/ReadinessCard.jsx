@@ -175,17 +175,6 @@ export default function ReadinessCard({ dailyMetrics, checkinData, isMobile }) {
         padding: isMobile ? 16 : 20,
       }}
     >
-      {/* Ring — use blended score if available */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          marginBottom: 18,
-        }}
-      >
-        <ReadinessRing score={blendedScore ?? m.recovery_score} />
-      </div>
-
       {/* Metric pills */}
       <div
         style={{
