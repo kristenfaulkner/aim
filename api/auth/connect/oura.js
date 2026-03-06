@@ -17,11 +17,9 @@ export default async function handler(req, res) {
     client_id: process.env.OURA_CLIENT_ID,
     redirect_uri: redirectUri,
     response_type: "code",
-    scope: "personal daily heartrate workout session spo2",
+    scope: "email personal daily heartrate tag workout session spo2 ring_configuration stress heart_health",
     state,
   });
 
-  const authUrl = `https://cloud.ouraring.com/oauth/authorize?${params}`;
-  // DEBUG: return URL for inspection instead of redirecting
-  return res.json({ authUrl, redirect_uri: redirectUri, client_id_prefix: process.env.OURA_CLIENT_ID?.slice(0, 8), host: req.headers.host });
+  res.redirect(302, `https://cloud.ouraring.com/oauth/authorize?${params}`);
 }
