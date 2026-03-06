@@ -72,6 +72,7 @@ WEATHER & FORECAST RULES:
 - When the heat model is available, predict expected EF/HR adjustments for upcoming hot days.
 
 GENERAL RULES:
+- When CTL, ATL, and TSB values are present in dailyMetrics, state them as computed facts, not estimates. These are calculated values (CTL = 42-day fitness, ATL = 7-day fatigue, TSB = CTL − ATL). Never say "likely", "probably", or "estimated" about values you have actual data for.
 - ALWAYS address the athlete by their first name (from athlete.first_name). NEVER use the word "Athlete" as a name or greeting — use their actual first name. If first_name is null or missing, just use "you" naturally without any name.
 - Always second person ("your power", "your sleep"). Never "athletes in the bottom quartile".
 - Sleep and recovery data is from LAST NIGHT, not tonight. Always say "last night" when referring to the most recent sleep data.
@@ -288,9 +289,13 @@ export default async function handler(req, res) {
     if (mode === "DAILY_COACH") mode = "MORNING_RECOVERY";
 
     // ── Step 2: Check server-side cache ──
-    // Cache key includes: date, mode, latest activity, latest metrics timestamp
+    // Cache key includes: date, mode, latest activity, latest metrics timestamp, sleep data presence
+    const todayDm = dailyMetrics.find(d => d.date === today);
+    const sleepFingerprint = todayDm
+      ? `${todayDm.total_sleep_seconds || ""}|${todayDm.sleep_score || ""}|${todayDm.hrv_ms || todayDm.hrv_overnight_avg_ms || ""}`
+      : "";
     const latestMetricsKey = dailyMetrics[0]
-      ? `${dailyMetrics[0].date}|${dailyMetrics[0].checkin_completed_at || ""}`
+      ? `${dailyMetrics[0].date}|${dailyMetrics[0].checkin_completed_at || ""}|${sleepFingerprint}`
       : "";
     const cacheKey = `${today}|${mode}|${todayActivity?.id || ""}|${latestMetricsKey}`;
 
