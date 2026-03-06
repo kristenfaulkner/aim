@@ -210,7 +210,7 @@ export default async function handler(req, res) {
         .single(),
       supabaseAdmin
         .from("activities")
-        .select("id, name, sport_type, activity_type, start_date, started_at, duration_seconds, distance_meters, moving_time_seconds, avg_power_watts, normalized_power_watts, max_power_watts, average_power, normalized_power, tss, intensity_factor, variability_index, efficiency_factor, hr_drift_pct, avg_hr_bpm, max_hr_bpm, average_hr, max_hr, avg_cadence_rpm, avg_speed_mps, calories, work_kj, elevation_gain, elevation_gain_meters, temperature_celsius, activity_weather, perceived_exertion, gi_comfort, mental_focus, perceived_recovery_pre, description")
+        .select("id, name, activity_type, started_at, duration_seconds, distance_meters, avg_power_watts, normalized_power_watts, max_power_watts, tss, intensity_factor, variability_index, efficiency_factor, hr_drift_pct, avg_hr_bpm, max_hr_bpm, avg_cadence_rpm, avg_speed_mps, calories, work_kj, elevation_gain_meters, temperature_celsius, activity_weather, perceived_exertion, gi_comfort, mental_focus, perceived_recovery_pre, description, source_data, laps, zone_distribution")
         .eq("user_id", session.userId)
         .gte("started_at", todayStart)
         .lt("started_at", todayEnd)
@@ -231,7 +231,7 @@ export default async function handler(req, res) {
         .order("date", { ascending: false }),
       supabaseAdmin
         .from("activities")
-        .select("id, activity_type, name, started_at, duration_seconds, distance_meters, tss, normalized_power_watts, avg_power_watts, avg_hr_bpm, max_hr_bpm, intensity_factor, elevation_gain_meters")
+        .select("id, activity_type, name, started_at, duration_seconds, distance_meters, tss, normalized_power_watts, avg_power_watts, avg_hr_bpm, max_hr_bpm, intensity_factor, elevation_gain_meters, source_data")
         .eq("user_id", session.userId)
         .order("started_at", { ascending: false })
         .limit(5),
