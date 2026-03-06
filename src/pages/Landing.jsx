@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Activity, Zap, Brain, Target, Heart, TrendingUp, ArrowRight, Check, Star, Menu, X, User, Settings, LayoutDashboard, LogOut } from "lucide-react";
+import { ArrowRight, Check, Menu, X, User, Settings, LayoutDashboard, LogOut } from "lucide-react";
 import { T, font, mono } from "../theme/tokens";
 import { btn } from "../theme/styles";
-import NeuralBackground from "../components/NeuralBackground";
 import SEO from "../components/SEO";
+import Footer from "../components/Footer";
 import { useAuth } from "../context/AuthContext";
 import { useResponsive } from "../hooks/useResponsive";
+
+const SERIF = "'Instrument Serif', 'DM Serif Display', Georgia, serif";
 
 const organizationSchema = {
   "@context": "https://schema.org",
@@ -38,524 +40,844 @@ const softwareSchema = {
   ],
 };
 
-const exampleInsights = [
-  // Body Composition → Performance
-  {
-    type: "insight", icon: "\u2696\uFE0F", category: "body",
-    title: "Weight Impact on Today's Climbing",
-    body: "At your current 89kg + 7.8kg bike (96.8kg system weight), you needed 66W to maintain 16 km/h on the 6% grades today. Every 1 lb (0.45kg) you gain or lose shifts that requirement by ~0.3W. Your recent 0.8kg drop saved you ~3.5W on every climb today \u2014 that's free speed.",
-    confidence: "high",
-  },
-  {
-    type: "positive", icon: "\uD83D\uDCCA", category: "body",
-    title: "FTP/Lean Mass Ratio Improving",
-    body: "Your FTP per kg of lean body mass is 3.82 W/kg \u2014 up from 3.62 W/kg six weeks ago. This is a better performance indicator than raw W/kg because it filters out fat mass changes. Your muscle mass is stable at 42.1% while body fat dropped from 14.2% \u2192 12.4%, meaning your power gains are genuine neuromuscular adaptations, not just weight loss.",
-    confidence: "high",
-  },
-  {
-    type: "warning", icon: "\uD83D\uDCA7", category: "body",
-    title: "Hydration Was Low Before This Ride",
-    body: "Your Withings hydration reading this morning was 62% \u2014 below your 65% baseline. In hot conditions (today was 35\u00B0C), starting under-hydrated compounds cardiac drift. Your 8.1% drift today vs. 3.2% on a similar effort when you weighed in at 65% hydration suggests ~2-3% of today's drift was hydration-related, not fitness.",
-    confidence: "medium",
-  },
-  {
-    type: "action", icon: "\uD83C\uDFD4\uFE0F", category: "body",
-    title: "Race Weight Projection for Mt. Tam Hillclimb",
-    body: "Your hillclimb race is in 18 days. At current rate (-0.5kg/week), you'll be ~86.4kg on race day = 3.45 W/kg. If you hold FTP at 298W, that's a projected VAM of ~1,340 m/hr on the 7.4% avg gradient \u2014 roughly 38:20 for the 8.2km climb. Every additional kg lost would save ~18 seconds. But dropping below 86kg at your muscle mass risks power loss.",
-    confidence: "medium",
-  },
-  // Recovery → Performance
-  {
-    type: "warning", icon: "\uD83D\uDE34", category: "recovery",
-    title: "Poor Sleep Drove Today's HR Drift",
-    body: "Deep sleep was 48 min last night (avg: 1h 42m) and HRV dropped to 38ms (avg: 68ms). This likely explains the 8.1% cardiac drift \u2014 on Feb 18 with similar power but 72ms HRV, drift was only 3.2%. Your aerobic engine is fit, but your body was under-recovered.",
-    confidence: "high",
-  },
-  {
-    type: "insight", icon: "\uD83D\uDCC9", category: "recovery",
-    title: "3-Night HRV Decline \u2192 Power Fade Pattern",
-    body: "Your overnight HRV has declined 74ms \u2192 62ms \u2192 38ms over 3 nights. Historically, when HRV drops below 45ms for 2+ consecutive days, your NP drops 8-14% on comparable efforts. Today's NP was 272W vs. your 285W average \u2014 a 4.6% drop. Consider keeping tomorrow to Z1/Z2.",
-    confidence: "high",
-  },
-  {
-    type: "action", icon: "\uD83C\uDF21\uFE0F", category: "recovery",
-    title: "EightSleep + Sleep Timing Optimization",
-    body: "Your deep sleep is 34% higher at -4\u00B0C vs. -1\u00B0C (last night's setting). Combined with your optimal sleep window (before 10:15 PM = best performances), consider trying -4\u00B0C tonight and aiming for lights out by 10 PM. Your HRV may rebound 15-20ms within 48 hours based on your historical recovery curves.",
-    confidence: "medium",
-  },
-  {
-    type: "warning", icon: "\uD83D\uDD0B", category: "recovery",
-    title: "Whoop Strain Exceeding Recovery",
-    body: "7-day cumulative strain: 18.4 (daily avg: 15.2), but recovery averaging only 48%. Combined with declining HRV and elevated RHR (52 vs. baseline 48), you're accumulating more fatigue than you're absorbing. Your ATL (92) is 8% above CTL (85) \u2014 productive overreach, but approaching the red line.",
-    confidence: "high",
-  },
-  // Performance
-  {
-    type: "positive", icon: "\uD83C\uDFAF", category: "performance",
-    title: "Efficiency Factor: 1.79 W/bpm",
-    body: "Your EF (NP/avg HR) of 1.79 is your second-highest this season, despite poor recovery. On well-rested days, you've hit 1.84. This confirms your aerobic base is strong \u2014 the drift today was recovery-driven, not fitness-driven. Your 14.5 hrs/week of Z2 over the past month is paying off.",
-    confidence: "high",
-  },
-  {
-    type: "warning", icon: "\u26A1", category: "performance",
-    title: "VO2max Power: Cat 3 \u2014 Your Weakest Link",
-    body: "Your 5-min power of 355W (3.99 W/kg) classifies as Cat 3, while your 20-min threshold is Cat 2 at 3.35 W/kg. That's a 2-tier gap. Your VO2/FTP ratio is 1.19 \u2014 well below the 1.25 target. You need +19W at 5-min to reach Cat 2. Consider adding 2\u00D7 per week VO2 sessions for 6-8 weeks.",
-    confidence: "high",
-  },
-  {
-    type: "action", icon: "\uD83C\uDFCB\uFE0F", category: "performance",
-    title: "Suggested: VO2max Block (6-8 weeks)",
-    body: "Based on your power profile, VO2max is your biggest limiter. Consider targeting 322-343W (108-115% FTP). A progression from 4\u00D74min / 3min rest to 5\u00D75min / 5min rest may work well. On recovery weeks, 30/30s (358-387W) can help maintain stimulus. Goal: raise 5-min from 355W \u2192 380W+ (4.27 W/kg = Cat 2).",
-    confidence: "high",
-  },
-  {
-    type: "positive", icon: "\uD83C\uDFC6", category: "performance",
-    title: "Sprint & Threshold: Cat 2 \u2014 Genuine Strengths",
-    body: "Your 5s sprint (12.92 W/kg) and 20-min threshold (3.35 W/kg) are both solidly Cat 2. You're only 31W away from Cat 1 at threshold. For a climber/rouleur profile, these numbers are competitive \u2014 your limiter is the VO2 gap between them.",
-    confidence: "high",
-  },
-  {
-    type: "insight", icon: "\uD83C\uDF21\uFE0F", category: "performance",
-    title: "Heat Adaptation Nearly Complete",
-    body: "Power:HR at 95\u00B0F today was 1.79 W/bpm vs. 1.45 at 68\u00B0F three weeks ago \u2014 only a 2% gap. Early summer, heat caused a 21% drop. Your plasma volume expansion is nearly complete. For your race, if temps exceed 90\u00B0F, you'll lose <3% power vs. cooler conditions.",
-    confidence: "high",
-  },
-  // Training Load
-  {
-    type: "action", icon: "\uD83D\uDCCA", category: "training",
-    title: "Taper Protocol for Race Day",
-    body: "CTL 85, TSB -7. Race in 18 days \u2192 consider beginning a taper in ~4 days. Targeting TSB +15 to +20 by race day may be optimal. Research suggests reducing volume ~40% while maintaining 2 short intensity sessions (10-12 min total at VO2/threshold). Predicted race-day CTL: ~80, which historically correlates with your best performances.",
-    confidence: "high",
-  },
-  {
-    type: "insight", icon: "\u23F1\uFE0F", category: "training",
-    title: "Threshold Volume Driving FTP Gains",
-    body: "You've accumulated 312 minutes between 88-105% FTP in the last 8 weeks. Your FTP rose from 290W \u2192 298W during this period. Historically, your FTP responds to threshold volume with a ~6 week delay. The work you did in weeks 3-5 is what's showing up now. Keep this volume through your build phase.",
-    confidence: "high",
-  },
-];
-
-const insightCategoryMeta = [
-  { id: "all", label: "All Insights" },
-  { id: "performance", label: "Performance" },
-  { id: "body", label: "Body Composition" },
-  { id: "recovery", label: "Recovery" },
-  { id: "training", label: "Training Load" },
-];
-
-function InsightsShowcase({ navigate, user }) {
-  const [filter, setFilter] = useState("all");
-  const [expanded, setExpanded] = useState(null);
-  const { isMobile, isTablet } = useResponsive();
-
-  const filtered = filter === "all" ? exampleInsights : exampleInsights.filter(i => i.category === filter);
-  const typeColor = (type) => type === "positive" ? T.accent : type === "warning" ? T.warn : type === "action" ? T.purple : T.blue;
-
+// ── Scroll-triggered reveal ──────────────────────────────────────────────────
+function Reveal({ children, delay = 0, y = 24, style = {} }) {
+  const ref = useRef(null);
+  const [vis, setVis] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) setVis(true); }, { threshold: 0.12 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
   return (
-    <section style={{ padding: isMobile ? "60px 16px" : isTablet ? "80px 24px" : "100px 40px", background: T.surface, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}` }}>
-      <div style={{ maxWidth: 900, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: isMobile ? 32 : 48 }}>
-          <p style={{ fontSize: 12, color: T.accent, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 16 }}>Real AI Analysis</p>
-          <h2 style={{ fontSize: isMobile ? 28 : isTablet ? 34 : 42, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 16px" }}>
-            Every insight comes with <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>a plan</span>
-          </h2>
-          <p style={{ fontSize: isMobile ? 15 : 17, color: T.textSoft, maxWidth: 580, margin: "0 auto" }}>These are real examples from a single ride analysis. AIM connects your power data, body composition, sleep, recovery, and training load to find patterns no single app can see.</p>
-        </div>
-
-        {/* Category filter pills */}
-        <div style={{ display: "flex", justifyContent: isMobile ? "flex-start" : "center", gap: 8, marginBottom: 32, flexWrap: isMobile ? "nowrap" : "wrap", overflowX: isMobile ? "auto" : "visible", WebkitOverflowScrolling: "touch", paddingBottom: isMobile ? 4 : 0 }}>
-          {insightCategoryMeta.map(cat => {
-            const count = cat.id === "all" ? exampleInsights.length : exampleInsights.filter(i => i.category === cat.id).length;
-            const active = filter === cat.id;
-            return (
-              <button key={cat.id} onClick={() => { setFilter(cat.id); setExpanded(null); }} style={{ background: active ? `${T.accent}18` : T.card, border: `1px solid ${active ? T.accentMid : T.border}`, borderRadius: 24, padding: "8px 18px", fontSize: 13, fontWeight: 600, color: active ? T.accent : T.textSoft, cursor: "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", gap: 8, fontFamily: font }}>
-                {cat.label}
-                <span style={{ fontSize: 11, background: active ? `${T.accent}30` : `${T.textDim}25`, padding: "2px 7px", borderRadius: 8, color: active ? T.accent : T.textDim, fontWeight: 700 }}>{count}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Insight cards */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {filtered.map((insight, i) => {
-            const isExpanded = expanded === i;
-            const needsTruncation = insight.body.length > 160;
-            return (
-              <div key={`${filter}-${i}`}
-                onClick={() => needsTruncation && setExpanded(isExpanded ? null : i)}
-                style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "18px 24px", borderLeft: `3px solid ${typeColor(insight.type)}`, cursor: needsTruncation ? "pointer" : "default", transition: "all 0.2s" }}
-                onMouseOver={e => { e.currentTarget.style.borderColor = T.borderHover; }}
-                onMouseOut={e => { e.currentTarget.style.borderColor = T.border; }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                  <span style={{ fontSize: 18 }}>{insight.icon}</span>
-                  <span style={{ fontSize: 15, fontWeight: 700, color: T.text, flex: 1 }}>{insight.title}</span>
-                  <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 6, background: insight.confidence === "high" ? T.accentDim : `${T.warn}15`, color: insight.confidence === "high" ? T.accent : T.warn, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>{insight.confidence}</span>
-                </div>
-                <div style={{ fontSize: 14, lineHeight: 1.7, color: T.textSoft }}>
-                  {needsTruncation && !isExpanded ? insight.body.slice(0, 160) + "..." : insight.body}
-                </div>
-                {needsTruncation && (
-                  <div style={{ fontSize: 11, color: T.accent, marginTop: 6, fontWeight: 600 }}>
-                    {isExpanded ? "Show less" : "Read more"}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* CTA */}
-        <div style={{ textAlign: "center", marginTop: 48 }}>
-          <p style={{ fontSize: 15, color: T.textSoft, marginBottom: 20 }}>This is just one ride. Imagine this analysis for every workout, every night of sleep, every blood panel.</p>
-          <button onClick={() => navigate(user ? "/dashboard" : "/signup")} style={{ ...btn(true), fontSize: 15, padding: "14px 32px" }}>{user ? "Go to Dashboard" : "See Your Own Insights"} <ArrowRight size={16} /></button>
-        </div>
-      </div>
-    </section>
+    <div ref={ref} style={{
+      opacity: vis ? 1 : 0,
+      transform: vis ? "none" : `translateY(${y}px)`,
+      transition: `opacity 0.65s cubic-bezier(0.23,1,0.32,1) ${delay}s, transform 0.65s cubic-bezier(0.23,1,0.32,1) ${delay}s`,
+      willChange: "opacity, transform",
+      ...style,
+    }}>{children}</div>
   );
 }
 
-export default function Landing() {
-  const navigate = useNavigate();
-  const { user, profile, signout } = useAuth();
-  // Annual billing planned for future release
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const handleSignout = async () => { await signout(); navigate("/"); };
-  const { isMobile, isTablet } = useResponsive();
+// ── Animated data constellation (desktop hero background) ────────────────────
+function Constellation() {
+  const canvasRef = useRef(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const resize = () => { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; };
+    resize();
+    window.addEventListener("resize", resize);
+    const ctx = canvas.getContext("2d");
 
-  const features = [
-    { icon: <Zap size={22} />, title: "AI-Powered Analysis", desc: "Every workout gets a full breakdown with specific, actionable recommendations — not just charts. Know exactly what to change and why." },
-    { icon: <Activity size={22} />, title: "All Your Data, One Place", desc: "Connect Strava, Wahoo, Garmin, Oura, Whoop, EightSleep, Withings, and more. Plus upload blood panels and DEXA scans for a complete picture." },
-    { icon: <Brain size={22} />, title: "Cross-Domain Insights", desc: "\"Your ferritin dropped 40% — that's why your VO2max plateaued. Here's your iron protocol.\" Insights that connect blood work, sleep, body comp, and performance." },
-    { icon: <Target size={22} />, title: "Power Benchmarking", desc: "See how your sprint, VO2max, threshold, and endurance compare to Cat 1-5 and World Tour riders — with prescribed workouts to close the gap." },
-    { icon: <Heart size={22} />, title: "Health Lab", desc: "Upload blood panels and DEXA scans. AI tracks biomarkers over time with athlete-optimal ranges, flags deficiencies, and recommends when to retest." },
-    { icon: <TrendingUp size={22} />, title: "Training Prescriptions", desc: "Every insight comes with a specific action plan — exact watts, durations, supplement protocols, and weekly schedules tailored to your data." },
-  ];
+    const labels = ["FTP 298W", "HRV 68ms", "Sleep 7.2h", "TSS 82", "Ferritin 52",
+      "VO\u2082max 58", "Form +8", "CTL 74", "SpO\u2082 98%", "Readiness 71",
+      "Body Fat 14%", "EF 1.79", "W' 18kJ", "Cadence 91"];
 
-  const testimonials = [
-    { name: "Sarah K.", role: "Cat 2 Road Racer", text: "AIM told me my VO2 was my limiter before my coach did. The prescribed workouts raised my 5-min power by 22W in 8 weeks.", stars: 5 },
-    { name: "Marcus T.", role: "Masters 45+ Champion", text: "The sleep-to-performance correlation blew my mind. I changed my bedtime and my EF improved by 8%. Data doesn't lie.", stars: 5 },
-    { name: "Elena R.", role: "Pro Triathlete", text: "The menstrual cycle tracking with my Oura Ring is a game-changer. Finally, a platform that treats female physiology as a feature, not an afterthought.", stars: 5 },
-    { name: "Jake W.", role: "Cat 3 Road Racer", text: "AIM flagged a left-right power imbalance that got worse on climbs. I started the single-leg gym protocol it prescribed and gained 14W at threshold in six weeks. My coach never caught it.", stars: 5 },
-  ];
+    function getBuffer() {
+      const w = canvas.width, h = canvas.height;
+      const pad = 80;
+      return { left: w * 0.18 - pad, right: w * 0.82 + pad, top: h * 0.08, bottom: h * 0.88 };
+    }
 
-  const plans = [
-    { name: "Starter", price: 19, desc: "For athletes ready to get serious about their data", features: ["3 app connections", "AI workout analysis", "Power benchmarking (Cat 1-5)", "Basic training prescriptions", "Performance Boosters library"], cta: "Start Free Trial" },
-    { name: "Pro", price: 49, badge: "MOST POPULAR", desc: "For competitive athletes who want every edge", features: ["Unlimited app connections", "Full cross-domain AI analysis", "Advanced training prescriptions", "Recovery intelligence (HRV, sleep)", "Evidence-based supplement protocols", "Coach sharing & export"], cta: "Start Free Trial" },
-    { name: "Elite", price: 99, badge: "COMPLETE", desc: "The full platform — blood work, body comp, and cycle intelligence", features: ["Everything in Pro", "Health Lab (blood panels & DEXA scans)", "Biomarker tracking with athlete-optimal ranges", "Menstrual cycle × performance intelligence", "AI nutrition periodization", "Priority analysis & early features"], cta: "Start Free Trial" },
+    function spawnOutside() {
+      const b = getBuffer();
+      const side = Math.floor(Math.random() * 4);
+      let x, y;
+      if (side === 0) { x = Math.random() * b.left; y = Math.random() * canvas.height; }
+      else if (side === 1) { x = b.right + Math.random() * (canvas.width - b.right); y = Math.random() * canvas.height; }
+      else if (side === 2) { x = Math.random() * canvas.width; y = Math.random() * b.top; }
+      else { x = Math.random() * canvas.width; y = b.bottom + Math.random() * (canvas.height - b.bottom); }
+      return { x: Math.max(10, Math.min(canvas.width - 10, x)), y: Math.max(10, Math.min(canvas.height - 10, y)) };
+    }
+
+    const nodes = labels.map(label => {
+      const pos = spawnOutside();
+      return { ...pos, vx: (Math.random() - 0.5) * 0.25, vy: (Math.random() - 0.5) * 0.25, label, r: Math.random() * 2.5 + 1.5, alpha: Math.random() * 0.35 + 0.15 };
+    });
+
+    let raf;
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const b = getBuffer();
+      nodes.forEach(n => {
+        n.x += n.vx; n.y += n.vy;
+        if (n.x < 0) { n.x = 0; n.vx *= -1; }
+        if (n.x > canvas.width) { n.x = canvas.width; n.vx *= -1; }
+        if (n.y < 0) { n.y = 0; n.vy *= -1; }
+        if (n.y > canvas.height) { n.y = canvas.height; n.vy *= -1; }
+        if (n.x > b.left && n.x < b.right && n.y > b.top && n.y < b.bottom) {
+          const distL = n.x - b.left, distR = b.right - n.x, distT = n.y - b.top, distB = b.bottom - n.y;
+          const minDist = Math.min(distL, distR, distT, distB);
+          if (minDist === distL) { n.x = b.left; n.vx = -Math.abs(n.vx); }
+          else if (minDist === distR) { n.x = b.right; n.vx = Math.abs(n.vx); }
+          else if (minDist === distT) { n.y = b.top; n.vy = -Math.abs(n.vy); }
+          else { n.y = b.bottom; n.vy = Math.abs(n.vy); }
+        }
+      });
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 180) {
+            const mx = (nodes[i].x + nodes[j].x) / 2, my = (nodes[i].y + nodes[j].y) / 2;
+            if (mx > b.left && mx < b.right && my > b.top && my < b.bottom) continue;
+            ctx.beginPath(); ctx.moveTo(nodes[i].x, nodes[i].y); ctx.lineTo(nodes[j].x, nodes[j].y);
+            ctx.strokeStyle = `rgba(16,185,129,${0.10 * (1 - dist / 180)})`; ctx.lineWidth = 1; ctx.stroke();
+          }
+        }
+      }
+      nodes.forEach(n => {
+        ctx.beginPath(); ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(16,185,129,${n.alpha})`; ctx.fill();
+        ctx.font = `11px '${font}'`; ctx.fillStyle = `rgba(15,17,23,${n.alpha * 0.9})`;
+        ctx.fillText(n.label, n.x + n.r + 4, n.y + 4);
+      });
+      raf = requestAnimationFrame(draw);
+    }
+    draw();
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
+  }, []);
+  return <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }} />;
+}
+
+// ── Cross-domain insight data ────────────────────────────────────────────────
+const INSIGHTS = [
+  {
+    tag: "HRV Decline \u2192 Power Fade", color: T.blue, bg: "rgba(59,130,246,0.05)", icon: "\uD83D\uDCC9",
+    domains: ["Oura", "Wahoo"], metric: { value: "\u22124.6%", label: "NP drop", direction: "down" },
+    finding: "Your overnight HRV has declined 74ms \u2192 62ms \u2192 38ms over 3 nights. Historically, when your HRV drops below 45ms for 2+ consecutive days, your NP drops 8\u201314% on comparable efforts. Today's NP was 272W vs. your 285W average \u2014 a 4.6% drop, right on pattern.",
+    action: "Keep tomorrow at Z1/Z2. AIM will track your HRV recovery slope overnight \u2014 if it rebounds above 55ms, you're cleared for intensity Thursday. If not, AIM will push your interval session back automatically.",
+    onlyAIM: "Oura shows HRV declining. Wahoo shows power dropping. Only AIM connects the 3-night HRV trajectory to your personal power-fade pattern to predict tomorrow's performance before you clip in.",
+  },
+  {
+    tag: "Race Day Projection", color: T.accent, bg: T.accentDim, icon: "\uD83C\uDFC1",
+    domains: ["Strava", "Withings", "Weather", "Oura"], metric: { value: "4:42:18", label: "projected finish", direction: "up" },
+    finding: "Your hillclimb race is in 12 days. AIM combined your current CTL of 78, FTP of 298W, projected race-day weight (86.2kg from Withings trend), weather forecast (68\u00B0F, 8mph NW wind), altitude penalty at 2,200ft (\u22122.8%), and your personal taper response from 3 previous tapers (you peak at TSB +12 on day 11).",
+    action: "Start taper in 4 days. Your best pattern: reduce volume 40%, keep two short intensity sessions. Race-day FTP after taper: ~305W. Fuel at 72g carbs/hr \u2014 your tested ceiling in moderate temps.",
+    onlyAIM: "Five data sources, one number. No app can combine your fitness, weight trend, weather, altitude model, and personal taper curve into a specific finish time. AIM can.",
+  },
+  {
+    tag: "Hydration \u2192 Cardiac Drift", color: T.amber, bg: "rgba(245,158,11,0.05)", icon: "\uD83D\uDCA7",
+    domains: ["Withings", "Wahoo", "Weather"], metric: { value: "8.1%", label: "cardiac drift", direction: "up" },
+    finding: "Your Withings hydration reading this morning was 62% \u2014 below your 65% baseline. In hot conditions (35\u00B0C today), starting under-hydrated compounds cardiac drift. Your 8.1% drift today vs. 3.2% on a similar effort when you weighed in at 65% hydration.",
+    action: "Pre-hydrate with 20oz electrolyte mix 2 hours before tomorrow's ride. On hot days starting below 65%, increase on-bike intake to 28\u201332oz/hr.",
+    onlyAIM: "Your scale measured hydration. Your power meter showed drift. The weather app knew it was hot. Only AIM connected all three to separate what was dehydration from what was fatigue.",
+  },
+  {
+    tag: "Menstrual Cycle \u00D7 HR Drift", color: T.purple, bg: "rgba(139,92,246,0.05)", icon: "\uD83D\uDCC8",
+    domains: ["Oura", "Withings", "Wahoo"], metric: { value: "+18%", label: "HR drift", direction: "up" },
+    finding: "You're on day 19 (luteal phase). Your HR drift during threshold efforts runs 18% higher than your follicular baseline. Withings shows +1.2kg \u2014 water retention from elevated progesterone, not fat gain. Your core temp is 0.4\u00B0C higher, which explains why the same watts feel 2 RPE points harder.",
+    action: "Cut target power 8% this week. Schedule breakthrough sessions for your follicular phase (~day 5\u201312). The scale will normalize by then.",
+    onlyAIM: "Oura detects your cycle phase from temperature. Withings shows the scale moved but not why. Wahoo shows HR drift. Only AIM connects all three.",
+  },
+  {
+    tag: "Sleep \u2192 Performance", color: "#6366f1", bg: "rgba(99,102,241,0.05)", icon: "\uD83D\uDCA4",
+    domains: ["Eight Sleep", "Oura", "Strava"], metric: { value: "+4.2%", label: "EF per hour", direction: "up" },
+    finding: "Your data across 90 sessions shows a clear dose-response: each additional hour of sleep above 6.5h produces 4.2% higher Efficiency Factor the next day. Your top 10% performances all followed nights where you fell asleep before 10:15 PM. Last 3 nights averaged 5.8 hours.",
+    action: "Set a sleep alarm for 9:45 PM. Lower Eight Sleep to \u22124\u00B0C \u2014 your deep sleep is 22 minutes longer vs \u22121\u00B0C. Expect recovery in 2 nights.",
+    onlyAIM: "Eight Sleep knows your bed temp. Oura knows your sleep stages. Only AIM quantifies how many watts each extra hour is worth for you.",
+  },
+  {
+    tag: "Heat Adaptation Complete", color: T.orange, bg: "rgba(249,115,22,0.05)", icon: "\uD83C\uDF21\uFE0F",
+    domains: ["Weather", "Wahoo", "Strava"], metric: { value: "2%", label: "remaining gap", direction: "up" },
+    finding: "Power:HR at 95\u00B0F was 1.79 W/bpm vs. 1.45 at 68\u00B0F three weeks ago \u2014 only 2% gap. Early summer, heat caused a 21% drop. Plasma volume expansion nearly complete after 11 heat rides over 6 weeks.",
+    action: "Race in heat with confidence. For temps up to 90\u00B0F, reduce power just 3% (vs 10% in June). Maintain 1\u20132 heat exposures/week.",
+    onlyAIM: "No app tracks your personal heat decay curve. Only AIM shows you went from 21% penalty to 2% over 6 weeks.",
+  },
+  {
+    tag: "Blood Work \u00D7 Plateau", color: T.pink, bg: "rgba(236,72,153,0.05)", icon: "\uD83E\uDE78",
+    domains: ["Blood panel", "Strava", "Oura"], metric: { value: "3 wks", label: "plateau", direction: "down" },
+    finding: "FTP flat at 293\u2013298W for 3 weeks despite +22% load. RHR up 2 bpm. Ferritin at 52 ng/mL (was 85). Lab says 'normal' \u2014 athlete-optimal is 80+. Low iron is limiting oxygen transport.",
+    action: "Discuss iron supplementation with your doctor. AIM will track ferritin against EF trends. Retest in 8 weeks.",
+    onlyAIM: "Lab said 'normal.' Strava shows plateau. Oura shows rising RHR. Only AIM connects all four signals.",
+  },
+];
+
+// ── Insight card ─────────────────────────────────────────────────────────────
+function InsightCard({ item, index, isMobile }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <Reveal delay={index * (isMobile ? 0.04 : 0.06)}>
+      <div
+        onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+        style={{
+          background: T.card, border: `1px solid ${hovered ? item.color + "25" : T.border}`,
+          borderRadius: isMobile ? 14 : 16, padding: isMobile ? "18px" : "22px 24px",
+          transition: "all 0.25s", boxShadow: hovered ? `0 6px 24px ${item.color}08` : "none",
+          marginBottom: isMobile ? 10 : 0,
+        }}
+      >
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: isMobile ? "center" : "flex-start", gap: isMobile ? 8 : 14, marginBottom: isMobile ? 10 : 14, justifyContent: isMobile ? "space-between" : undefined }}>
+          {!isMobile && (
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: item.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{item.icon}</div>
+          )}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: isMobile ? 0 : 6, flexWrap: "wrap" }}>
+              {isMobile && <span style={{ fontSize: 16 }}>{item.icon}</span>}
+              <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: item.color, background: item.bg, borderRadius: 5, padding: "3px 8px" }}>{item.tag}</span>
+              {!isMobile && <span style={{ fontSize: 11, color: T.textDim }}>{item.domains.join(" + ")}</span>}
+            </div>
+            {!isMobile && <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: T.text, fontWeight: 500 }}>{item.finding}</p>}
+          </div>
+          <div style={{ textAlign: "right", flexShrink: 0 }}>
+            <div style={{ fontFamily: mono, fontSize: isMobile ? 18 : 22, fontWeight: 800, color: item.metric.direction === "up" ? T.accent : item.color, lineHeight: 1 }}>{item.metric.value}</div>
+            <div style={{ fontSize: isMobile ? 9 : 10, color: T.textDim, marginTop: 2, whiteSpace: "nowrap" }}>{item.metric.label}</div>
+          </div>
+        </div>
+
+        {/* Finding (mobile only — on desktop it's inline above) */}
+        {isMobile && <p style={{ margin: "0 0 12px", fontSize: 13, lineHeight: 1.55, color: T.text }}>{item.finding}</p>}
+
+        {/* Action */}
+        <div style={{ background: item.bg, borderRadius: isMobile ? 8 : 10, padding: isMobile ? "10px 12px" : "14px 16px", borderLeft: `3px solid ${item.color}`, marginLeft: isMobile ? 0 : 54 }}>
+          <div style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", color: item.color, marginBottom: isMobile ? 3 : 4 }}>What to do</div>
+          <p style={{ margin: 0, fontSize: isMobile ? 12 : 13, lineHeight: 1.6, color: T.text }}>{item.action}</p>
+        </div>
+
+        {/* Only AIM */}
+        <div style={{ marginLeft: isMobile ? 0 : 54, marginTop: 8, display: "flex", alignItems: "flex-start", gap: isMobile ? 5 : 6 }}>
+          <span style={{ fontSize: isMobile ? 9 : 10, color: item.color, flexShrink: 0, marginTop: 1, fontWeight: 700 }}>{"\u2726"}</span>
+          <p style={{ margin: 0, fontSize: isMobile ? 10 : 11, lineHeight: 1.5, color: T.textSoft, fontStyle: "italic" }}>{item.onlyAIM}</p>
+        </div>
+      </div>
+    </Reveal>
+  );
+}
+
+// ── Dashboard mockup ─────────────────────────────────────────────────────────
+function DashboardMockup({ isMobile }) {
+  const mockInsights = [
+    { tag: "Adaptation Confirmed", color: T.accent, bg: T.accentDim, text: "EF improved 1.68\u21921.85 across 4 sessions. AIM controlled for Weather, Oura HRV, and Eight Sleep. Real fitness gains.", action: "Progress to 3\u00D715 at 102% FTP next session." },
+    { tag: "Heat \u00D7 Adaptation", color: T.amber, bg: "rgba(245,158,11,0.05)", text: "Today was 28\u00B0F warmer than your baseline (Weather API). But your Power:HR shows only a 2% gap vs. cooler rides \u2014 down from 21% in June.", action: "Race-ready for heat up to 90\u00B0F. Reduce power just 3% (vs 10% in June)." },
+    { tag: "Race Projection", color: T.blue, bg: "rgba(59,130,246,0.05)", text: "Mt. Tam in 12 days. CTL 78 + Withings weight trend + Weather forecast + altitude penalty + your personal taper curve.", action: "Projected finish: 4:42:18. Start taper in 4 days. Fuel at 72g carbs/hr." },
   ];
 
   return (
-    <div>
+    <div style={{ background: T.card, borderRadius: isMobile ? 14 : 16, border: `1px solid ${T.border}`, boxShadow: isMobile ? "0 8px 32px rgba(0,0,0,0.06)" : "0 24px 80px rgba(0,0,0,0.08), 0 4px 20px rgba(0,0,0,0.04)", overflow: "hidden", width: "100%", maxWidth: isMobile ? undefined : 900, margin: "0 auto" }}>
+      {/* Browser chrome */}
+      <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 4 : 6, padding: isMobile ? "8px 12px" : "10px 14px", background: "#f5f5f4", borderBottom: `1px solid ${T.border}` }}>
+        <div style={{ width: isMobile ? 7 : 10, height: isMobile ? 7 : 10, borderRadius: "50%", background: "#ef4444" }} />
+        <div style={{ width: isMobile ? 7 : 10, height: isMobile ? 7 : 10, borderRadius: "50%", background: "#f59e0b" }} />
+        <div style={{ width: isMobile ? 7 : 10, height: isMobile ? 7 : 10, borderRadius: "50%", background: "#22c55e" }} />
+        {!isMobile && <div style={{ flex: 1, marginLeft: 12, background: "#e8e8e6", borderRadius: 6, padding: "5px 12px", fontSize: 11, color: T.textSoft, fontFamily: "monospace" }}>aimfitness.ai/dashboard</div>}
+        {isMobile && <span style={{ marginLeft: 8, fontSize: 9, color: T.textDim, fontFamily: "monospace" }}>aimfitness.ai</span>}
+      </div>
+
+      <div style={{ padding: isMobile ? 14 : "18px 20px", display: "flex", flexDirection: "column", gap: isMobile ? 8 : 10 }}>
+        {/* Readiness strip */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: T.accentDim, border: `1px solid ${T.accentMid}`, borderRadius: isMobile ? 8 : 10, padding: isMobile ? "8px 12px" : "10px 14px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 6 : 8 }}>
+            <span style={{ fontSize: isMobile ? 8 : 9, fontWeight: 800, color: T.accent, textTransform: "uppercase", letterSpacing: "0.06em" }}>Readiness</span>
+            <span style={{ fontSize: isMobile ? 20 : 22, fontWeight: 800, color: T.accent, fontFamily: mono }}>84</span>
+          </div>
+          <span style={{ fontSize: isMobile ? 9 : 10, color: T.accent }}>HRV 97ms {"\u00B7"} Sleep 7.8h {"\u00B7"} CTL 74</span>
+        </div>
+
+        {/* Ride metrics */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: isMobile ? 3 : 4 }}>
+          {[["NP", "266W"], ["TSS", "142"], ["EF", "1.85"], ["IF", "0.89"], ["Drift", "3.2%"]].map(([l, v]) => (
+            <div key={l} style={{ textAlign: "center", padding: isMobile ? "4px 0" : "5px 0", background: T.bg, borderRadius: isMobile ? 4 : 5 }}>
+              <div style={{ fontSize: isMobile ? 6 : 7, color: T.textDim, textTransform: "uppercase" }}>{l}</div>
+              <div style={{ fontSize: isMobile ? 10 : 11, fontWeight: 700, fontFamily: mono, color: l === "EF" ? T.accent : T.text }}>{v}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* AI header */}
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 5 : 6, marginTop: 2 }}>
+          <div style={{ width: isMobile ? 14 : 18, height: isMobile ? 14 : 18, borderRadius: isMobile ? 4 : 6, background: T.gradient, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ color: "white", fontSize: isMobile ? 7 : 9, fontWeight: 800 }}>{"\u2726"}</span>
+          </div>
+          <span style={{ fontSize: isMobile ? 9 : 10, fontWeight: 800, color: T.accent, textTransform: "uppercase", letterSpacing: "0.06em" }}>AI Insights {"\u00B7"} 15 new</span>
+        </div>
+
+        {/* Insight cards */}
+        {mockInsights.map((ins, i) => (
+          <div key={i} style={{ background: T.card, borderRadius: isMobile ? 8 : 10, padding: isMobile ? "9px 10px" : "12px 14px", border: `1px solid ${T.border}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: isMobile ? 3 : 6 }}>
+              <span style={{ fontSize: isMobile ? 8 : 9, fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase", color: ins.color, background: ins.bg, borderRadius: 4, padding: "2px 6px" }}>{ins.tag}</span>
+              <span style={{ fontSize: isMobile ? 8 : 9, color: T.textDim, fontWeight: 600 }}>HIGH</span>
+            </div>
+            <p style={{ margin: "0 0 5px", fontSize: isMobile ? 10 : 11, lineHeight: 1.55, color: T.text }}>{ins.text}</p>
+            <div style={{ background: ins.bg, borderRadius: isMobile ? 4 : 6, padding: isMobile ? "4px 7px" : "6px 10px", borderLeft: `2px solid ${ins.color}` }}>
+              <span style={{ fontSize: isMobile ? 9 : 10, fontWeight: 700, color: ins.color }}>{"\u2192"} </span>
+              <span style={{ fontSize: isMobile ? 9 : 10, color: T.text }}>{ins.action}</span>
+            </div>
+          </div>
+        ))}
+
+        {/* Chat input */}
+        <div style={{ display: "flex", gap: 6, alignItems: "center", background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, padding: "7px 10px" }}>
+          <span style={{ fontSize: 10, color: T.textDim, flex: 1 }}>Ask anything about your training{"\u2026"}</span>
+          <div style={{ background: T.gradient, borderRadius: 5, padding: "3px 8px", fontSize: 9, fontWeight: 700, color: "white" }}>Ask {"\u2726"}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// MAIN COMPONENT
+// ═════════════════════════════════════════════════════════════════════════════
+export default function Landing() {
+  const navigate = useNavigate();
+  const { user, profile, signout } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [billingAnnual, setBillingAnnual] = useState(false);
+  const [showAllInsights, setShowAllInsights] = useState(false);
+  const handleSignout = async () => { await signout(); navigate("/"); };
+  const { isMobile, isTablet, isDesktop } = useResponsive();
+
+  useEffect(() => {
+    const h = () => setScrolled(window.scrollY > 40);
+    window.addEventListener("scroll", h, { passive: true });
+    return () => window.removeEventListener("scroll", h);
+  }, []);
+
+  const ctaText = user ? "Go to Dashboard" : "Start free \u2014 connect your apps";
+  const ctaRoute = user ? "/dashboard" : "/signup";
+  const visibleInsights = isMobile && !showAllInsights ? INSIGHTS.slice(0, 4) : INSIGHTS;
+
+  const features = [
+    { icon: "\u26A1", title: "AI-Powered Analysis", desc: "Every workout gets a full breakdown with specific, actionable recommendations \u2014 not just charts." },
+    { icon: "\uD83D\uDD17", title: "18+ Integrations", desc: "Strava, Wahoo, Garmin, Oura, Whoop, Eight Sleep, Withings, blood panels, DEXA." },
+    { icon: "\uD83E\uDDEC", title: "Cross-Domain Insights", desc: "Insights connecting sleep, training, blood work, and body comp that no single app can make." },
+    { icon: "\uD83C\uDFAF", title: "Power Benchmarking", desc: "Compare to Cat 1\u20135 with prescribed workouts to close the gap." },
+    { icon: "\uD83E\uDE78", title: "Health Lab", desc: "Athlete-optimal ranges, not clinical. Tracks trends over time." },
+    { icon: "\uD83D\uDCC8", title: "Prescriptions", desc: "Exact watts, durations, and protocols tailored to your data and readiness." },
+  ];
+
+  const testimonials = [
+    { quote: "AIM told me VO\u2082 was my limiter before my coach did. Prescribed intervals raised my 5-min power 22W in 8 weeks.", name: "Sarah K.", role: "Cat 2, Boulder CO", color: T.accent },
+    { quote: "Moved my bedtime up 45 minutes. EF improved 8%. Free watts from doing nothing different on the bike.", name: "Marcus T.", role: "Masters 45+, Marin", color: T.blue },
+    { quote: "Turns out my luteal phase HR drift is 18% higher. Now I schedule breakthroughs in my follicular window.", name: "Elena R.", role: "Pro Triathlete, Bay Area", color: T.purple },
+  ];
+
+  const plans = [
+    { name: "Starter", price: billingAnnual ? 15 : 19, desc: "Getting serious about data", features: ["3 app connections", "AI workout analysis", "Power benchmarking", "Training prescriptions", "Boosters library"], featured: false },
+    { name: "Pro", price: billingAnnual ? 39 : 49, badge: "Most Popular", desc: "For competitive athletes", features: ["Unlimited connections", "Full cross-domain AI", "Advanced prescriptions", "Recovery intelligence", "Supplement protocols", "Coach sharing"], featured: true },
+    { name: "Elite", price: billingAnnual ? 79 : 99, badge: "Complete", desc: "Blood work, DEXA, cycle intel", features: ["Everything in Pro", "Health Lab", "Biomarker tracking", "Menstrual cycle AI", "Nutrition periodization", "Priority analysis"], featured: false },
+  ];
+  // On mobile, show Pro first
+  const orderedPlans = isMobile ? [plans[1], plans[0], plans[2]] : plans;
+
+  return (
+    <div style={{ fontFamily: font, background: T.bg, color: T.text, overflowX: "hidden" }}>
+      <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
       <SEO path="/" />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareSchema) }} />
 
-      {/* Nav */}
-      <nav style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, padding: isMobile ? "0 16px" : "0 40px", height: isMobile ? 56 : 64, display: "flex", alignItems: "center", justifyContent: "space-between", background: `${T.bg}dd`, backdropFilter: "blur(20px)", borderBottom: `1px solid ${T.border}` }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 9, background: T.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: T.bg, letterSpacing: "-0.02em" }}>AI</div>
-          <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.03em" }}><span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>AI</span>M</span>
-        </div>
-        {isMobile ? (
-          <button onClick={() => setMenuOpen(true)} style={{ background: "none", border: "none", color: T.text, cursor: "pointer", padding: 8, minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}><Menu size={22} /></button>
-        ) : (
-          <div style={{ display: "flex", alignItems: "center", gap: isTablet ? 20 : 32 }}>
-            <a href="#why" style={{ color: T.textSoft, textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Why AIM</a>
-            <a href="#features" style={{ color: T.textSoft, textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Features</a>
-            <a href="#pricing" style={{ color: T.textSoft, textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Pricing</a>
-            <a href="#testimonials" style={{ color: T.textSoft, textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Testimonials</a>
-            {user ? (
-              <div style={{ position: "relative" }}>
-                <div onClick={() => setUserMenuOpen(!userMenuOpen)} style={{ width: 32, height: 32, borderRadius: 9, background: `linear-gradient(135deg, ${T.purple}, ${T.pink})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: T.white, cursor: "pointer" }}>
-                  {profile?.full_name ? profile.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() : "U"}
-                </div>
-                {userMenuOpen && (<>
-                  <div onClick={() => setUserMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 149 }} />
-                  <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, padding: 4, minWidth: 170, zIndex: 150, boxShadow: "0 4px 16px rgba(0,0,0,0.08)" }}>
-                    <button onClick={() => { setUserMenuOpen(false); navigate("/dashboard"); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", background: "none", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 600, color: T.text, cursor: "pointer", fontFamily: font }}>
-                      <LayoutDashboard size={14} /> My Dashboard
-                    </button>
-                    <button onClick={() => { setUserMenuOpen(false); navigate("/profile"); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", background: "none", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 600, color: T.text, cursor: "pointer", fontFamily: font }}>
-                      <User size={14} /> Profile
-                    </button>
-                    <button onClick={() => { setUserMenuOpen(false); navigate("/settings"); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", background: "none", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 600, color: T.text, cursor: "pointer", fontFamily: font }}>
-                      <Settings size={14} /> Settings
-                    </button>
-                    <div style={{ height: 1, background: T.border, margin: "4px 0" }} />
-                    <button onClick={() => { setUserMenuOpen(false); handleSignout(); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", background: "none", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 600, color: "#ef4444", cursor: "pointer", fontFamily: font }}>
-                      <LogOut size={14} /> Sign Out
-                    </button>
-                  </div>
-                </>)}
-              </div>
-            ) : (
-              <>
-                <button onClick={() => navigate("/signin")} style={{ ...btn(false), padding: "8px 20px", fontSize: 13 }}>Sign In</button>
-                <button onClick={() => navigate("/signup")} style={{ ...btn(true), padding: "10px 24px", fontSize: 13 }}>Get Started</button>
-              </>
-            )}
-          </div>
-        )}
-      </nav>
-
-      {/* Mobile menu drawer */}
-      {isMobile && menuOpen && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 200 }}>
-          <div onClick={() => setMenuOpen(false)} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }} />
-          <div style={{ position: "absolute", top: 0, right: 0, width: 280, height: "100vh", background: T.surface, borderLeft: `1px solid ${T.border}`, padding: "20px 24px", display: "flex", flexDirection: "column", gap: 8, overflowY: "auto" }}>
-            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
-              <button onClick={() => setMenuOpen(false)} style={{ background: "none", border: "none", color: T.text, cursor: "pointer", padding: 8, minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}><X size={22} /></button>
+      {/* ═══ NAVIGATION ═══════════════════════════════════════════════════════ */}
+      <nav style={{
+        position: "fixed", top: 0, left: 0, right: 0, zIndex: 200,
+        height: isMobile ? 56 : 60,
+        background: scrolled || isMobile ? `${T.bg}ee` : "transparent",
+        backdropFilter: scrolled || isMobile ? "blur(20px) saturate(1.5)" : "none",
+        WebkitBackdropFilter: scrolled || isMobile ? "blur(20px) saturate(1.5)" : "none",
+        borderBottom: scrolled || isMobile ? `1px solid ${T.border}` : "1px solid transparent",
+        transition: "all 0.3s", display: "flex", alignItems: "center",
+        padding: isMobile ? "0 16px" : "0 40px",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", maxWidth: 1120, margin: "0 auto" }}>
+          <Link to="/" style={{ display: "flex", alignItems: "center", gap: isMobile ? 7 : 8, textDecoration: "none", color: T.text }}>
+            <div style={{ width: isMobile ? 28 : 30, height: isMobile ? 28 : 30, borderRadius: isMobile ? 7 : 8, background: T.gradient, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ color: "white", fontWeight: 800, fontSize: isMobile ? 12 : 13 }}>AI</span>
             </div>
-            {[{ href: "#why", label: "Why AIM" }, { href: "#features", label: "Features" }, { href: "#pricing", label: "Pricing" }, { href: "#testimonials", label: "Testimonials" }].map(link => (
-              <a key={link.href} href={link.href} onClick={() => setMenuOpen(false)} style={{ color: T.text, textDecoration: "none", fontSize: 16, fontWeight: 600, padding: "14px 0", borderBottom: `1px solid ${T.border}` }}>{link.label}</a>
-            ))}
-            <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+            <span style={{ fontWeight: 800, fontSize: isMobile ? 16 : 18, letterSpacing: "-0.04em" }}>
+              <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>AI</span>M
+            </span>
+            <span style={{ fontSize: 8, color: T.accent, fontWeight: 600, letterSpacing: "0.1em", marginLeft: -3 }}>BETA</span>
+          </Link>
+
+          {isMobile ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button onClick={() => navigate(ctaRoute)} style={{ fontSize: 12, fontWeight: 700, color: "white", background: T.gradient, borderRadius: 7, padding: "7px 14px", border: "none", cursor: "pointer", fontFamily: font }}>{user ? "Dashboard" : "Start free"}</button>
+              <button onClick={() => setMenuOpen(!menuOpen)} style={{ background: "none", border: "none", color: T.text, cursor: "pointer", padding: 4, minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {menuOpen ? <X size={22} /> : <Menu size={22} />}
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: "flex", alignItems: "center", gap: isTablet ? 20 : 28 }}>
+              {["How it works", "Pricing"].map(l => (
+                <a key={l} href={`#${l.toLowerCase().replace(/\s/g, "-")}`} style={{ fontSize: 14, fontWeight: 500, color: T.textSoft, transition: "color 0.15s" }}
+                  onMouseEnter={e => e.target.style.color = T.text}
+                  onMouseLeave={e => e.target.style.color = T.textSoft}
+                >{l}</a>
+              ))}
               {user ? (
-                <>
-                  {profile?.full_name && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", marginBottom: 4 }}>
-                      <div style={{ width: 30, height: 30, borderRadius: 9, background: `linear-gradient(135deg, ${T.purple}, ${T.pink})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: T.white }}>
-                        {profile.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
-                      </div>
-                      <span style={{ fontSize: 14, fontWeight: 600 }}>{profile.full_name}</span>
+                <div style={{ position: "relative" }}>
+                  <div onClick={() => setUserMenuOpen(!userMenuOpen)} style={{ width: 32, height: 32, borderRadius: 9, background: `linear-gradient(135deg, ${T.purple}, ${T.pink})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: T.white, cursor: "pointer" }}>
+                    {profile?.full_name ? profile.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() : "U"}
+                  </div>
+                  {userMenuOpen && (<>
+                    <div onClick={() => setUserMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 149 }} />
+                    <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, padding: 4, minWidth: 170, zIndex: 150, boxShadow: "0 4px 16px rgba(0,0,0,0.08)" }}>
+                      {[{ icon: <LayoutDashboard size={14} />, label: "My Dashboard", to: "/dashboard" }, { icon: <User size={14} />, label: "Profile", to: "/profile" }, { icon: <Settings size={14} />, label: "Settings", to: "/settings" }].map(item => (
+                        <button key={item.to} onClick={() => { setUserMenuOpen(false); navigate(item.to); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", background: "none", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 600, color: T.text, cursor: "pointer", fontFamily: font }}>
+                          {item.icon} {item.label}
+                        </button>
+                      ))}
+                      <div style={{ height: 1, background: T.border, margin: "4px 0" }} />
+                      <button onClick={() => { setUserMenuOpen(false); handleSignout(); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", background: "none", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 600, color: "#ef4444", cursor: "pointer", fontFamily: font }}>
+                        <LogOut size={14} /> Sign Out
+                      </button>
                     </div>
-                  )}
-                  <button onClick={() => { setMenuOpen(false); navigate("/dashboard"); }} style={{ ...btn(true), justifyContent: "center", width: "100%", padding: "14px 24px" }}>My Dashboard</button>
-                  <button onClick={() => { setMenuOpen(false); navigate("/profile"); }} style={{ ...btn(false), justifyContent: "center", width: "100%", padding: "14px 24px" }}>Profile</button>
-                  <button onClick={() => { setMenuOpen(false); navigate("/settings"); }} style={{ ...btn(false), justifyContent: "center", width: "100%", padding: "14px 24px" }}>Settings</button>
-                  <button onClick={() => { setMenuOpen(false); handleSignout(); }} style={{ background: "none", border: "1px solid rgba(239,68,68,0.2)", padding: "14px 24px", borderRadius: 10, fontSize: 14, fontWeight: 600, color: "#ef4444", cursor: "pointer", fontFamily: font, width: "100%", textAlign: "center" }}>Sign Out</button>
-                </>
+                  </>)}
+                </div>
               ) : (
                 <>
-                  <button onClick={() => { setMenuOpen(false); navigate("/signup"); }} style={{ ...btn(true), justifyContent: "center", width: "100%", padding: "14px 24px" }}>Get Started</button>
-                  <button onClick={() => { setMenuOpen(false); navigate("/signin"); }} style={{ ...btn(false), justifyContent: "center", width: "100%", padding: "14px 24px" }}>Sign In</button>
+                  <button onClick={() => navigate("/signin")} style={{ fontSize: 13, fontWeight: 700, color: T.text, border: `1.5px solid ${T.border}`, borderRadius: 8, padding: "7px 16px", background: "none", cursor: "pointer", fontFamily: font }}>Log in</button>
+                  <button onClick={() => navigate("/signup")} style={{ fontSize: 13, fontWeight: 700, color: "white", background: T.gradient, borderRadius: 8, padding: "8px 18px", boxShadow: "0 2px 10px rgba(16,185,129,0.25)", border: "none", cursor: "pointer", fontFamily: font }}>Start free {"\u2192"}</button>
                 </>
               )}
             </div>
+          )}
+        </div>
+      </nav>
+
+      {/* Mobile slide-out menu */}
+      {isMobile && menuOpen && (
+        <div style={{ position: "fixed", top: 56, left: 0, right: 0, bottom: 0, zIndex: 199, background: `${T.bg}fa`, backdropFilter: "blur(20px)", padding: "32px 24px" }}>
+          {["How it works", "Features", "Pricing"].map(l => (
+            <a key={l} href={`#${l.toLowerCase().replace(/\s/g, "-")}`} onClick={() => setMenuOpen(false)} style={{ display: "block", fontSize: 18, fontWeight: 600, color: T.text, padding: "16px 0", borderBottom: `1px solid ${T.border}`, textDecoration: "none" }}>{l}</a>
+          ))}
+          <div style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 10 }}>
+            {user ? (
+              <>
+                <button onClick={() => { setMenuOpen(false); navigate("/dashboard"); }} style={{ ...btn(true), justifyContent: "center", width: "100%" }}>My Dashboard</button>
+                <button onClick={() => { setMenuOpen(false); handleSignout(); }} style={{ ...btn(false), justifyContent: "center", width: "100%", color: "#ef4444", borderColor: "rgba(239,68,68,0.2)" }}>Sign Out</button>
+              </>
+            ) : (
+              <>
+                <button onClick={() => { setMenuOpen(false); navigate("/signup"); }} style={{ ...btn(true), justifyContent: "center", width: "100%" }}>Get Started</button>
+                <button onClick={() => { setMenuOpen(false); navigate("/signin"); }} style={{ ...btn(false), justifyContent: "center", width: "100%" }}>Log in</button>
+              </>
+            )}
           </div>
         </div>
       )}
 
       <main>
-      {/* ── CLEAN HERO (above the fold — same as original) ── */}
-      <section style={{ paddingTop: isMobile ? 100 : isTablet ? 130 : 160, paddingBottom: isMobile ? 60 : 100, textAlign: "center", position: "relative", overflow: "hidden" }}>
-        <NeuralBackground />
-        <div style={{ position: "relative", zIndex: 10, maxWidth: 800, margin: "0 auto", padding: isMobile ? "32px 20px" : "48px 48px", background: `radial-gradient(ellipse at center, ${T.bg} 0%, ${T.bg}ee 60%, transparent 100%)`, borderRadius: isMobile ? 20 : 32 }}>
-          <h1 style={{ fontSize: isMobile ? 36 : isTablet ? 48 : 64, fontWeight: 800, lineHeight: 1.05, letterSpacing: "-0.04em", margin: "0 0 24px" }}>
-            Your AI<br />
-            <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Performance Coach</span>
-          </h1>
-          <p style={{ fontSize: isMobile ? 16 : 19, color: T.textSoft, lineHeight: 1.6, maxWidth: 560, margin: "0 auto 40px", fontWeight: 400 }}>
-            AIM connects all your fitness data — power, sleep, recovery, body composition, blood work, and DEXA scans — and uses AI to deliver actionable insights with specific recommendations, not just numbers.
-          </p>
-          <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "center", gap: isMobile ? 12 : 16 }}>
-            <button onClick={() => navigate(user ? "/dashboard" : "/signup")} style={{ ...btn(true), fontSize: isMobile ? 15 : 16, padding: isMobile ? "14px 24px" : "16px 36px", justifyContent: "center" }}>{user ? "Go to Dashboard" : "Start Your Free Trial"} <ArrowRight size={18} /></button>
-          </div>
-          <div style={{ marginTop: isMobile ? 32 : 48, display: "flex", flexWrap: "wrap", justifyContent: "center", gap: isMobile ? "8px 20px" : 32, alignItems: "center" }}>
-            {["Strava", "Wahoo", "Garmin", "Oura", "Whoop", "Withings"].map(n => (
-              <span key={n} style={{ fontSize: 13, color: T.textDim, fontWeight: 500, letterSpacing: "0.04em" }}>{n}</span>
-            ))}
-          </div>
-          <p style={{ fontSize: 12, color: T.textDim, marginTop: 8 }}>Integrates with 18+ platforms</p>
-        </div>
-      </section>
+        {/* ═══ HERO ═══════════════════════════════════════════════════════════ */}
+        <section style={{
+          paddingTop: isMobile ? 88 : isTablet ? 130 : 140, paddingBottom: isMobile ? 40 : 80,
+          paddingLeft: isMobile ? 20 : 40, paddingRight: isMobile ? 20 : 40,
+          background: "linear-gradient(180deg, #eef8f4 0%, #fafaf9 55%)",
+          position: "relative", overflow: "hidden",
+        }}>
+          {isDesktop && <Constellation />}
+          <div style={{ maxWidth: 1120, margin: "0 auto", position: "relative", zIndex: 1 }}>
+            <Reveal delay={0.04}>
+              <h1 style={{
+                textAlign: "center",
+                fontSize: isMobile ? 38 : isTablet ? 52 : "clamp(44px, 6.5vw, 76px)",
+                fontFamily: SERIF, fontWeight: 400, lineHeight: 1.08, letterSpacing: "-0.03em",
+                margin: "0 auto 16px", maxWidth: 800,
+              }}>
+                Five apps.<br />Zero answers.{isMobile ? <br /> : " "}
+                <em style={{ fontStyle: "italic", background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Until now.</em>
+              </h1>
+            </Reveal>
 
-      {/* Metrics strip */}
-      <section style={{ borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, padding: isMobile ? "24px 16px" : "32px 0", background: T.surface }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto", display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: isMobile ? 20 : 0, textAlign: "center" }}>
-          {[{ n: "100+", l: "Metrics Tracked" }, { n: "18+", l: "App Integrations" }, { n: "25+", l: "Blood Biomarkers" }, { n: "24/7", l: "AI Analysis" }].map(s => (
-            <div key={s.l}>
-              <div style={{ fontSize: isMobile ? 28 : 36, fontWeight: 800, fontFamily: mono, background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{s.n}</div>
-              <div style={{ fontSize: 13, color: T.textSoft, marginTop: 4 }}>{s.l}</div>
-            </div>
-          ))}
-        </div>
-      </section>
+            <Reveal delay={0.08}>
+              <p style={{
+                textAlign: "center", fontSize: isMobile ? 15 : "clamp(15px, 1.5vw, 18px)",
+                lineHeight: 1.6, color: T.textSoft, maxWidth: 560, margin: "0 auto 28px",
+              }}>
+                AIM connects your training, sleep, recovery, blood work, and body comp {"\u2014"} then tells you exactly what to do next.
+              </p>
+            </Reveal>
 
-      {/* ── A MESSAGE FROM THE FOUNDER ── */}
-      <section id="about" style={{ padding: isMobile ? "60px 16px" : isTablet ? "80px 24px" : "80px 40px", background: T.surface, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}` }}>
-        <div style={{ maxWidth: 1000, margin: "0 auto" }}>
-          <p style={{ fontSize: 12, color: T.accent, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", textAlign: "center", marginBottom: isMobile ? 32 : 48 }}>A Message from the Founder</p>
-          <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: isMobile ? 32 : isTablet ? 32 : 48, alignItems: isMobile ? "center" : "center" }}>
-            {/* Photo */}
-            <div style={{ flexShrink: 0, width: isMobile ? "100%" : isTablet ? 220 : 320, maxWidth: isMobile ? 280 : undefined }}>
-              <div style={{ width: "100%", aspectRatio: "4/5", borderRadius: 20, overflow: "hidden", position: "relative" }}>
-                <img src="/kristen.jpg" alt="Kristen Faulkner" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            {/* CTA */}
+            <Reveal delay={0.12}>
+              <div style={{ display: "flex", justifyContent: "center" }}>
+                <button onClick={() => navigate(ctaRoute)} style={{
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                  background: T.gradient, color: "white", fontWeight: 700,
+                  fontSize: 15, padding: isMobile ? "14px 24px" : "12px 24px",
+                  borderRadius: isMobile ? 12 : 10, border: "none", cursor: "pointer", fontFamily: font,
+                  width: isMobile ? "100%" : "auto", minHeight: isMobile ? 48 : undefined,
+                  boxShadow: "0 2px 14px rgba(16,185,129,0.3)",
+                }}>
+                  {ctaText} <ArrowRight size={16} />
+                </button>
               </div>
-              <div style={{ textAlign: "center", marginTop: 16 }}>
-                <p style={{ fontSize: 16, fontWeight: 800, margin: "0 0 2px" }}>Kristen Faulkner</p>
-                <p style={{ fontSize: 13, color: T.accent, margin: "0 0 2px", fontWeight: 600 }}>Founder & CEO</p>
-                <p style={{ fontSize: 12, color: T.textDim, margin: 0, lineHeight: 1.5 }}>2x Olympic Gold Medalist, Cycling</p>
+              <p style={{ textAlign: "center", fontSize: isMobile ? 12 : 13, color: T.textDim, marginTop: 10 }}>
+                Free 14-day trial {"\u00B7"} No credit card {!isMobile && "\u00B7 2 minutes to set up"}
+              </p>
+            </Reveal>
+
+            {/* Integration names */}
+            <Reveal delay={0.16}>
+              <div style={{ textAlign: "center", margin: isMobile ? "20px 0 0" : "28px 0 52px" }}>
+                <div style={{ display: "flex", gap: isMobile ? 16 : 36, justifyContent: "center", flexWrap: "wrap", marginBottom: isMobile ? 4 : 8 }}>
+                  {["Strava", "Wahoo", "Garmin", "Oura", "Whoop", "Withings"].map(n => (
+                    <span key={n} style={{ fontSize: isMobile ? 13 : 16, fontWeight: 600, color: "rgba(0,0,0,0.22)" }}>{n}</span>
+                  ))}
+                </div>
+                <p style={{ fontSize: isMobile ? 11 : 13, color: T.textDim, margin: 0 }}>Integrates with 18+ platforms</p>
               </div>
-            </div>
-            {/* Quote */}
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: isMobile ? 36 : 48, color: T.accent, fontWeight: 800, lineHeight: 1, marginBottom: 8, opacity: 0.3 }}>"</div>
-              <p style={{ fontSize: isMobile ? 16 : 20, color: T.text, lineHeight: 1.7, margin: "0 0 20px", fontWeight: 500 }}>
-                I went from Venture Capital in Silicon Valley to the Olympic podium, and the whole way I was searching for insights that didn't exist. I had power files, blood work, sleep data, body comp scans, and a hormone cycle that affected everything. But no tool could connect them.
-              </p>
-              <p style={{ fontSize: isMobile ? 16 : 20, color: T.text, lineHeight: 1.7, margin: "0 0 20px", fontWeight: 500 }}>
-                I built AIM because I wanted the cross-domain analysis I couldn't find anywhere else. The biomarker patterns, the recovery protocols, the performance boosters, the training frameworks that actually won races. Everything I learned racing at the highest level, I've put into this platform.
-              </p>
-              <p style={{ fontSize: isMobile ? 16 : 20, color: T.text, lineHeight: 1.7, margin: "0 0 20px", fontWeight: 500 }}>
-                Our health is our most valuable asset. I want to make world-class performance intelligence accessible to every athlete, not just professionals.
-              </p>
-              <div style={{ width: 48, height: 2, background: T.gradient, marginBottom: 16 }} />
-              <p style={{ fontSize: 14, fontWeight: 700, color: T.text, margin: 0 }}>Kristen Faulkner</p>
-              <p style={{ fontSize: 13, color: T.textDim, margin: "2px 0 0" }}>2x Olympic Gold Medalist · Road Race & Team Pursuit, Paris 2024</p>
-            </div>
+            </Reveal>
+
+            {/* Founder credit */}
+            <Reveal delay={0.2}>
+              <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 10, justifyContent: "center", marginTop: isMobile ? 24 : 12 }}>
+                <div style={{ width: isMobile ? 28 : 34, height: isMobile ? 28 : 34, borderRadius: "50%", border: `2px solid ${T.accentMid}`, overflow: "hidden", flexShrink: 0 }}>
+                  <img src="/kristen.jpg" alt="Kristen Faulkner" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                </div>
+                <p style={{ fontSize: isMobile ? 12 : 13, color: T.textSoft, margin: 0 }}>
+                  Built by <strong style={{ color: T.text, fontWeight: 700 }}>Kristen Faulkner</strong> {"\u2014"} 2{"\u00D7"} Olympic Gold{!isMobile && " Medalist, Paris 2024"}
+                </p>
+              </div>
+            </Reveal>
+
+            {/* Dashboard mockup */}
+            <Reveal delay={isMobile ? 0 : 0.25} y={40}>
+              <div style={{ marginTop: isMobile ? 32 : 48, padding: isMobile ? "0" : undefined }}>
+                <DashboardMockup isMobile={isMobile} />
+              </div>
+            </Reveal>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ── WHY APEX IS DIFFERENT ── */}
-      <section id="why" style={{ padding: isMobile ? "60px 16px" : isTablet ? "80px 24px" : "100px 40px", maxWidth: 1100, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: isMobile ? 40 : 64 }}>
-          <h2 style={{ fontSize: isMobile ? 28 : isTablet ? 34 : 42, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 16px" }}>
-            This isn't another <span style={{ color: T.textDim, textDecoration: "line-through", textDecorationColor: T.danger + "60" }}>fitness dashboard</span>
-          </h2>
-          <p style={{ fontSize: isMobile ? 15 : 17, color: T.textSoft, maxWidth: 580, margin: "0 auto" }}>Other apps show you charts. AIM tells you what they mean and exactly what to do about it.</p>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "repeat(2, 1fr)" : "repeat(3, 1fr)", gap: isMobile ? 16 : 24 }}>
-          {[
-            { emoji: "\u{1F9EC}", title: "Cross-domain intelligence no one else has", desc: "AIM is the only platform that reasons across your blood work, training data, sleep, body composition, nutrition, and menstrual cycle simultaneously. Your ferritin trend explains your power plateau. Your DEXA changes reveal whether weight loss is fat or muscle." },
-            { emoji: "\u{1F3C5}", title: "Built by a 2x Olympic Champion", desc: "The analysis frameworks, biomarker ranges, and training prescriptions in AIM come from the same system used to win Olympic gold — refined through years of world-class competition, sports science research, and elite coaching." },
-            { emoji: "\u{1FA78}", title: "Your blood work and DEXA scans, decoded", desc: "Upload your lab results and body scans. AIM uses athlete-optimal ranges (not clinical ranges designed to catch disease) to flag what matters for performance. It tracks trends over time, cross-references with your training load, and tells you exactly when to retest." },
-          ].map((d, i) => (
-            <div key={i} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 20, padding: "36px 28px", transition: "all 0.3s", cursor: "default" }}
-              onMouseOver={e => { e.currentTarget.style.borderColor = T.borderHover; e.currentTarget.style.transform = "translateY(-4px)"; }}
-              onMouseOut={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.transform = "translateY(0)"; }}>
-              <div style={{ fontSize: 36, marginBottom: 20, textAlign: "center" }}>{d.emoji}</div>
-              <h3 style={{ fontSize: 18, fontWeight: 800, margin: "0 0 12px", letterSpacing: "-0.01em", lineHeight: 1.3 }}>{d.title}</h3>
-              <p style={{ fontSize: 14, color: T.textSoft, lineHeight: 1.7, margin: 0 }}>{d.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* AI Insights Showcase */}
-      <InsightsShowcase navigate={navigate} user={user} />
-
-      {/* Features */}
-      <section id="features" style={{ padding: isMobile ? "60px 16px" : isTablet ? "80px 24px" : "100px 40px", maxWidth: 1200, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: isMobile ? 40 : 64 }}>
-          <h2 style={{ fontSize: isMobile ? 28 : isTablet ? 34 : 42, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 16px" }}>Intelligence that <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>connects everything</span></h2>
-          <p style={{ fontSize: isMobile ? 15 : 17, color: T.textSoft, maxWidth: 560, margin: "0 auto" }}>Not just another dashboard. AIM reasons across your entire data ecosystem to find patterns no single app can see.</p>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "repeat(2, 1fr)" : "repeat(3, 1fr)", gap: isMobile ? 14 : 20 }}>
-          {features.map((f, i) => (
-            <div key={i} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: "32px 28px", transition: "all 0.3s", cursor: "default", position: "relative", overflow: "hidden" }}
-              onMouseOver={e => { e.currentTarget.style.borderColor = T.borderHover; e.currentTarget.style.transform = "translateY(-4px)"; }}
-              onMouseOut={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.transform = "translateY(0)"; }}>
-              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, transparent, ${T.accent}30, transparent)` }} />
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: T.accentDim, display: "flex", alignItems: "center", justifyContent: "center", color: T.accent, marginBottom: 20 }}>{f.icon}</div>
-              <h3 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 10px", letterSpacing: "-0.01em" }}>{f.title}</h3>
-              <p style={{ fontSize: 14, color: T.textSoft, lineHeight: 1.65, margin: 0 }}>{f.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── INTEGRATIONS ── */}
-      <section id="integrations" style={{ padding: isMobile ? "60px 16px" : isTablet ? "80px 24px" : "100px 40px", background: T.surface, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}` }}>
-        <div style={{ maxWidth: 1000, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: isMobile ? 40 : 64 }}>
-            <h2 style={{ fontSize: isMobile ? 28 : isTablet ? 34 : 42, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 16px" }}>All your data, <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>one platform</span></h2>
-            <p style={{ fontSize: isMobile ? 15 : 17, color: T.textSoft, maxWidth: 560, margin: "0 auto" }}>Connect the tools you already use. AIM pulls everything together so you don't have to.</p>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : isTablet ? "repeat(4, 1fr)" : "repeat(5, 1fr)", gap: 12 }}>
-            {[
-              { name: "Strava", desc: "Ride & run data", logo: "/images/integrations/strava.svg" },
-              { name: "Wahoo", desc: "Power & cycling", logo: "/images/integrations/wahoo.svg" },
-              { name: "Eight Sleep", desc: "Sleep tracking", logo: "/images/integrations/eightsleep.svg" },
-              { name: "Whoop", desc: "Recovery & strain", logo: "/images/integrations/whoop.svg" },
-              { name: "Withings", desc: "Weight & body comp", logo: "/images/integrations/withings.svg" },
-              { name: "Blood Work", desc: "Lab panels" },
-              { name: "DEXA Scans", desc: "Body composition" },
-            ].map((app) => (
-              <div key={app.name} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px 12px", textAlign: "center", transition: "all 0.3s", cursor: "default" }}
-                onMouseOver={e => { e.currentTarget.style.borderColor = T.borderHover; e.currentTarget.style.transform = "translateY(-3px)"; }}
-                onMouseOut={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.transform = "translateY(0)"; }}>
-                {app.logo ? (
-                  <img src={app.logo} alt={`${app.name} logo`} style={{ width: 44, height: 44, borderRadius: 12, margin: "0 auto 10px", objectFit: "contain" }} />
-                ) : (
-                  <div style={{ width: 44, height: 44, borderRadius: 12, background: T.accentDim, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 10px", fontSize: 20, fontWeight: 700, color: T.accent }}>
-                    {app.name.charAt(0)}
-                  </div>
-                )}
-                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>{app.name}</div>
-                <div style={{ fontSize: 11, color: T.textDim }}>{app.desc}</div>
+        {/* ═══ STATS BAR ═════════════════════════════════════════════════════ */}
+        <div style={{ background: T.card, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, padding: isMobile ? "20px" : "24px 40px" }}>
+          <div style={{ maxWidth: 900, margin: "0 auto", display: isMobile ? "grid" : "flex", gridTemplateColumns: "repeat(4, 1fr)", gap: isMobile ? 8 : 48, justifyContent: "center", flexWrap: "wrap", textAlign: "center" }}>
+            {[["100+", "Metrics"], ["18+", "Integrations"], ["25+", "Biomarkers"], ["24/7", "AI"]].map(([n, l]) => (
+              <div key={l} style={{ textAlign: "center" }}>
+                <div style={{ fontFamily: mono, fontSize: isMobile ? 20 : 28, fontWeight: 800, background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{n}</div>
+                <div style={{ fontSize: isMobile ? 10 : 12, color: T.textDim, marginTop: isMobile ? 1 : 2 }}>{l}</div>
               </div>
             ))}
           </div>
         </div>
-      </section>
 
-      {/* ── PRICING ── */}
-      <section id="pricing" style={{ padding: isMobile ? "60px 16px" : isTablet ? "80px 24px" : "100px 40px" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: isMobile ? 32 : 48 }}>
-            <h2 style={{ fontSize: isMobile ? 28 : isTablet ? 34 : 42, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 16px" }}>Invest in your <span style={{ background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>greatest asset</span></h2>
-            <p style={{ fontSize: isMobile ? 15 : 17, color: T.textSoft, maxWidth: 480, margin: "0 auto 24px" }}>Less than a single coaching session per month. More actionable than a year of guessing.</p>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: isMobile ? 16 : 20, alignItems: "start" }}>
-            {plans.map((plan) => {
-              const isPro = plan.name === "Pro";
-              return (
-                <div key={plan.name} style={{ background: T.card, borderRadius: 20, padding: isMobile ? "28px 24px" : "36px 28px", position: "relative", overflow: "hidden", border: `1px solid ${isPro ? T.accentMid : T.border}`, transform: isPro && !isMobile ? "scale(1.03)" : "none", boxShadow: isPro ? `0 0 60px ${T.accentDim}` : "none" }}>
-                  {plan.badge && <div style={{ position: "absolute", top: 16, right: 16, padding: "3px 10px", borderRadius: 6, background: T.accentDim, border: `1px solid ${T.accentMid}`, fontSize: 10, fontWeight: 800, color: T.accent, letterSpacing: "0.06em" }}>{plan.badge}</div>}
-                  <h3 style={{ fontSize: 20, fontWeight: 800, margin: "0 0 4px", letterSpacing: "-0.02em" }}>{plan.name}</h3>
-                  <p style={{ fontSize: 13, color: T.textDim, margin: "0 0 20px", lineHeight: 1.5 }}>{plan.desc}</p>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 24 }}>
-                    <span style={{ fontSize: 44, fontWeight: 800, fontFamily: mono, letterSpacing: "-0.03em" }}>${plan.price}</span>
-                    <span style={{ fontSize: 14, color: T.textDim }}>/mo</span>
+        {/* ═══ HOW IT WORKS ═══════════════════════════════════════════════════ */}
+        <section id="how-it-works" style={{ padding: isMobile ? "48px 20px" : "72px 40px" }}>
+          <div style={{ maxWidth: 820, margin: "0 auto" }}>
+            <Reveal>
+              <h2 style={{ textAlign: "center", fontSize: isMobile ? 28 : "clamp(24px, 3vw, 36px)", fontFamily: SERIF, fontWeight: 400, letterSpacing: "-0.02em", margin: "0 0 24px" }}>
+                Up and running in <em style={{ fontStyle: "italic", color: T.accent }}>2 minutes.</em>
+              </h2>
+            </Reveal>
+            <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 20, justifyContent: "center", flexWrap: "wrap" }}>
+              {[
+                { step: "1", title: "Connect your apps", desc: "Link Strava, Oura, Whoop, and 18+ more. One-click OAuth.", time: "60 seconds" },
+                { step: "2", title: "AIM analyzes your data", desc: "Training, sleep, recovery, blood work cross-referenced across 30+ categories.", time: "Instant" },
+                { step: "3", title: "Get your first insight", desc: "Specific recommendations before your next workout.", time: "Before your next ride" },
+              ].map((s, i) => (
+                <Reveal key={i} delay={i * (isMobile ? 0.06 : 0.08)}>
+                  <div style={{ flex: isMobile ? undefined : "1 1 240px", maxWidth: isMobile ? undefined : 280, textAlign: isMobile ? "left" : "center", display: isMobile ? "flex" : "block", gap: isMobile ? 14 : undefined, alignItems: isMobile ? "flex-start" : undefined }}>
+                    <div style={{
+                      width: 36, height: 36, borderRadius: "50%", background: T.gradient,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      margin: isMobile ? undefined : "0 auto 14px",
+                      fontSize: isMobile ? 14 : 16, fontWeight: 800, color: "white", flexShrink: 0,
+                    }}>{s.step}</div>
+                    <div>
+                      <h3 style={{ fontSize: isMobile ? 14 : 15, fontWeight: 800, margin: "0 0 3px" }}>{s.title}</h3>
+                      <p style={{ fontSize: isMobile ? 12 : 13, lineHeight: 1.55, color: T.textSoft, margin: "0 0 3px" }}>{s.desc}</p>
+                      <span style={{ fontSize: isMobile ? 10 : 11, fontWeight: 700, color: T.accent }}>{s.time}</span>
+                    </div>
                   </div>
-                  <button onClick={() => navigate(user ? "/pricing" : "/signup")} style={{ ...btn(isPro), width: "100%", justifyContent: "center", marginBottom: 24, fontSize: 14, padding: "13px 24px" }}>{user ? "Choose Plan" : plan.cta} <ArrowRight size={16} /></button>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    {plan.features.map((feat, j) => (
-                      <div key={j} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                        <Check size={14} style={{ color: T.accent, flexShrink: 0, marginTop: 2 }} />
-                        <span style={{ fontSize: 13, color: T.textSoft, lineHeight: 1.4 }}>{feat}</span>
-                      </div>
-                    ))}
+                </Reveal>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ═══ FOUNDER ════════════════════════════════════════════════════════ */}
+        <section style={{ padding: isMobile ? "48px 20px" : "100px 40px", borderBottom: `1px solid ${T.border}` }}>
+          <div style={{ maxWidth: 880, margin: "0 auto" }}>
+            <Reveal>
+              <div style={{ display: isMobile ? "block" : "grid", gridTemplateColumns: isMobile ? undefined : "220px 1fr", gap: isMobile ? undefined : 56, alignItems: "start" }}>
+                {/* Photo */}
+                <div style={{ textAlign: "center", marginBottom: isMobile ? 20 : 0 }}>
+                  <div style={{
+                    width: isMobile ? 100 : 220, height: isMobile ? 120 : 280, borderRadius: isMobile ? 14 : 16,
+                    margin: isMobile ? "0 auto 16px" : "0 0 16px", overflow: "hidden", border: `1px solid ${T.border}`,
+                  }}>
+                    <img src="/kristen.jpg" alt="Kristen Faulkner" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  </div>
+                  <div style={{ fontWeight: 800, fontSize: 15 }}>Kristen Faulkner</div>
+                  <div style={{ fontSize: isMobile ? 11 : 12, color: T.accent, fontWeight: 700, marginTop: isMobile ? 2 : 3 }}>Founder & CEO</div>
+                  <div style={{ fontSize: isMobile ? 10 : 11, color: T.textDim, marginTop: isMobile ? 1 : 2, lineHeight: 1.4 }}>
+                    2{"\u00D7"} Olympic Gold Medalist{!isMobile && <><br />Road Race & Team Pursuit<br />Paris 2024</>}
                   </div>
                 </div>
-              );
-            })}
+
+                {/* Quote */}
+                <div style={{ textAlign: isMobile ? "center" : "left" }}>
+                  {!isMobile && <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", color: T.accent, marginBottom: 20 }}>A message from the founder</p>}
+                  <div style={{ fontSize: isMobile ? 32 : 44, color: T.accentMid, fontFamily: "Georgia, serif", lineHeight: 0.8, marginBottom: isMobile ? 12 : 16, textAlign: isMobile ? "center" : "left" }}>{"\u201C"}</div>
+                  <p style={{ fontSize: isMobile ? 16 : 19, lineHeight: 1.75, color: T.text, marginBottom: isMobile ? 14 : 18, fontFamily: SERIF, fontWeight: 400 }}>
+                    I went from venture capital in Silicon Valley to the Olympic podium, and like every serious athlete, I tried to measure everything.
+                  </p>
+                  <p style={{ fontSize: isMobile ? 13 : 15, lineHeight: 1.75, color: T.textSoft, marginBottom: isMobile ? 14 : 18 }}>
+                    Power files. Heart rate. Sleep and HRV. Blood work. Body composition. But the more data I collected, the harder it was to know what actually mattered. I didn't need another dashboard. I needed the connections between them, and they didn't exist.
+                  </p>
+                  <p style={{ fontSize: isMobile ? 13 : 15, lineHeight: 1.75, color: T.textSoft, marginBottom: isMobile ? 14 : 18 }}>
+                    So I built AIM: cross-domain performance intelligence that finds patterns across your training and health data, and turns them into clear insights and next actions.
+                  </p>
+                  <p style={{ fontSize: isMobile ? 13 : 15, lineHeight: 1.75, color: T.textSoft, marginBottom: isMobile ? 14 : 18 }}>
+                    For me, it surfaced something I wasn't even tracking: my hormone cycle was impacting performance and recovery. Seeing that pattern changed how I approach training.
+                  </p>
+                  <p style={{ fontSize: isMobile ? 14 : 17, lineHeight: 1.7, color: T.text, fontWeight: 600 }}>
+                    Our health is our most valuable asset. I want to make world-class performance intelligence accessible to every athlete and coach, not just professionals.
+                  </p>
+                  {!isMobile && <>
+                    <div style={{ width: 40, height: 2, background: T.gradient, borderRadius: 2, marginTop: 20 }} />
+                    <div style={{ marginTop: 14 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700 }}>Kristen Faulkner</div>
+                      <div style={{ fontSize: 13, color: T.textDim }}>Founder</div>
+                    </div>
+                  </>}
+                </div>
+              </div>
+            </Reveal>
           </div>
-          <p style={{ textAlign: "center", fontSize: 13, color: T.textDim, marginTop: 24 }}>All plans include a 14-day free trial. Cancel anytime. No credit card required to start.</p>
-        </div>
-      </section>
+        </section>
 
-      {/* Testimonials */}
-      <section id="testimonials" style={{ padding: isMobile ? "60px 16px" : isTablet ? "80px 24px" : "100px 40px", maxWidth: 1200, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: isMobile ? 32 : 48 }}>
-          <h2 style={{ fontSize: isMobile ? 24 : 36, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 12px" }}>Athletes who stopped guessing</h2>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 16 }}>
-          {testimonials.map((t, i) => (
-            <div key={i} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, padding: "24px 20px" }}>
-              <div style={{ display: "flex", gap: 2, marginBottom: 14 }}>{Array(t.stars).fill(0).map((_, j) => <Star key={j} size={12} fill={T.accent} color={T.accent} />)}</div>
-              <p style={{ fontSize: 13, color: T.textSoft, lineHeight: 1.7, margin: "0 0 16px", fontStyle: "italic" }}>"{t.text}"</p>
-              <div><div style={{ fontSize: 13, fontWeight: 700 }}>{t.name}</div><div style={{ fontSize: 11, color: T.textDim }}>{t.role}</div></div>
+        {/* ═══ CROSS-DOMAIN INSIGHTS ═════════════════════════════════════════ */}
+        <section id="features" style={{ padding: isMobile ? "48px 20px" : "100px 40px", background: T.card, borderTop: `1px solid ${T.border}` }}>
+          <div style={{ maxWidth: 820, margin: "0 auto" }}>
+            <Reveal>
+              <div style={{ textAlign: "center", marginBottom: isMobile ? 28 : 56 }}>
+                <p style={{ fontSize: isMobile ? 10 : 11, fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", color: T.accent, marginBottom: isMobile ? 10 : 14 }}>Real AI analysis</p>
+                <h2 style={{ fontSize: isMobile ? 28 : "clamp(28px, 4vw, 48px)", fontFamily: SERIF, fontWeight: 400, letterSpacing: "-0.02em", lineHeight: 1.15, margin: "0 0 10px" }}>
+                  Every insight comes with <em style={{ fontStyle: "italic", color: T.accent }}>a plan.</em>
+                </h2>
+                <p style={{ fontSize: isMobile ? 13 : 16, color: T.textSoft, maxWidth: 540, margin: "0 auto", lineHeight: 1.6 }}>
+                  Other apps show you charts. AIM tells you what they mean and what to do about it.
+                </p>
+              </div>
+            </Reveal>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 0 : 12 }}>
+              {visibleInsights.map((item, i) => <InsightCard key={i} item={item} index={i} isMobile={isMobile} />)}
             </div>
-          ))}
-        </div>
-      </section>
 
-      {/* Final CTA */}
-      <section style={{ padding: isMobile ? "60px 16px" : "80px 40px", textAlign: "center" }}>
-        <div style={{ maxWidth: 640, margin: "0 auto", padding: isMobile ? "40px 24px" : "60px 40px", background: T.gradientSubtle, borderRadius: isMobile ? 20 : 24, border: `1px solid ${T.accentMid}`, position: "relative", overflow: "hidden" }}>
-          <div style={{ position: "absolute", top: -100, left: "50%", transform: "translateX(-50%)", width: 500, height: 500, background: "radial-gradient(circle, rgba(16,185,129,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
-          <h2 style={{ fontSize: isMobile ? 24 : 30, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 8px", position: "relative" }}>Your body deserves better than guesswork.</h2>
-          <p style={{ fontSize: isMobile ? 14 : 15, color: T.textSoft, margin: "0 0 32px", position: "relative", maxWidth: 440, marginLeft: "auto", marginRight: "auto", lineHeight: 1.6 }}>Start your free trial today. Connect your apps, upload your blood work, and see what you've been missing.</p>
-          <button onClick={() => navigate(user ? "/dashboard" : "/signup")} style={{ ...btn(true), fontSize: isMobile ? 15 : 16, padding: isMobile ? "14px 28px" : "16px 40px", position: "relative", width: isMobile ? "100%" : "auto", justifyContent: "center" }}>{user ? "Go to Dashboard" : "Get Started Free"} <ArrowRight size={18} /></button>
-        </div>
-      </section>
+            {isMobile && !showAllInsights && (
+              <button onClick={() => setShowAllInsights(true)} style={{
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                width: "100%", padding: "14px", borderRadius: 10,
+                border: `1.5px solid ${T.border}`, background: "transparent",
+                color: T.text, fontSize: 14, fontWeight: 700, marginTop: 8, minHeight: 48,
+                cursor: "pointer", fontFamily: font,
+              }}>
+                See {INSIGHTS.length - 4} more insight types {"\u2193"}
+              </button>
+            )}
 
+            <Reveal delay={0.3}>
+              <div style={{ textAlign: "center", marginTop: isMobile ? 24 : 40 }}>
+                {!isMobile && <p style={{ fontSize: 13, color: T.textDim, marginBottom: 20 }}>These are real insight types from real athlete data. Connect your apps to unlock yours.</p>}
+                <button onClick={() => navigate(ctaRoute)} style={{
+                  display: isMobile ? "flex" : "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+                  background: T.gradient, color: "white", fontWeight: 700, fontSize: isMobile ? 14 : 15,
+                  padding: isMobile ? "14px" : "12px 24px", borderRadius: isMobile ? 12 : 10,
+                  width: isMobile ? "100%" : "auto", border: "none", cursor: "pointer", fontFamily: font,
+                  minHeight: isMobile ? 48 : undefined,
+                  boxShadow: "0 2px 14px rgba(16,185,129,0.3)",
+                }}>
+                  {ctaText} <ArrowRight size={16} />
+                </button>
+              </div>
+            </Reveal>
+          </div>
+        </section>
+
+        {/* ═══ FEATURE GRID ═══════════════════════════════════════════════════ */}
+        <section style={{ padding: isMobile ? "48px 20px" : "100px 40px" }}>
+          <div style={{ maxWidth: 1080, margin: "0 auto" }}>
+            <Reveal>
+              <div style={{ textAlign: "center", marginBottom: isMobile ? 28 : 56 }}>
+                <h2 style={{ fontSize: isMobile ? 28 : "clamp(28px, 4vw, 48px)", fontFamily: SERIF, fontWeight: 400, letterSpacing: "-0.02em", lineHeight: 1.15, margin: "0 0 8px" }}>
+                  Intelligence that <em style={{ fontStyle: "italic", color: T.accent }}>connects everything.</em>
+                </h2>
+                <p style={{ fontSize: isMobile ? 13 : 16, color: T.textSoft, textAlign: "center", maxWidth: 520, margin: "0 auto", lineHeight: 1.6 }}>
+                  Built by a 2{"\u00D7"} Olympic champion. Not just another dashboard.
+                </p>
+              </div>
+            </Reveal>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : isTablet ? "repeat(2, 1fr)" : "repeat(3, 1fr)", gap: isMobile ? 10 : 14 }}>
+              {features.map((item, i) => (
+                <Reveal key={i} delay={i * (isMobile ? 0.04 : 0.06)}>
+                  <div style={{
+                    background: T.card, border: `1px solid ${T.border}`, borderTop: isMobile ? `2px solid ${T.accentMid}` : `3px solid ${T.accentMid}`,
+                    borderRadius: isMobile ? 12 : 14, padding: isMobile ? "16px 14px" : "28px 24px", height: "100%",
+                  }}>
+                    <div style={{ fontSize: isMobile ? 18 : 20, marginBottom: isMobile ? 8 : 16 }}>{item.icon}</div>
+                    <h3 style={{ fontSize: isMobile ? 13 : 16, fontWeight: 800, margin: "0 0 4px", lineHeight: 1.3 }}>{item.title}</h3>
+                    <p style={{ margin: 0, fontSize: isMobile ? 11 : 14, lineHeight: isMobile ? 1.5 : 1.6, color: T.textSoft }}>{item.desc}</p>
+                  </div>
+                </Reveal>
+              ))}
+            </div>
+            <Reveal delay={0.3}>
+              <div style={{ textAlign: "center", marginTop: isMobile ? 28 : 48 }}>
+                <button onClick={() => navigate(ctaRoute)} style={{
+                  display: isMobile ? "flex" : "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+                  background: T.gradient, color: "white", fontWeight: 700, fontSize: isMobile ? 14 : 15,
+                  padding: isMobile ? "14px" : "12px 24px", borderRadius: isMobile ? 12 : 10,
+                  width: isMobile ? "100%" : "auto", border: "none", cursor: "pointer", fontFamily: font,
+                  minHeight: isMobile ? 48 : undefined,
+                  boxShadow: "0 2px 14px rgba(16,185,129,0.3)",
+                }}>
+                  {ctaText} <ArrowRight size={16} />
+                </button>
+              </div>
+            </Reveal>
+          </div>
+        </section>
+
+        {/* ═══ PRICING ═══════════════════════════════════════════════════════ */}
+        <section id="pricing" style={{ padding: isMobile ? "48px 20px" : "100px 40px" }}>
+          <div style={{ maxWidth: 980, margin: "0 auto" }}>
+            <Reveal>
+              <div style={{ textAlign: "center", marginBottom: isMobile ? 24 : 48 }}>
+                <p style={{ fontSize: isMobile ? 10 : 11, fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", color: T.accent, marginBottom: isMobile ? 10 : 14 }}>Founding member pricing</p>
+                <h2 style={{ fontSize: isMobile ? 28 : "clamp(28px, 3.5vw, 44px)", fontFamily: SERIF, fontWeight: 400, letterSpacing: "-0.02em", margin: "0 0 6px" }}>
+                  Invest in your greatest asset.
+                </h2>
+                {!isMobile && <p style={{ fontSize: 15, color: T.textSoft, margin: "0 0 6px" }}>Less than a single coaching session per month. More actionable than a year of guessing.</p>}
+                <p style={{ fontSize: isMobile ? 12 : 13, color: T.accent, fontWeight: 600, margin: "0 0 20px" }}>
+                  First 500 athletes. Lock in your rate for life.
+                </p>
+                <div style={{ display: "inline-flex", background: T.card, border: `1px solid ${T.border}`, borderRadius: isMobile ? 8 : 10, padding: isMobile ? "3px" : "5px 6px" }}>
+                  {[{ label: "Monthly", annual: false }, { label: "Annual", annual: true }].map(opt => (
+                    <button key={opt.label} onClick={() => setBillingAnnual(opt.annual)} style={{
+                      display: "flex", alignItems: "center", gap: 6,
+                      padding: isMobile ? "6px 14px" : "7px 16px", borderRadius: isMobile ? 6 : 7, border: "none",
+                      background: billingAnnual === opt.annual ? T.text : "transparent",
+                      color: billingAnnual === opt.annual ? "white" : T.textSoft,
+                      fontSize: isMobile ? 12 : 13, fontWeight: 600, cursor: "pointer", fontFamily: font,
+                    }}>
+                      {opt.label}
+                      {opt.annual && billingAnnual && !isMobile && <span style={{ fontSize: 10, fontWeight: 800, color: T.accent, background: "rgba(16,185,129,0.15)", borderRadius: 4, padding: "1px 5px" }}>Save 20%</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </Reveal>
+
+            <div style={{ display: isMobile ? "flex" : "grid", flexDirection: isMobile ? "column" : undefined, gridTemplateColumns: isMobile ? undefined : "1fr 1fr 1fr", gap: isMobile ? 12 : 16 }}>
+              {orderedPlans.map((plan, i) => (
+                <Reveal key={plan.name} delay={i * (isMobile ? 0.06 : 0.08)}>
+                  <div style={{
+                    background: plan.featured ? "#0a0c10" : T.card,
+                    border: plan.featured ? "none" : `1px solid ${T.border}`,
+                    borderRadius: isMobile ? 16 : 18, padding: isMobile ? "24px 20px" : "30px 26px",
+                    height: isMobile ? undefined : "100%",
+                    transform: plan.featured && !isMobile ? "scale(1.03)" : "none",
+                    boxShadow: plan.featured ? "0 16px 48px rgba(0,0,0,0.15)" : "none",
+                    position: "relative", overflow: "hidden",
+                  }}>
+                    {plan.featured && <div style={{ position: "absolute", top: 0, right: 0, width: isMobile ? 150 : 200, height: isMobile ? 150 : 200, background: "radial-gradient(circle, rgba(16,185,129,0.12) 0%, transparent 70%)", pointerEvents: "none" }} />}
+                    <div style={{ position: "relative" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: isMobile ? 4 : 6 }}>
+                        <span style={{ fontSize: isMobile ? 16 : 15, fontWeight: 800, color: plan.featured ? "white" : T.text }}>{plan.name}</span>
+                        {plan.badge && <span style={{ fontSize: isMobile ? 9 : 10, fontWeight: 800, textTransform: "uppercase", background: T.gradient, color: "white", borderRadius: isMobile ? 4 : 5, padding: isMobile ? "2px 7px" : "3px 8px" }}>{plan.badge}</span>}
+                      </div>
+                      <p style={{ fontSize: isMobile ? 12 : 13, color: plan.featured ? "rgba(255,255,255,0.45)" : T.textSoft, margin: "0 0 12px", lineHeight: 1.5 }}>{plan.desc}</p>
+                      <div style={{ marginBottom: isMobile ? 16 : 20 }}>
+                        <span style={{ fontSize: isMobile ? 36 : 40, fontWeight: 800, letterSpacing: "-0.03em", color: plan.featured ? "white" : T.text }}>${plan.price}</span>
+                        <span style={{ fontSize: isMobile ? 13 : 14, color: plan.featured ? "rgba(255,255,255,0.35)" : T.textDim }}>/mo</span>
+                        {billingAnnual && !isMobile && <span style={{ display: "block", fontSize: 11, color: T.accent, fontWeight: 600, marginTop: 2 }}>Billed annually</span>}
+                      </div>
+                      <button onClick={() => navigate(user ? "/pricing" : "/signup")} style={{
+                        display: "block", textAlign: "center", width: "100%",
+                        background: plan.featured ? T.gradient : "transparent",
+                        border: plan.featured ? "none" : `1.5px solid ${T.border}`,
+                        borderRadius: 10, padding: "12px", fontWeight: 700, fontSize: 14,
+                        color: plan.featured ? "white" : T.text, marginBottom: isMobile ? 16 : 20,
+                        cursor: "pointer", fontFamily: font, minHeight: isMobile ? 44 : undefined,
+                        boxShadow: plan.featured ? "0 4px 14px rgba(16,185,129,0.3)" : "none",
+                      }}>{user ? "Choose Plan" : "Start free"} {"\u2192"}</button>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                        {plan.features.map(f => (
+                          <div key={f} style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: 12, color: plan.featured ? "rgba(255,255,255,0.55)" : T.textSoft }}>
+                            <Check size={14} style={{ color: T.accent, flexShrink: 0, marginTop: 1 }} /> {f}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </Reveal>
+              ))}
+            </div>
+            <p style={{ textAlign: "center", fontSize: isMobile ? 11 : 13, color: T.textDim, marginTop: isMobile ? 8 : 16 }}>
+              14-day free trial {"\u00B7"} Cancel anytime {"\u00B7"} No credit card
+            </p>
+          </div>
+        </section>
+
+        {/* ═══ TESTIMONIALS ═══════════════════════════════════════════════════ */}
+        <section style={{ padding: isMobile ? "48px 20px" : "100px 40px", background: T.card, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}` }}>
+          <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+            <Reveal>
+              <h2 style={{ fontSize: isMobile ? 24 : "clamp(24px, 3vw, 36px)", fontFamily: SERIF, fontWeight: 400, letterSpacing: "-0.02em", margin: "0 0 24px", textAlign: "center" }}>
+                Athletes who stopped guessing.
+              </h2>
+            </Reveal>
+            <div style={{ display: isMobile ? "flex" : "grid", flexDirection: isMobile ? "column" : undefined, gridTemplateColumns: isMobile ? undefined : "repeat(3, 1fr)", gap: isMobile ? 10 : 16 }}>
+              {testimonials.map((t, i) => (
+                <Reveal key={i} delay={i * 0.05}>
+                  <div style={{ background: T.bg, border: `1px solid ${T.border}`, borderRadius: 14, padding: "18px" }}>
+                    <div style={{ display: "flex", gap: 2, marginBottom: 10 }}>
+                      {[...Array(5)].map((_, j) => <span key={j} style={{ color: "#f59e0b", fontSize: 11 }}>{"\u2605"}</span>)}
+                    </div>
+                    <p style={{ margin: "0 0 14px", fontSize: 13, lineHeight: 1.6, color: T.text, fontStyle: "italic" }}>"{t.quote}"</p>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ width: 28, height: 28, borderRadius: "50%", background: `${t.color}12`, border: `1px solid ${t.color}20`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: t.color }}>{t.name.split(" ").map(w => w[0]).join("")}</div>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 700 }}>{t.name}</div>
+                        <div style={{ fontSize: 10, color: T.textDim }}>{t.role}</div>
+                      </div>
+                    </div>
+                  </div>
+                </Reveal>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ═══ FINAL CTA ═════════════════════════════════════════════════════ */}
+        <section style={{ padding: isMobile ? "56px 20px" : "100px 40px", background: "#0a0c10", position: "relative", overflow: "hidden" }}>
+          <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: isMobile ? 300 : 500, height: isMobile ? 300 : 500, background: "radial-gradient(ellipse, rgba(16,185,129,0.12) 0%, transparent 65%)", pointerEvents: "none" }} />
+          <div style={{ position: "relative", textAlign: "center", maxWidth: 640, margin: "0 auto" }}>
+            <Reveal>
+              <h2 style={{ fontSize: isMobile ? 30 : "clamp(32px, 4vw, 48px)", fontFamily: SERIF, fontWeight: 400, lineHeight: 1.1, color: "white", margin: "0 0 14px" }}>
+                AIM sees what's coming{" "}
+                <em style={{ fontStyle: "italic", background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>before you feel it.</em>
+              </h2>
+              <p style={{ fontSize: isMobile ? 14 : 16, color: "rgba(255,255,255,0.4)", marginBottom: 24, lineHeight: 1.5 }}>
+                Stop guessing. Start knowing. Connect your apps in 2 minutes.
+              </p>
+              <button onClick={() => navigate(ctaRoute)} style={{
+                display: isMobile ? "flex" : "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+                background: T.gradient, color: "white", fontWeight: 700, fontSize: 15,
+                padding: "14px 28px", borderRadius: 12, border: "none", cursor: "pointer", fontFamily: font,
+                width: isMobile ? "100%" : "auto", minHeight: isMobile ? 48 : undefined,
+                boxShadow: "0 4px 24px rgba(16,185,129,0.35)",
+              }}>
+                {ctaText} <ArrowRight size={16} />
+              </button>
+              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", marginTop: 12 }}>Free 14-day trial {"\u00B7"} No credit card</p>
+            </Reveal>
+          </div>
+        </section>
       </main>
+
+      <Footer />
     </div>
   );
 }
