@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { T, font, mono } from "../theme/tokens";
 import { btn } from "../theme/styles";
-import { ArrowLeft, Clock, Zap, Heart, Mountain, Activity, TrendingUp, Flame, RefreshCw, Menu, Settings, User, LogOut, X, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Clock, Zap, Heart, Mountain, Activity, TrendingUp, Flame, RefreshCw, Menu, Settings, User, LogOut, X, ChevronDown, ChevronUp, Trash2, AlertTriangle } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 import { useResponsive } from "../hooks/useResponsive";
@@ -62,6 +62,34 @@ export default function ActivityDetail() {
   const similarSessions = useSimilarSessions(id);
   const { data: segmentData, loading: segmentsLoading } = useSegmentEfforts(id);
   const handleSignout = async () => { await signout(); navigate("/"); };
+
+  // ── Delete activity ──
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const res = await fetch(`/api/activities/delete?id=${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setDeleteError(err.error || "Failed to delete activity");
+        setDeleting(false);
+        return;
+      }
+      navigate("/activities", { replace: true });
+    } catch (err) {
+      setDeleteError(err.message);
+      setDeleting(false);
+    }
+  };
 
   // ── Data fetching ──
 
@@ -230,7 +258,7 @@ export default function ActivityDetail() {
               <button onClick={() => navigate("/activities")} style={{ background: T.accentDim, border: "none", padding: "5px 12px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: T.accent, cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 4 }}>
                 <ArrowLeft size={12} /> Activities
               </button>
-              {[{ label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }].map(item => (
+              {[{ label: "Performance", path: "/performance" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }].map(item => (
                 <button key={item.label} onClick={() => navigate(item.path)} style={{ background: "none", border: "none", padding: "5px 12px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: T.textSoft, cursor: "pointer", fontFamily: font }}>{item.label}</button>
               ))}
             </div>
@@ -266,7 +294,7 @@ export default function ActivityDetail() {
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
               <button onClick={() => setMenuOpen(false)} style={{ background: "none", border: "none", color: T.text, cursor: "pointer", padding: 8, minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}><X size={20} /></button>
             </div>
-            {[{ label: "Dashboard", path: "/dashboard" }, { label: "Activities", path: "/activities" }, { label: "My Stats", path: "/my-stats" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }, { label: "Profile", path: "/profile" }, { label: "Settings", path: "/settings" }].map(item => (
+            {[{ label: "Dashboard", path: "/dashboard" }, { label: "Activities", path: "/activities" }, { label: "Performance", path: "/performance" }, { label: "My Stats", path: "/my-stats" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }, { label: "Profile", path: "/profile" }, { label: "Settings", path: "/settings" }].map(item => (
               <button key={item.label} onClick={() => { setMenuOpen(false); navigate(item.path); }} style={{ background: item.label === "Activities" ? T.accentDim : "none", border: "none", padding: "12px 14px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: item.label === "Activities" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font, textAlign: "left" }}>{item.label}</button>
             ))}
             <div style={{ marginTop: "auto", paddingTop: 16, borderTop: `1px solid ${T.border}` }}>
@@ -304,6 +332,17 @@ export default function ActivityDetail() {
                   background: T.accentDim, border: `1px solid ${T.accentMid}`,
                   borderRadius: 5, padding: "2px 7px", fontFamily: font,
                 }}>{typeEmoji} {a.activity_type}</span>
+                <button
+                  onClick={() => setShowDeleteModal(true)}
+                  title="Delete activity"
+                  style={{
+                    background: "none", border: "none", cursor: "pointer", padding: 4,
+                    color: T.textDim, display: "flex", alignItems: "center",
+                    borderRadius: 4, transition: "color 0.15s",
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.color = T.danger}
+                  onMouseLeave={e => e.currentTarget.style.color = T.textDim}
+                ><Trash2 size={13} /></button>
               </div>
               {nameEditing ? (
                 <input
@@ -448,6 +487,47 @@ export default function ActivityDetail() {
       {/* Floating Chat Bar */}
       <FloatingChatBar activityId={id} />
 
+
+      {/* Delete confirmation modal */}
+      {showDeleteModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}
+          onClick={() => { if (!deleting) { setShowDeleteModal(false); setDeleteError(""); } }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: T.card, borderRadius: 16, padding: "28px 24px", width: "100%",
+            maxWidth: 380, boxShadow: "0 8px 32px rgba(0,0,0,0.12)", border: `1px solid ${T.border}`,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(239,68,68,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <AlertTriangle size={18} color={T.danger} />
+              </div>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, fontFamily: font }}>Delete Activity</h3>
+            </div>
+            <p style={{ fontSize: 13, color: T.textSoft, fontFamily: font, margin: "0 0 16px", lineHeight: 1.5 }}>
+              This will permanently delete <strong style={{ color: T.text }}>{a.name || "this activity"}</strong> and all its analysis data. This cannot be undone.
+            </p>
+            {deleteError && (
+              <div style={{ background: "rgba(239,68,68,0.08)", color: T.danger, fontSize: 12, padding: "8px 12px", borderRadius: 8, marginBottom: 12, fontFamily: font }}>{deleteError}</div>
+            )}
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => { setShowDeleteModal(false); setDeleteError(""); }}
+                disabled={deleting}
+                style={{ ...btn(false), fontSize: 13, padding: "10px 20px" }}
+              >Cancel</button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                style={{
+                  padding: "10px 20px", fontSize: 13, fontWeight: 600, fontFamily: font,
+                  background: T.danger, color: T.white, border: "none", borderRadius: 10,
+                  cursor: deleting ? "not-allowed" : "pointer", opacity: deleting ? 0.6 : 1,
+                  display: "flex", alignItems: "center", gap: 6,
+                }}
+              >{deleting ? "Deleting..." : <><Trash2 size={13} /> Delete</>}</button>
+            </div>
+          </div>
+        </div>
+      )}
       <style>{`@keyframes aim-spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );

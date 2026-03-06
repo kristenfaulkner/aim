@@ -417,6 +417,7 @@ export default function WorkoutDatabase() {
   const navItems = [
     { label: "Dashboard", path: "/dashboard" },
     { label: "Activities", path: "/activities" },
+    { label: "Performance", path: "/performance" },
     { label: "My Stats", path: "/my-stats" },
     { label: "Sleep", path: "/sleep" },
     { label: "Health Lab", path: "/health-lab" },

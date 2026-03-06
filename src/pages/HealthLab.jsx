@@ -357,10 +357,11 @@ export default function HealthLab() {
           </div>
           {!isMobile && (
             <div style={{ display: "flex", gap: 3 }}>
-              {["Dashboard", "Activities", "Sleep", "Health Lab", "Connect"].map(item => (
+              {["Dashboard", "Activities", "Performance", "Sleep", "Health Lab", "Connect"].map(item => (
                 <button key={item} onClick={() => {
                   if (item === "Dashboard") navigate("/dashboard");
                   if (item === "Activities") navigate("/activities");
+                  if (item === "Performance") navigate("/performance");
                   if (item === "Sleep") navigate("/sleep");
                   if (item === "Connect") navigate("/connect");
                 }} style={{ background: item === "Health Lab" ? T.accentDim : "none", border: "none", padding: "5px 12px", borderRadius: 7, fontSize: 11, fontWeight: 600, color: item === "Health Lab" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 4 }}>{item}</button>
@@ -402,8 +403,8 @@ export default function HealthLab() {
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
               <button onClick={() => setMenuOpen(false)} style={{ background: "none", border: "none", color: T.text, cursor: "pointer", padding: 8, minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}><X size={20} /></button>
             </div>
-            {["Dashboard", "Activities", "Sleep", "Health Lab", "Connect", "Profile", "Settings"].map(item => (
-              <button key={item} onClick={() => { setMenuOpen(false); if (item === "Dashboard") navigate("/dashboard"); if (item === "Activities") navigate("/activities"); if (item === "Sleep") navigate("/sleep"); if (item === "Connect") navigate("/connect"); if (item === "Profile") navigate("/profile"); if (item === "Settings") navigate("/settings"); }} style={{ background: item === "Health Lab" ? T.accentDim : "none", border: "none", padding: "12px 14px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: item === "Health Lab" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font, textAlign: "left" }}>{item}</button>
+            {["Dashboard", "Activities", "Performance", "Sleep", "Health Lab", "Connect", "Profile", "Settings"].map(item => (
+              <button key={item} onClick={() => { setMenuOpen(false); if (item === "Dashboard") navigate("/dashboard"); if (item === "Activities") navigate("/activities"); if (item === "Performance") navigate("/performance"); if (item === "Sleep") navigate("/sleep"); if (item === "Connect") navigate("/connect"); if (item === "Profile") navigate("/profile"); if (item === "Settings") navigate("/settings"); }} style={{ background: item === "Health Lab" ? T.accentDim : "none", border: "none", padding: "12px 14px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: item === "Health Lab" ? T.accent : T.textSoft, cursor: "pointer", fontFamily: font, textAlign: "left" }}>{item}</button>
             ))}
             <div style={{ marginTop: "auto", paddingTop: 16, borderTop: `1px solid ${T.border}` }}>
               <button onClick={() => { setMenuOpen(false); handleSignout(); }} style={{ background: "none", border: `1px solid rgba(239,68,68,0.2)`, padding: "12px 14px", borderRadius: 8, fontSize: 14, fontWeight: 600, color: "#ef4444", cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
