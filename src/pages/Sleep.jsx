@@ -441,6 +441,40 @@ export default function Sleep() {
           }}>
           {/* ── LEFT COLUMN: Sleep data ── */}
           <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 16 : 20 }}>
+            {/* AI Morning Summary */}
+            {(sleepSummary || sleepSummaryLoading) && (
+              <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: isMobile ? "14px" : "18px 20px", position: "relative", overflow: "hidden" }}>
+                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, transparent, ${sleepSummary?.recovery_rating === "red" ? T.danger : sleepSummary?.recovery_rating === "yellow" ? T.amber : T.accent}40, transparent)` }} />
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                  <span style={{ fontSize: 16 }}>{sleepSummary?.recovery_rating === "red" ? "\uD83D\uDFE5" : sleepSummary?.recovery_rating === "yellow" ? "\uD83D\uDFE8" : "\uD83D\uDFE9"}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700 }}>Morning Sleep Report</span>
+                  {sleepSummaryLoading && <span style={{ fontSize: 10, color: T.textDim, fontStyle: "italic" }}>Generating...</span>}
+                </div>
+                {sleepSummary && (
+                  <>
+                    {sleepSummary.greeting && (
+                      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>{sleepSummary.greeting}</div>
+                    )}
+                    {sleepSummary.metrics_line && (
+                      <div style={{ fontSize: 11, color: T.accent, fontFamily: mono, marginBottom: 10, padding: "8px 12px", background: T.bg, borderRadius: 8 }}>
+                        {sleepSummary.metrics_line}
+                      </div>
+                    )}
+                    {sleepSummary.summary && (
+                      <div style={{ fontSize: 12, color: T.textSoft, lineHeight: 1.7, marginBottom: 8 }}>
+                        <FormattedText text={sleepSummary.summary} />
+                      </div>
+                    )}
+                    {sleepSummary.recommendation && (
+                      <div style={{ fontSize: 12, color: sleepSummary.recovery_rating === "red" ? T.danger : sleepSummary.recovery_rating === "yellow" ? T.amber : T.accent, fontWeight: 600, lineHeight: 1.6 }}>
+                        <FormattedText text={sleepSummary.recommendation} />
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
             {/* Summary Cards */}
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : isTablet ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: isMobile ? 10 : 14 }}>
               <SummaryCard
@@ -531,40 +565,6 @@ export default function Sleep() {
                 <TrendChart title="Resting HR" data={rhrTrend} color={T.pink} unit="bpm" avg={averages?.resting_hr_bpm} isMobile={isMobile} />
               )}
             </div>
-
-            {/* AI Morning Summary */}
-            {(sleepSummary || sleepSummaryLoading) && (
-              <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: isMobile ? "14px" : "18px 20px", position: "relative", overflow: "hidden" }}>
-                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, transparent, ${sleepSummary?.recovery_rating === "red" ? T.danger : sleepSummary?.recovery_rating === "yellow" ? T.amber : T.accent}40, transparent)` }} />
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                  <span style={{ fontSize: 16 }}>{sleepSummary?.recovery_rating === "red" ? "\uD83D\uDFE5" : sleepSummary?.recovery_rating === "yellow" ? "\uD83D\uDFE8" : "\uD83D\uDFE9"}</span>
-                  <span style={{ fontSize: 14, fontWeight: 700 }}>Morning Sleep Report</span>
-                  {sleepSummaryLoading && <span style={{ fontSize: 10, color: T.textDim, fontStyle: "italic" }}>Generating...</span>}
-                </div>
-                {sleepSummary && (
-                  <>
-                    {sleepSummary.greeting && (
-                      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>{sleepSummary.greeting}</div>
-                    )}
-                    {sleepSummary.metrics_line && (
-                      <div style={{ fontSize: 11, color: T.accent, fontFamily: mono, marginBottom: 10, padding: "8px 12px", background: T.bg, borderRadius: 8 }}>
-                        {sleepSummary.metrics_line}
-                      </div>
-                    )}
-                    {sleepSummary.summary && (
-                      <div style={{ fontSize: 12, color: T.textSoft, lineHeight: 1.7, marginBottom: 8 }}>
-                        <FormattedText text={sleepSummary.summary} />
-                      </div>
-                    )}
-                    {sleepSummary.recommendation && (
-                      <div style={{ fontSize: 12, color: sleepSummary.recovery_rating === "red" ? T.danger : sleepSummary.recovery_rating === "yellow" ? T.amber : T.accent, fontWeight: 600, lineHeight: 1.6 }}>
-                        <FormattedText text={sleepSummary.recommendation} />
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
 
             {/* Nightly Detail */}
             <div>
