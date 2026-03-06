@@ -14,7 +14,7 @@ export default async function handler(req, res) {
 
   const params = new URLSearchParams({
     client_id: process.env.WHOOP_CLIENT_ID,
-    redirect_uri: `https://${req.headers.host}/api/auth/callback/whoop`,
+    redirect_uri: `${process.env.APP_URL || `https://${req.headers.host}`}/api/auth/callback/whoop`,
     response_type: "code",
     scope: "read:recovery read:sleep read:workout read:profile read:body_measurement offline",
     state,

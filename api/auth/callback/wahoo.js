@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   if (!userId) return res.redirect(302, "/connect?error=wahoo_invalid_state");
   await redis.del(`oauth:state:${state}`);
 
-  const baseUrl = `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL || req.headers.host}`;
+  const baseUrl = process.env.APP_URL || `https://${req.headers.host}`;
   const tokenParams = new URLSearchParams({
     client_id: process.env.WAHOO_CLIENT_ID,
     client_secret: process.env.WAHOO_CLIENT_SECRET,

@@ -10,9 +10,7 @@ export default async function handler(req, res) {
   const session = await verifySession(req);
   if (!session) return res.status(401).json({ error: "Unauthorized" });
 
-  const baseUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
-    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-    : `https://${req.headers.host}`;
+  const baseUrl = process.env.APP_URL || `https://${req.headers.host}`;
   const callbackUrl = `${baseUrl}/api/auth/callback/garmin`;
 
   // Step 1: Get a request token from Garmin

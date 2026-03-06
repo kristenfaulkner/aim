@@ -14,7 +14,7 @@ export default async function handler(req, res) {
 
   const params = new URLSearchParams({
     client_id: process.env.WITHINGS_CLIENT_ID,
-    redirect_uri: `https://${req.headers.host}/api/auth/callback/withings`,
+    redirect_uri: `${process.env.APP_URL || `https://${req.headers.host}`}/api/auth/callback/withings`,
     response_type: "code",
     scope: "user.info,user.metrics,user.activity",
     state,

@@ -12,9 +12,7 @@ export default async function handler(req, res) {
   const state = crypto.randomUUID();
   await redis.set(`oauth:state:${state}`, session.userId, { ex: 600 });
 
-  const baseUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
-    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-    : `https://${req.headers.host}`;
+  const baseUrl = process.env.APP_URL || `https://${req.headers.host}`;
   const params = new URLSearchParams({
     client_id: process.env.STRAVA_CLIENT_ID,
     redirect_uri: `${baseUrl}/api/auth/callback/strava`,
