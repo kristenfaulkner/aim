@@ -7,7 +7,7 @@ import { usePerformanceData } from "../hooks/usePerformanceData";
 import { supabase } from "../lib/supabase";
 import { FormattedText } from "../lib/formatText.jsx";
 import SEO from "../components/SEO";
-import { LogOut, Menu, X, User, Settings, Thermometer, Heart, Zap, Flame, Moon } from "lucide-react";
+import { LogOut, Menu, X, User, Settings } from "lucide-react";
 
 // ── NAV ──
 
@@ -38,85 +38,6 @@ const DomainPill = ({ domain }) => {
   const c = colors[domain] || T.textDim;
   return <span style={{ padding: "2px 7px", borderRadius: 9999, fontSize: 9, fontWeight: 600, background: `${c}10`, color: c, textTransform: "capitalize" }}>{domain}</span>;
 };
-
-// ── POWER CURVE SVG ──
-
-function PowerCurve({ powerProfile, isMobile }) {
-  if (!powerProfile) return null;
-
-  const bests = [
-    { sec: 5, watts: powerProfile.best_5s_watts },
-    { sec: 30, watts: powerProfile.best_30s_watts },
-    { sec: 60, watts: powerProfile.best_1m_watts },
-    { sec: 300, watts: powerProfile.best_5m_watts },
-    { sec: 1200, watts: powerProfile.best_20m_watts },
-    { sec: 3600, watts: powerProfile.best_60m_watts },
-  ].filter(b => b.watts != null);
-
-  if (bests.length < 3) return null;
-
-  const w = isMobile ? 340 : 480;
-  const h = 160;
-  const pad = { top: 16, right: 20, bottom: 30, left: 44 };
-  const pw = w - pad.left - pad.right;
-  const ph = h - pad.top - pad.bottom;
-
-  const maxW = Math.max(...bests.map(b => b.watts)) * 1.1;
-  const minW = Math.min(...bests.map(b => b.watts)) * 0.7;
-  const maxT = Math.log(bests[bests.length - 1].sec);
-  const minT = Math.log(bests[0].sec);
-  const toX = (s) => pad.left + ((Math.log(s) - minT) / (maxT - minT)) * pw;
-  const toY = (watts) => pad.top + ph - ((watts - minW) / (maxW - minW)) * ph;
-
-  const pathD = bests.map((p, i) => `${i === 0 ? "M" : "L"} ${toX(p.sec)},${toY(p.watts)}`).join(" ");
-  const areaD = pathD + ` L ${toX(bests[bests.length - 1].sec)},${pad.top + ph} L ${toX(bests[0].sec)},${pad.top + ph} Z`;
-
-  // Grid lines
-  const wRange = maxW - minW;
-  const gridStep = wRange > 800 ? 200 : wRange > 400 ? 100 : 50;
-  const gridLines = [];
-  for (let wt = Math.ceil(minW / gridStep) * gridStep; wt < maxW; wt += gridStep) {
-    gridLines.push(wt);
-  }
-
-  const highlights = [
-    { sec: 60, label: "1'", color: T.red },
-    { sec: 300, label: "5'", color: T.orange },
-    { sec: 1200, label: "20'", color: T.purple },
-    { sec: 3600, label: "60'", color: T.blue },
-  ].filter(hl => bests.some(b => b.sec === hl.sec));
-
-  const timeLabels = [
-    { s: 5, l: "5s" }, { s: 30, l: "30s" }, { s: 60, l: "1'" },
-    { s: 300, l: "5'" }, { s: 1200, l: "20'" }, { s: 3600, l: "1hr" },
-  ].filter(t => bests.some(b => b.sec === t.s));
-
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ overflow: "visible", maxWidth: "100%" }}>
-      {gridLines.map(wt => (
-        <g key={wt}>
-          <line x1={pad.left} y1={toY(wt)} x2={w - pad.right} y2={toY(wt)} stroke={T.border} strokeDasharray="3,3" />
-          <text x={pad.left - 6} y={toY(wt) + 3} textAnchor="end" fill={T.textDim} fontSize={9} fontFamily={mono}>{wt}</text>
-        </g>
-      ))}
-      {timeLabels.map(t => (
-        <text key={t.s} x={toX(t.s)} y={h - 4} textAnchor="middle" fill={T.textDim} fontSize={9} fontFamily={font}>{t.l}</text>
-      ))}
-      <path d={areaD} fill={`${T.accent}08`} />
-      <path d={pathD} fill="none" stroke={T.accent} strokeWidth={2} strokeLinecap="round" />
-      {highlights.map(pt => {
-        const b = bests.find(x => x.sec === pt.sec);
-        if (!b) return null;
-        return (
-          <g key={pt.label}>
-            <circle cx={toX(b.sec)} cy={toY(b.watts)} r={4} fill={T.card} stroke={pt.color} strokeWidth={2} />
-            <text x={toX(b.sec)} y={toY(b.watts) - 10} textAnchor="middle" fill={pt.color} fontSize={10} fontWeight={700} fontFamily={mono}>{b.watts}W</text>
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
 
 // ── SIDEBAR INSIGHT ──
 
@@ -162,71 +83,6 @@ function SidebarInsight({ insight, activityId, index }) {
   );
 }
 
-// ── PERFORMANCE MODELS (inline) ──
-
-const MODEL_ICONS = {
-  heat: <Thermometer size={14} />,
-  hrv: <Heart size={14} />,
-  durability: <Zap size={14} />,
-  fueling: <Flame size={14} />,
-  sleep: <Moon size={14} />,
-};
-
-function buildModelTiles(models, durabilityScore) {
-  if (!models) return [];
-  const tiles = [];
-
-  if (models.heat) {
-    const m = models.heat;
-    let headline = null;
-    if (m.breakpointTemp != null) headline = `${m.breakpointTemp}\u00B0C breakpoint`;
-    else if (m.bins) {
-      const cool = m.bins["Cool (<15\u00B0C)"];
-      const hot = m.bins["Hot (>25\u00B0C)"];
-      if (cool?.avgEF && hot?.avgEF) headline = `${((hot.avgEF - cool.avgEF) / cool.avgEF * 100).toFixed(1)}% EF in heat`;
-    }
-    tiles.push({ key: "heat", icon: MODEL_ICONS.heat, label: "HEAT MODEL", headline, sub: m.summary?.split(";")[0] || null, confidence: m.confidence });
-  }
-
-  if (models.hrvReadiness) {
-    const m = models.hrvReadiness;
-    let headline = m.efDeltaPct != null ? `${m.efDeltaPct > 0 ? "+" : ""}${m.efDeltaPct}% EF delta` : null;
-    const greenRange = m.thresholds?.green?.hrvRange;
-    const redRange = m.thresholds?.red?.hrvRange;
-    const sub = greenRange && redRange ? `Green: ${greenRange} / Red: ${redRange}` : m.summary?.split(";")[0] || null;
-    tiles.push({ key: "hrv", icon: MODEL_ICONS.hrv, label: "HRV READINESS", headline, sub, confidence: m.confidence });
-  }
-
-  if (models.durability) {
-    const m = models.durability;
-    let headline = durabilityScore != null ? `${Math.round(durabilityScore * 100)}% retention` : m.threshold != null ? `${m.threshold} kJ/kg threshold` : null;
-    tiles.push({ key: "durability", icon: MODEL_ICONS.durability, label: "DURABILITY", headline, sub: m.summary?.split(";")[0] || null, confidence: m.confidence });
-  }
-
-  if (models.fueling) {
-    const m = models.fueling;
-    let headline = null;
-    const under = m.bins?.["Under-fueled (<40g/hr)"];
-    const well = m.bins?.["Well-fueled (>60g/hr)"];
-    if (under?.avgEF && well?.avgEF) headline = `${((well.avgEF - under.avgEF) / under.avgEF * 100).toFixed(1)}% EF well-fueled`;
-    tiles.push({ key: "fueling", icon: MODEL_ICONS.fueling, label: "FUELING IMPACT", headline, sub: m.summary?.split(";")[0] || null, confidence: m.confidence });
-  }
-
-  if (models.sleepExecution) {
-    const m = models.sleepExecution;
-    let headline = null;
-    const qa = m.quartileAnalysis;
-    if (qa?.highHRV?.avgCV != null && qa?.lowHRV?.avgCV != null) {
-      headline = `${(qa.lowHRV.avgCV - qa.highHRV.avgCV).toFixed(1)}% better consistency`;
-    }
-    tiles.push({ key: "sleep", icon: MODEL_ICONS.sleep, label: "SLEEP \u2192 EXECUTION", headline, sub: m.summary?.split(";")[0] || null, confidence: m.confidence });
-  }
-
-  return tiles;
-}
-
-const CONFIDENCE_COLORS = { high: T.accent, medium: T.amber, low: T.textDim };
-
 // ── MAIN PAGE ──
 
 export default function Performance() {
@@ -244,7 +100,7 @@ export default function Performance() {
   const chatRef = useRef(null);
   const insightsFetched = useRef(false);
 
-  const { profile, powerProfile, models, durabilityScore, latestMetrics, activityCount, loading } = usePerformanceData();
+  const { profile, latestMetrics, activityCount, loading } = usePerformanceData();
 
   const handleSignout = async () => { await signout(); navigate("/"); };
 
@@ -295,28 +151,6 @@ export default function Performance() {
   useEffect(() => {
     if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
   }, [chatMessages, chatTyping]);
-
-  // Power bests
-  const powerBests = powerProfile ? [
-    { duration: "5s", watts: powerProfile.best_5s_watts, wkg: powerProfile.best_5s_wkg },
-    { duration: "30s", watts: powerProfile.best_30s_watts, wkg: powerProfile.best_30s_wkg },
-    { duration: "1'", watts: powerProfile.best_1m_watts, wkg: powerProfile.best_1m_wkg },
-    { duration: "5'", watts: powerProfile.best_5m_watts, wkg: powerProfile.best_5m_wkg },
-    { duration: "20'", watts: powerProfile.best_20m_watts, wkg: powerProfile.best_20m_wkg },
-    { duration: "60'", watts: powerProfile.best_60m_watts, wkg: powerProfile.best_60m_wkg },
-  ].filter(b => b.watts != null) : [];
-
-  // CP model
-  const cp = powerProfile?.cp_watts;
-  const wPrime = powerProfile?.w_prime_kj;
-  const pmax = powerProfile?.pmax_watts;
-  const rSquared = powerProfile?.cp_model_r_squared;
-  const fitLabel = rSquared >= 0.98 ? "Excellent" : rSquared >= 0.95 ? "Good" : rSquared >= 0.90 ? "Fair" : "Low";
-  const fitColor = rSquared >= 0.95 ? T.accent : rSquared >= 0.90 ? T.amber : T.red;
-  const cpFtpDelta = cp && profile?.ftp_watts ? cp - profile.ftp_watts : null;
-
-  // Model tiles
-  const modelTiles = buildModelTiles(models, durabilityScore);
 
   // Parse AI insights
   const aiInsights = insights?.insights || [];
@@ -401,7 +235,7 @@ export default function Performance() {
         <div style={{ marginBottom: 24 }}>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: T.text, letterSpacing: "-0.03em" }}>Performance</h1>
           <p style={{ fontSize: 13, color: T.textDim, marginTop: 4 }}>
-            90-day rolling {activityCount > 0 ? `\u00B7 ${activityCount} activities` : ""} {powerProfile ? "\u00B7 Updated today" : ""}
+            90-day rolling {activityCount > 0 ? `\u00B7 ${activityCount} activities` : ""}
           </p>
         </div>
 
@@ -410,128 +244,6 @@ export default function Performance() {
 
           {/* ═══ LEFT COLUMN — DATA ═══ */}
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-
-            {/* Power Profile Card */}
-            <Card style={{ padding: isMobile ? "16px" : "20px 24px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <h2 style={{ fontSize: 15, fontWeight: 700, color: T.text }}>Power Profile</h2>
-              </div>
-
-              {powerProfile ? (
-                <>
-                  <PowerCurve powerProfile={powerProfile} isMobile={isMobile} />
-                  {/* Bests row */}
-                  <div style={{
-                    display: "grid",
-                    gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : `repeat(${powerBests.length}, 1fr)`,
-                    gap: 8, marginTop: 14, paddingTop: 14, borderTop: `1px solid ${T.border}`,
-                  }}>
-                    {powerBests.map(pb => (
-                      <div key={pb.duration} style={{ textAlign: "center" }}>
-                        <div style={{ fontSize: 9, color: T.textDim, fontWeight: 600, textTransform: "uppercase", marginBottom: 3 }}>{pb.duration}</div>
-                        <div style={{ fontFamily: mono, fontSize: 16, fontWeight: 700, color: T.text }}>
-                          {pb.watts}<span style={{ fontSize: 10, color: T.textDim }}>W</span>
-                        </div>
-                        {pb.wkg != null && (
-                          <div style={{ fontFamily: mono, fontSize: 11, color: T.textSoft }}>{pb.wkg} W/kg</div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <div style={{ padding: 24, textAlign: "center", color: T.textSoft, fontSize: 13 }}>
-                  Sync activities with power data to see your power profile.
-                </div>
-              )}
-            </Card>
-
-            {/* CP Model + Performance Models */}
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16 }}>
-              {/* CP Model */}
-              <Card style={{ padding: "18px 20px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                  <h3 style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Critical Power Model</h3>
-                  {rSquared != null && (
-                    <span style={{ padding: "2px 8px", borderRadius: 9999, fontSize: 9, fontWeight: 600, background: `${fitColor}15`, color: fitColor }}>
-                      R\u00B2 {rSquared}
-                    </span>
-                  )}
-                </div>
-                {cp ? (
-                  <>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-                      {[
-                        { label: "CP", value: cp, unit: "W", sub: "Aerobic Ceiling" },
-                        { label: "W'", value: wPrime, unit: "kJ", sub: "Anaerobic Reserve" },
-                        { label: "Pmax", value: pmax, unit: "W", sub: "Sprint Power" },
-                      ].map(m => (
-                        <div key={m.label} style={{ padding: 12, borderRadius: 8, background: T.surface }}>
-                          <div style={{ fontSize: 9, color: T.textDim, fontWeight: 600, textTransform: "uppercase" }}>{m.label}</div>
-                          <div style={{ fontFamily: mono, fontSize: 20, fontWeight: 700, color: T.text, marginTop: 3 }}>
-                            {m.value ?? "\u2014"}<span style={{ fontSize: 10, color: T.textDim }}> {m.unit}</span>
-                          </div>
-                          <div style={{ fontSize: 10, color: T.textSoft, marginTop: 2 }}>{m.sub}</div>
-                        </div>
-                      ))}
-                    </div>
-                    {cpFtpDelta != null && (
-                      <div style={{ textAlign: "center", fontSize: 11, color: T.textDim, marginTop: 10 }}>
-                        CP is {Math.abs(cpFtpDelta)}W {cpFtpDelta >= 0 ? "above" : "below"} FTP
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div style={{ padding: 16, textAlign: "center", color: T.textSoft, fontSize: 12 }}>
-                    Need more ride data to build your CP model.
-                  </div>
-                )}
-              </Card>
-
-              {/* Performance Models */}
-              <Card style={{ padding: "18px 20px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                  <h3 style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Performance Models</h3>
-                  {modelTiles.length > 0 && (
-                    <span style={{ fontSize: 10, color: T.textDim }}>{modelTiles.length} active</span>
-                  )}
-                </div>
-                {modelTiles.length > 0 ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {modelTiles.map(m => (
-                      <div key={m.key} style={{ padding: 12, borderRadius: 8, background: T.surface }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                            <span style={{ color: T.accent, opacity: 0.7 }}>{m.icon}</span>
-                            <span style={{ fontSize: 9, fontWeight: 600, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.04em" }}>{m.label}</span>
-                          </div>
-                          {m.confidence && (
-                            <span style={{ padding: "1px 6px", borderRadius: 9999, fontSize: 8, fontWeight: 700, background: `${CONFIDENCE_COLORS[m.confidence] || T.textDim}15`, color: CONFIDENCE_COLORS[m.confidence] || T.textDim, textTransform: "uppercase" }}>
-                              {m.confidence}
-                            </span>
-                          )}
-                        </div>
-                        {m.headline && <div style={{ fontFamily: mono, fontSize: 14, fontWeight: 700, color: T.text }}>{m.headline}</div>}
-                        {m.sub && <div style={{ fontSize: 10, color: T.textDim, marginTop: 2 }}>{m.sub}</div>}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div style={{ padding: 16, textAlign: "center", color: T.textSoft, fontSize: 12 }}>
-                    Building your performance models...
-                    <br />
-                    <span style={{ fontSize: 11 }}>Need 10+ activities with weather, HRV, or nutrition data</span>
-                  </div>
-                )}
-                {models?.metadata && (
-                  <div style={{ fontSize: 10, color: T.textDim, marginTop: 10, display: "flex", flexWrap: "wrap", gap: "4px 12px" }}>
-                    <span>{models.metadata.totalActivities} activities</span>
-                    {models.metadata.activitiesWithWeather > 0 && <span>{models.metadata.activitiesWithWeather} weather</span>}
-                    {models.metadata.activitiesWithSleep > 0 && <span>{models.metadata.activitiesWithSleep} sleep</span>}
-                  </div>
-                )}
-              </Card>
-            </div>
 
             {/* Training Load Summary */}
             {(ctl != null || atl != null || tsb != null) && (

@@ -155,6 +155,71 @@ function formatMinutes(seconds) {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
+// ── PERFORMANCE MODELS ──
+
+const MODEL_ICONS = {
+  heat: <Thermometer size={14} />,
+  hrv: <Heart size={14} />,
+  durability: <Zap size={14} />,
+  fueling: <Flame size={14} />,
+  sleep: <Moon size={14} />,
+};
+
+const CONFIDENCE_COLORS = { high: T.accent, medium: T.amber, low: T.textDim };
+
+function buildModelTiles(models, durabilityScore) {
+  if (!models) return [];
+  const tiles = [];
+
+  if (models.heat) {
+    const m = models.heat;
+    let headline = null;
+    if (m.breakpointTemp != null) headline = `${m.breakpointTemp}\u00B0C breakpoint`;
+    else if (m.bins) {
+      const cool = m.bins["Cool (<15\u00B0C)"];
+      const hot = m.bins["Hot (>25\u00B0C)"];
+      if (cool?.avgEF && hot?.avgEF) headline = `${((hot.avgEF - cool.avgEF) / cool.avgEF * 100).toFixed(1)}% EF in heat`;
+    }
+    tiles.push({ key: "heat", icon: MODEL_ICONS.heat, label: "HEAT MODEL", headline, sub: m.summary?.split(";")[0] || null, confidence: m.confidence });
+  }
+
+  if (models.hrvReadiness) {
+    const m = models.hrvReadiness;
+    let headline = m.efDeltaPct != null ? `${m.efDeltaPct > 0 ? "+" : ""}${m.efDeltaPct}% EF delta` : null;
+    const greenRange = m.thresholds?.green?.hrvRange;
+    const redRange = m.thresholds?.red?.hrvRange;
+    const sub = greenRange && redRange ? `Green: ${greenRange} / Red: ${redRange}` : m.summary?.split(";")[0] || null;
+    tiles.push({ key: "hrv", icon: MODEL_ICONS.hrv, label: "HRV READINESS", headline, sub, confidence: m.confidence });
+  }
+
+  if (models.durability) {
+    const m = models.durability;
+    let headline = durabilityScore != null ? `${Math.round(durabilityScore * 100)}% retention` : m.threshold != null ? `${m.threshold} kJ/kg threshold` : null;
+    tiles.push({ key: "durability", icon: MODEL_ICONS.durability, label: "DURABILITY", headline, sub: m.summary?.split(";")[0] || null, confidence: m.confidence });
+  }
+
+  if (models.fueling) {
+    const m = models.fueling;
+    let headline = null;
+    const under = m.bins?.["Under-fueled (<40g/hr)"];
+    const well = m.bins?.["Well-fueled (>60g/hr)"];
+    if (under?.avgEF && well?.avgEF) headline = `${((well.avgEF - under.avgEF) / under.avgEF * 100).toFixed(1)}% EF well-fueled`;
+    tiles.push({ key: "fueling", icon: MODEL_ICONS.fueling, label: "FUELING IMPACT", headline, sub: m.summary?.split(";")[0] || null, confidence: m.confidence });
+  }
+
+  if (models.sleepExecution) {
+    const m = models.sleepExecution;
+    let headline = null;
+    const qa = m.quartileAnalysis;
+    if (qa?.highHRV?.avgCV != null && qa?.lowHRV?.avgCV != null) {
+      headline = `${(qa.lowHRV.avgCV - qa.highHRV.avgCV).toFixed(1)}% better consistency`;
+    }
+    tiles.push({ key: "sleep", icon: MODEL_ICONS.sleep, label: "SLEEP \u2192 EXECUTION", headline, sub: m.summary?.split(";")[0] || null, confidence: m.confidence });
+  }
+
+  return tiles;
+}
+
 // ── NAV ──
 
 const NAV_LINKS = [
@@ -613,7 +678,45 @@ export default function MyStats() {
           )}
         </SectionCard>
 
-        {/* ── SECTION 7: RECOVERY BASELINES ── */}
+        {/* ── SECTION 7: PERFORMANCE MODELS ── */}
+        {(() => {
+          const modelTiles = buildModelTiles(models, durabilityData.score);
+          if (modelTiles.length === 0) return null;
+          return (
+            <SectionCard title="Performance Models" action={
+              <span style={{ fontSize: 10, color: T.textDim }}>{modelTiles.length} active</span>
+            }>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 8 }}>
+                {modelTiles.map(m => (
+                  <div key={m.key} style={{ padding: 12, borderRadius: 8, background: T.surface }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                        <span style={{ color: T.accent, opacity: 0.7 }}>{m.icon}</span>
+                        <span style={{ fontSize: 9, fontWeight: 600, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.04em" }}>{m.label}</span>
+                      </div>
+                      {m.confidence && (
+                        <span style={{ padding: "1px 6px", borderRadius: 9999, fontSize: 8, fontWeight: 700, background: `${CONFIDENCE_COLORS[m.confidence] || T.textDim}15`, color: CONFIDENCE_COLORS[m.confidence] || T.textDim, textTransform: "uppercase" }}>
+                          {m.confidence}
+                        </span>
+                      )}
+                    </div>
+                    {m.headline && <div style={{ fontFamily: mono, fontSize: 14, fontWeight: 700, color: T.text }}>{m.headline}</div>}
+                    {m.sub && <div style={{ fontSize: 10, color: T.textDim, marginTop: 2 }}>{m.sub}</div>}
+                  </div>
+                ))}
+              </div>
+              {models?.metadata && (
+                <div style={{ fontSize: 10, color: T.textDim, marginTop: 10, display: "flex", flexWrap: "wrap", gap: "4px 12px" }}>
+                  <span>{models.metadata.totalActivities} activities</span>
+                  {models.metadata.activitiesWithWeather > 0 && <span>{models.metadata.activitiesWithWeather} weather</span>}
+                  {models.metadata.activitiesWithSleep > 0 && <span>{models.metadata.activitiesWithSleep} sleep</span>}
+                </div>
+              )}
+            </SectionCard>
+          );
+        })()}
+
+        {/* ── SECTION 8: RECOVERY BASELINES ── */}
         <SectionCard title="Recovery Baselines">
           {averages ? (
             <>
