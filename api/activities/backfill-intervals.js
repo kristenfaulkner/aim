@@ -1,21 +1,14 @@
 /**
- * Backfill intervals, tags, and weather for existing activities.
+ * Backfill tags and weather for existing activities.
  *
  * POST /api/activities/backfill-intervals
  *
- * Two modes:
- *   1. Activities with power but no laps → re-fetch streams, extract intervals, tag, weather
- *   2. Activities with laps but no tags → run tag detection + weather enrichment
- *
- * Body: { mode: "all" | "intervals" | "tags" } — default "all"
  * Processes up to 50 activities per call. Call repeatedly until processed === 0.
  */
 import { supabaseAdmin } from "../_lib/supabase.js";
 import { verifySession, cors } from "../_lib/auth.js";
-import { buildLapsPayload } from "../_lib/intervals.js";
 import { detectAllTags, persistTags } from "../_lib/tags.js";
 import { fetchActivityWeather, extractLocationFromActivity } from "../_lib/weather-enrich.js";
-import { getStravaToken, stravaFetch } from "../_lib/strava.js";
 
 export const config = { maxDuration: 60 };
 
@@ -26,8 +19,6 @@ export default async function handler(req, res) {
 
   const session = await verifySession(req);
   if (!session) return res.status(401).json({ error: "Unauthorized" });
-
-  const { mode = "all" } = req.body || {};
 
   try {
     const userId = session.userId;
@@ -41,70 +32,12 @@ export default async function handler(req, res) {
 
     const ftp = profile?.ftp_watts;
 
-    let intervalsProcessed = 0;
     let tagsProcessed = 0;
     let weatherProcessed = 0;
     let failed = 0;
 
-    // ── Phase 1: Interval extraction (activities with power but no laps) ──
-    if ((mode === "all" || mode === "intervals") && ftp) {
-      const { data: noLaps } = await supabaseAdmin
-        .from("activities")
-        .select("id, source, source_id, avg_power_watts, started_at, source_data")
-        .eq("user_id", userId)
-        .not("avg_power_watts", "is", null)
-        .is("laps", null)
-        .order("started_at", { ascending: false })
-        .limit(50);
-
-      if (noLaps?.length) {
-        // Try to get Strava token for stream re-fetch
-        let accessToken = null;
-        try {
-          const tokenData = await getStravaToken(userId);
-          accessToken = tokenData?.accessToken;
-        } catch { /* no token */ }
-
-        for (const activity of noLaps) {
-          try {
-            let streams = null;
-
-            if (accessToken && activity.source === "strava" && activity.source_id) {
-              try {
-                const streamData = await stravaFetch(
-                  accessToken,
-                  `/activities/${activity.source_id}/streams?keys=watts,heartrate,cadence,altitude,time&key_by_type=true`
-                );
-                streams = {};
-                if (Array.isArray(streamData)) {
-                  for (const s of streamData) streams[s.type] = s;
-                } else {
-                  streams = streamData;
-                }
-              } catch { continue; }
-            }
-
-            if (!streams?.watts) continue;
-
-            const lapsPayload = buildLapsPayload(streams, ftp);
-            if (!lapsPayload) continue;
-
-            await supabaseAdmin
-              .from("activities")
-              .update({ laps: lapsPayload })
-              .eq("id", activity.id);
-
-            intervalsProcessed++;
-          } catch (err) {
-            failed++;
-            console.error(`Interval backfill failed for ${activity.id}:`, err.message);
-          }
-        }
-      }
-    }
-
-    // ── Phase 2: Tag detection (activities with no tags) ──
-    if (mode === "all" || mode === "tags") {
+    // ── Tag detection + weather enrichment (activities with no tags) ──
+    {
       // Find activities that have no tags yet
       const { data: allActivities } = await supabaseAdmin
         .from("activities")
@@ -180,15 +113,13 @@ export default async function handler(req, res) {
       }
     }
 
-    const totalProcessed = intervalsProcessed + tagsProcessed;
     return res.status(200).json({
-      intervals: intervalsProcessed,
       tags: tagsProcessed,
       weather: weatherProcessed,
       failed,
-      message: totalProcessed === 0
+      message: tagsProcessed === 0
         ? "All activities are up to date"
-        : `Processed ${totalProcessed} activities`,
+        : `Processed ${tagsProcessed} activities`,
     });
   } catch (err) {
     console.error("Backfill error:", err);

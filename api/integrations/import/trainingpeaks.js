@@ -338,7 +338,7 @@ async function processEntries(session, entries, csvRows, profile, existing) {
         ? computeActivityMetrics(streams, metadata.duration_seconds, ftp)
         : {};
 
-      // Extract intervals (FIT laps preferred, fallback to detection)
+      // Extract intervals from FIT laps (no auto-detection)
       let lapsPayload = null;
       if (hasWatts && ftp) {
         try {

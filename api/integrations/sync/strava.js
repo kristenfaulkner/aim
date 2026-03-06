@@ -8,7 +8,6 @@ import { sendWorkoutSMS } from "../../sms/send.js";
 import { sendWorkoutEmail } from "../../email/send.js";
 import { isHigherPriority, findDuplicate } from "../../_lib/source-priority.js";
 import { backfillUserMetrics } from "../../_lib/backfill.js";
-import { buildLapsPayload } from "../../_lib/intervals.js";
 import { detectAllTags, persistTags } from "../../_lib/tags.js";
 import { fetchActivityWeather, extractLocationFromActivity } from "../../_lib/weather-enrich.js";
 import { resolveActivityTimezone, parseStravaTimezone } from "../../_lib/timezone.js";
@@ -76,15 +75,8 @@ export async function syncStravaActivity(userId, stravaActivityId, options = {})
     ? computeActivityMetrics(streams, activity.elapsed_time, ftp)
     : {};
 
-  // Extract intervals from power streams (Strava doesn't provide FIT laps)
+  // Laps: only populated from FIT files (Wahoo/Garmin), not auto-detected from streams
   let lapsPayload = null;
-  if (streams.watts && ftp) {
-    try {
-      lapsPayload = buildLapsPayload(streams, ftp);
-    } catch (err) {
-      console.error(`Interval extraction failed for Strava ${stravaActivityId}:`, err.message);
-    }
-  }
 
   // Compute durability data from power stream
   let durabilityPayload = null;

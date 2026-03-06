@@ -565,21 +565,12 @@ export function buildLapsPayload(streams, ftp, fitLaps = null) {
 
   if (!watts || watts.length < 30 || !ftp) return null;
 
-  // Step 1: Extract laps from FIT or detect from streams
-  let rawIntervals = null;
-  let source = "detected";
+  // Only use FIT file laps — no auto-detection from streams
+  if (!fitLaps) return null;
 
-  if (fitLaps) {
-    rawIntervals = extractLapsFromFit(fitLaps, time);
-    if (rawIntervals) source = "fit_laps";
-  }
-
-  if (!rawIntervals) {
-    rawIntervals = detectIntervalsFromStreams(streams, ftp);
-    source = rawIntervals ? "detected" : null;
-  }
-
+  const rawIntervals = extractLapsFromFit(fitLaps, time);
   if (!rawIntervals || rawIntervals.length === 0) return null;
+  const source = "fit_laps";
 
   // Step 2: Compute per-interval metrics and classify
   const intervals = rawIntervals.map((raw, idx) => {
