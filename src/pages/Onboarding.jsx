@@ -281,7 +281,7 @@ export default function Onboarding() {
                       ?
                       {showFtpTooltip && (
                         <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)", width: 240, padding: "10px 12px", background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, fontSize: 12, fontWeight: 400, color: T.textSoft, lineHeight: 1.5, zIndex: 10, pointerEvents: "none", textAlign: "left" }}>
-                          Functional Threshold Power — estimated as 95% of your best 20-minute average power.
+                          Functional Threshold Power — estimated as 95% of your best 20-minute average cycling power.
                         </div>
                       )}
                     </span>
