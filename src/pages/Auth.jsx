@@ -13,7 +13,7 @@ export default function Auth({ mode }) {
   const { isMobile, isTablet } = useResponsive();
 
   // Redirect authenticated users to dashboard
-  if (user) return <Navigate to="/dashboard" replace />;
+  if (user) return <Navigate to="/today" replace />;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -48,7 +48,7 @@ export default function Auth({ mode }) {
       } else {
         await signin(email, password);
       }
-      navigate(isSignup ? "/onboarding" : "/dashboard");
+      navigate(isSignup ? "/onboarding" : "/today");
     } catch (err) {
       setError(err.message);
     } finally {

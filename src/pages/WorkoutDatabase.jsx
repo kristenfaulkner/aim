@@ -415,7 +415,7 @@ export default function WorkoutDatabase() {
 
   // Nav
   const navItems = [
-    { label: "Today", path: "/dashboard" },
+    { label: "Today", path: "/today" },
     { label: "Activities", path: "/activities" },
     { label: "Performance", path: "/performance" },
     { label: "My Stats", path: "/my-stats" },
@@ -437,7 +437,7 @@ export default function WorkoutDatabase() {
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <span
-            onClick={() => navigate("/dashboard")}
+            onClick={() => navigate("/today")}
             style={{ fontSize: 22, fontWeight: 900, cursor: "pointer", fontFamily: font, letterSpacing: "-0.02em" }}
           >
             <span style={{ background: `linear-gradient(135deg, ${T.accent}, #3b82f6)`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>AI</span>

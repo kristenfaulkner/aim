@@ -179,7 +179,7 @@ export default function Pricing() {
             {menuOpen && (
               <div style={{ position: "fixed", top: 56, left: 0, right: 0, bottom: 0, background: T.bg, padding: 24, display: "flex", flexDirection: "column", gap: 16, zIndex: 99 }}>
                 {user ? (
-                  <button onClick={() => navigate("/dashboard")} style={{ ...btn(true), justifyContent: "center" }}>My Dashboard</button>
+                  <button onClick={() => navigate("/today")} style={{ ...btn(true), justifyContent: "center" }}>My Dashboard</button>
                 ) : (
                   <>
                     <button onClick={() => navigate("/signin")} style={{ ...btn(false), justifyContent: "center" }}>Sign In</button>
@@ -192,7 +192,7 @@ export default function Pricing() {
         ) : (
           <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
             {user ? (
-              <button onClick={() => navigate("/dashboard")} style={{ ...btn(true), padding: "10px 24px", fontSize: 13 }}>My Dashboard</button>
+              <button onClick={() => navigate("/today")} style={{ ...btn(true), padding: "10px 24px", fontSize: 13 }}>My Dashboard</button>
             ) : (
               <>
                 <button onClick={() => navigate("/signin")} style={{ ...btn(false), padding: "10px 24px", fontSize: 13 }}>Sign In</button>
@@ -459,7 +459,7 @@ export default function Pricing() {
             Start your 14-day free trial. No credit card required.
           </p>
           <button
-            onClick={() => navigate(user ? "/dashboard" : "/signup")}
+            onClick={() => navigate(user ? "/today" : "/signup")}
             style={{ ...btn(true), fontSize: 15, padding: "14px 36px" }}
           >
             {user ? "Go to Dashboard" : "Get Started Free"} <ArrowRight size={18} />

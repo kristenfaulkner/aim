@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
+import { apiFetch } from "../lib/api";
 
 /**
  * Custom hook that fetches all athlete stats data in parallel.
@@ -10,8 +11,10 @@ export function useMyStats() {
   const { user, profile } = useAuth();
   const [powerProfile, setPowerProfile] = useState(null);
   const [latestMetrics, setLatestMetrics] = useState(null);
+  const [latestRecovery, setLatestRecovery] = useState(null);
   const [recentMetrics, setRecentMetrics] = useState([]);
   const [latestDexa, setLatestDexa] = useState(null);
+  const [models, setModels] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
@@ -26,8 +29,10 @@ export function useMyStats() {
       const [
         powerProfileResult,
         latestMetricsResult,
+        latestRecoveryResult,
         recentMetricsResult,
         dexaResult,
+        modelsResult,
       ] = await Promise.allSettled([
         // Latest power profile (bests + CP model)
         supabase
@@ -38,7 +43,17 @@ export function useMyStats() {
           .limit(1)
           .single(),
 
-        // Latest daily metrics (CTL/ATL/TSB, HRV, RHR, sleep)
+        // Latest daily metrics with training load (CTL/ATL/TSB)
+        supabase
+          .from("daily_metrics")
+          .select("*")
+          .eq("user_id", user.id)
+          .not("ctl", "is", null)
+          .order("date", { ascending: false })
+          .limit(1)
+          .single(),
+
+        // Latest daily metrics row (for recovery data — may not have CTL)
         supabase
           .from("daily_metrics")
           .select("*")
@@ -50,7 +65,7 @@ export function useMyStats() {
         // Last 30 days for averages
         supabase
           .from("daily_metrics")
-          .select("date, hrv, resting_hr, sleep_score, sleep_total, deep_sleep, recovery_score")
+          .select("date, hrv_ms, resting_hr_bpm, sleep_score, total_sleep_seconds, deep_sleep_seconds, recovery_score")
           .eq("user_id", user.id)
           .gte("date", new Date(Date.now() - 30 * 86400000).toISOString().split("T")[0])
           .order("date", { ascending: false }),
@@ -63,6 +78,9 @@ export function useMyStats() {
           .order("scan_date", { ascending: false })
           .limit(1)
           .single(),
+
+        // Performance models
+        apiFetch("/models/summary").catch(() => null),
       ]);
 
       if (powerProfileResult.status === "fulfilled" && powerProfileResult.value.data) {
@@ -71,11 +89,17 @@ export function useMyStats() {
       if (latestMetricsResult.status === "fulfilled" && latestMetricsResult.value.data) {
         setLatestMetrics(latestMetricsResult.value.data);
       }
+      if (latestRecoveryResult.status === "fulfilled" && latestRecoveryResult.value.data) {
+        setLatestRecovery(latestRecoveryResult.value.data);
+      }
       if (recentMetricsResult.status === "fulfilled" && recentMetricsResult.value.data) {
         setRecentMetrics(recentMetricsResult.value.data);
       }
       if (dexaResult.status === "fulfilled" && dexaResult.value.data) {
         setLatestDexa(dexaResult.value.data);
+      }
+      if (modelsResult.status === "fulfilled" && modelsResult.value) {
+        setModels(modelsResult.value.models || null);
       }
     } catch (err) {
       console.error("MyStats data fetch error:", err);
@@ -95,8 +119,10 @@ export function useMyStats() {
     profile,
     powerProfile,
     latestMetrics,
+    latestRecovery,
     latestDexa,
     averages,
+    models,
     loading,
   };
 }
@@ -110,11 +136,11 @@ function computeAverages(metrics) {
   };
 
   return {
-    hrv: avg(metrics.map((m) => m.hrv)),
-    rhr: avg(metrics.map((m) => m.resting_hr)),
+    hrv: avg(metrics.map((m) => m.hrv_ms)),
+    rhr: avg(metrics.map((m) => m.resting_hr_bpm)),
     sleepScore: avg(metrics.map((m) => m.sleep_score)),
-    sleepTotal: avg(metrics.map((m) => m.sleep_total)),
-    deepSleep: avg(metrics.map((m) => m.deep_sleep)),
+    sleepTotal: avg(metrics.map((m) => m.total_sleep_seconds)),
+    deepSleep: avg(metrics.map((m) => m.deep_sleep_seconds)),
     recoveryScore: avg(metrics.map((m) => m.recovery_score)),
     days: metrics.length,
   };

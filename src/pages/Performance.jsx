@@ -12,7 +12,7 @@ import { LogOut, Menu, X, User, Settings, Thermometer, Heart, Zap, Flame, Moon }
 // ── NAV ──
 
 const NAV_LINKS = [
-  { label: "Today", path: "/dashboard" },
+  { label: "Today", path: "/today" },
   { label: "Activities", path: "/activities" },
   { label: "Performance", path: "/performance" },
   { label: "My Stats", path: "/my-stats" },
@@ -347,7 +347,7 @@ export default function Performance() {
                 {menuOpen ? <X size={20} color={T.text} /> : <Menu size={20} color={T.text} />}
               </button>
             )}
-            <span onClick={() => navigate("/dashboard")} style={{ fontSize: 18, fontWeight: 800, cursor: "pointer", background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>AIM</span>
+            <span onClick={() => navigate("/today")} style={{ fontSize: 18, fontWeight: 800, cursor: "pointer", background: T.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>AIM</span>
           </div>
           {!isMobile && (
             <div style={{ display: "flex", gap: 3 }}>

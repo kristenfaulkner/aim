@@ -42,7 +42,7 @@ export default function ResetPassword() {
           </div>
           <h1 style={{ fontSize: 24, fontWeight: 800, margin: "0 0 12px", letterSpacing: "-0.03em" }}>Password updated</h1>
           <p style={{ fontSize: 15, color: T.textSoft, margin: "0 0 32px" }}>Your password has been successfully reset. You can now sign in.</p>
-          <button onClick={() => navigate("/dashboard")} style={{ ...btn(true), fontSize: 15, padding: "14px 32px" }}>
+          <button onClick={() => navigate("/today")} style={{ ...btn(true), fontSize: 15, padding: "14px 32px" }}>
             Go to Dashboard <ArrowRight size={16} />
           </button>
         </div>

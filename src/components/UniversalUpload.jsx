@@ -376,7 +376,7 @@ export default function UniversalUpload({ compact = false }) {
         {/* Destination links + reset */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
           {workouts.length > 0 && (
-            <button onClick={() => navigate("/dashboard")} style={{
+            <button onClick={() => navigate("/today")} style={{
               padding: "7px 16px", borderRadius: 8, fontSize: 11, fontWeight: 600,
               background: `${T.blue}15`, border: `1px solid ${T.blue}30`,
               color: T.blue, cursor: "pointer", fontFamily: font,

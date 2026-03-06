@@ -32,7 +32,7 @@ export default function AcceptTerms() {
       if (!res.ok) throw new Error("Failed to record consent");
 
       if (user) await fetchProfile(user.id);
-      navigate(profile?.onboarding_completed ? "/dashboard" : "/onboarding", { replace: true });
+      navigate(profile?.onboarding_completed ? "/today" : "/onboarding", { replace: true });
     } catch (err) {
       setError(err.message);
     } finally {

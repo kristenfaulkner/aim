@@ -173,7 +173,7 @@ export function AuthProvider({ children }) {
   async function signInWithMagicLink(email) {
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${window.location.origin}/dashboard` },
+      options: { emailRedirectTo: `${window.location.origin}/today` },
     });
     if (error) throw error;
   }

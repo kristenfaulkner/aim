@@ -258,7 +258,7 @@ export default function ConnectApps() {
   const connectedCount = Object.values(connected).filter(Boolean).length;
 
   const handleContinue = () => {
-    navigate("/dashboard");
+    navigate("/today");
   };
 
   const isConnectable = (app) => !!OAUTH_APPS[app.name] || !!CREDENTIAL_APPS[app.name] || !!FILE_IMPORT_APPS[app.name];
@@ -298,7 +298,7 @@ export default function ConnectApps() {
           </div>
           {!isMobile && (
             <div style={{ display: "flex", gap: 3 }}>
-              {[{ label: "Today", path: "/dashboard" }, { label: "Activities", path: "/activities" }, { label: "Performance", path: "/performance" }, { label: "My Stats", path: "/my-stats" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }].map(item => (
+              {[{ label: "Today", path: "/today" }, { label: "Activities", path: "/activities" }, { label: "Performance", path: "/performance" }, { label: "My Stats", path: "/my-stats" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }].map(item => (
                 <button key={item.label} onClick={() => navigate(item.path)} style={{
                   background: item.label === "Connect" ? T.accentDim : "none", border: "none", padding: "5px 12px", borderRadius: 7,
                   fontSize: 11, fontWeight: 600, color: item.label === "Connect" ? T.accent : T.textSoft,
@@ -348,7 +348,7 @@ export default function ConnectApps() {
               </div>
               <span style={{ fontSize: 14, fontWeight: 600 }}>{profile?.full_name || "Athlete"}</span>
             </div>
-            {[{ label: "Today", path: "/dashboard" }, { label: "Activities", path: "/activities" }, { label: "Performance", path: "/performance" }, { label: "My Stats", path: "/my-stats" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }, { label: "Profile", path: "/profile" }, { label: "Settings", path: "/settings" }].map(item => (
+            {[{ label: "Today", path: "/today" }, { label: "Activities", path: "/activities" }, { label: "Performance", path: "/performance" }, { label: "My Stats", path: "/my-stats" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }, { label: "Profile", path: "/profile" }, { label: "Settings", path: "/settings" }].map(item => (
               <button key={item.label} onClick={() => { setMenuOpen(false); navigate(item.path); }} style={{
                 background: item.label === "Connect" ? T.accentDim : "none", border: "none", padding: "12px 14px", borderRadius: 8,
                 fontSize: 14, fontWeight: 600, color: item.label === "Connect" ? T.accent : T.textSoft,
@@ -527,7 +527,7 @@ export default function ConnectApps() {
               }}>
                 Health Lab <ExternalLink size={11} />
               </button>
-              <button onClick={() => navigate("/dashboard")} style={{
+              <button onClick={() => navigate("/today")} style={{
                 background: "none", border: `1px solid ${T.border}`, padding: "5px 12px", borderRadius: 7,
                 fontSize: 11, fontWeight: 600, color: T.textSoft, cursor: "pointer", fontFamily: font,
                 display: "flex", alignItems: "center", gap: 5, transition: "all 0.2s",

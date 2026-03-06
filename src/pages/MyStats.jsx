@@ -10,7 +10,7 @@ import { useDurability } from "../hooks/useDurability";
 import { computePowerZones, computeHRZones, computeCPZones } from "../lib/zones";
 import { formatWeight, weightUnit } from "../lib/units";
 import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { LogOut, Menu, X, User, Settings, Edit3, BarChart3 } from "lucide-react";
+import { LogOut, Menu, X, User, Settings, Edit3, BarChart3, Thermometer, Heart, Zap, Flame, Moon } from "lucide-react";
 import SEO from "../components/SEO";
 
 // ── HELPERS ──
@@ -70,6 +70,84 @@ function EmptyState({ message }) {
   );
 }
 
+// ── POWER CURVE SVG ──
+
+function PowerCurve({ powerProfile, isMobile }) {
+  if (!powerProfile) return null;
+
+  const bests = [
+    { sec: 5, watts: powerProfile.best_5s_watts },
+    { sec: 30, watts: powerProfile.best_30s_watts },
+    { sec: 60, watts: powerProfile.best_1m_watts },
+    { sec: 300, watts: powerProfile.best_5m_watts },
+    { sec: 1200, watts: powerProfile.best_20m_watts },
+    { sec: 3600, watts: powerProfile.best_60m_watts },
+  ].filter(b => b.watts != null);
+
+  if (bests.length < 3) return null;
+
+  const w = isMobile ? 340 : 480;
+  const h = 160;
+  const pad = { top: 16, right: 20, bottom: 30, left: 44 };
+  const pw = w - pad.left - pad.right;
+  const ph = h - pad.top - pad.bottom;
+
+  const maxW = Math.max(...bests.map(b => b.watts)) * 1.1;
+  const minW = Math.min(...bests.map(b => b.watts)) * 0.7;
+  const maxT = Math.log(bests[bests.length - 1].sec);
+  const minT = Math.log(bests[0].sec);
+  const toX = (s) => pad.left + ((Math.log(s) - minT) / (maxT - minT)) * pw;
+  const toY = (watts) => pad.top + ph - ((watts - minW) / (maxW - minW)) * ph;
+
+  const pathD = bests.map((p, i) => `${i === 0 ? "M" : "L"} ${toX(p.sec)},${toY(p.watts)}`).join(" ");
+  const areaD = pathD + ` L ${toX(bests[bests.length - 1].sec)},${pad.top + ph} L ${toX(bests[0].sec)},${pad.top + ph} Z`;
+
+  const wRange = maxW - minW;
+  const gridStep = wRange > 800 ? 200 : wRange > 400 ? 100 : 50;
+  const gridLines = [];
+  for (let wt = Math.ceil(minW / gridStep) * gridStep; wt < maxW; wt += gridStep) {
+    gridLines.push(wt);
+  }
+
+  const highlights = [
+    { sec: 60, label: "1'", color: T.red },
+    { sec: 300, label: "5'", color: T.orange },
+    { sec: 1200, label: "20'", color: T.purple },
+    { sec: 3600, label: "60'", color: T.blue },
+  ].filter(hl => bests.some(b => b.sec === hl.sec));
+
+  const timeLabels = [
+    { s: 5, l: "5s" }, { s: 30, l: "30s" }, { s: 60, l: "1'" },
+    { s: 300, l: "5'" }, { s: 1200, l: "20'" }, { s: 3600, l: "1hr" },
+  ].filter(t => bests.some(b => b.sec === t.s));
+
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ overflow: "visible", maxWidth: "100%" }}>
+      {gridLines.map(wt => (
+        <g key={wt}>
+          <line x1={pad.left} y1={toY(wt)} x2={w - pad.right} y2={toY(wt)} stroke={T.border} strokeDasharray="3,3" />
+          <text x={pad.left - 6} y={toY(wt) + 3} textAnchor="end" fill={T.textDim} fontSize={9} fontFamily={mono}>{wt}</text>
+        </g>
+      ))}
+      {timeLabels.map(t => (
+        <text key={t.s} x={toX(t.s)} y={h - 4} textAnchor="middle" fill={T.textDim} fontSize={9} fontFamily={font}>{t.l}</text>
+      ))}
+      <path d={areaD} fill={`${T.accent}08`} />
+      <path d={pathD} fill="none" stroke={T.accent} strokeWidth={2} strokeLinecap="round" />
+      {highlights.map(pt => {
+        const b = bests.find(x => x.sec === pt.sec);
+        if (!b) return null;
+        return (
+          <g key={pt.label}>
+            <circle cx={toX(b.sec)} cy={toY(b.watts)} r={4} fill={T.card} stroke={pt.color} strokeWidth={2} />
+            <text x={toX(b.sec)} y={toY(b.watts) - 10} textAnchor="middle" fill={pt.color} fontSize={10} fontWeight={700} fontFamily={mono}>{b.watts}W</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 function formatMinutes(seconds) {
   if (seconds == null) return "—";
   const h = Math.floor(seconds / 3600);
@@ -80,7 +158,7 @@ function formatMinutes(seconds) {
 // ── NAV ──
 
 const NAV_LINKS = [
-  { label: "Today", path: "/dashboard" },
+  { label: "Today", path: "/today" },
   { label: "Activities", path: "/activities" },
   { label: "Performance", path: "/performance" },
   { label: "My Stats", path: "/my-stats" },
@@ -107,7 +185,7 @@ export default function MyStats() {
   const [zoneView, setZoneView] = useState("power"); // power | hr | cp
   const [showAdjusted, setShowAdjusted] = useState(true); // true = today's adjusted zones
 
-  const { profile, powerProfile, latestMetrics, latestDexa, averages, loading } = useMyStats();
+  const { profile, powerProfile, latestMetrics, latestRecovery, latestDexa, averages, models, loading } = useMyStats();
   const adaptiveZonesData = useAdaptiveZones();
   const durabilityData = useDurability();
 
@@ -131,8 +209,8 @@ export default function MyStats() {
   const formLabel = tsb == null ? null : tsb > 15 ? "Fresh" : tsb > -10 ? "Optimal" : tsb > -30 ? "Fatigued" : "Overreaching";
   const formColor = tsb == null ? T.textSoft : tsb > 15 ? T.accent : tsb > -10 ? "#3b82f6" : tsb > -30 ? "#f59e0b" : "#ef4444";
 
-  // Recovery traffic light
-  const recoveryScore = latestMetrics?.recovery_score;
+  // Recovery traffic light (use latestRecovery which is the most recent daily_metrics row)
+  const recoveryScore = latestRecovery?.recovery_score;
   const recoveryLabel = recoveryScore == null ? null : recoveryScore >= 70 ? "Green" : recoveryScore >= 45 ? "Yellow" : "Red";
   const recoveryColor = recoveryScore == null ? T.textSoft : recoveryScore >= 70 ? T.accent : recoveryScore >= 45 ? "#f59e0b" : "#ef4444";
 
@@ -157,7 +235,7 @@ export default function MyStats() {
                 {menuOpen ? <X size={20} color={T.text} /> : <Menu size={20} color={T.text} />}
               </button>
             )}
-            <span onClick={() => navigate("/dashboard")} style={{ fontSize: 18, fontWeight: 800, cursor: "pointer", background: "linear-gradient(135deg, #10b981, #3b82f6)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>AIM</span>
+            <span onClick={() => navigate("/today")} style={{ fontSize: 18, fontWeight: 800, cursor: "pointer", background: "linear-gradient(135deg, #10b981, #3b82f6)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>AIM</span>
           </div>
 
           {!isMobile && (
@@ -253,27 +331,33 @@ export default function MyStats() {
           )}
         </SectionCard>
 
-        {/* ── SECTION 2: POWER PROFILE BESTS ── */}
-        <SectionCard title="Power Profile Bests">
+        {/* ── SECTION 2: POWER PROFILE ── */}
+        <SectionCard title="Power Profile">
           {powerProfile ? (
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : "repeat(6, 1fr)", gap: 8 }}>
-              {[
-                { label: "5s", watts: powerProfile.best_5s_watts, wkg: powerProfile.best_5s_wkg },
-                { label: "30s", watts: powerProfile.best_30s_watts, wkg: powerProfile.best_30s_wkg },
-                { label: "1 min", watts: powerProfile.best_1m_watts, wkg: powerProfile.best_1m_wkg },
-                { label: "5 min", watts: powerProfile.best_5m_watts, wkg: powerProfile.best_5m_wkg },
-                { label: "20 min", watts: powerProfile.best_20m_watts, wkg: powerProfile.best_20m_wkg },
-                { label: "60 min", watts: powerProfile.best_60m_watts, wkg: powerProfile.best_60m_wkg },
-              ].map(d => (
-                <StatBox
-                  key={d.label}
-                  label={d.label}
-                  value={d.watts}
-                  unit="W"
-                  sub={d.wkg ? `${d.wkg} W/kg` : undefined}
-                />
-              ))}
-            </div>
+            <>
+              <PowerCurve powerProfile={powerProfile} isMobile={isMobile} />
+              <div style={{
+                display: "grid", gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : "repeat(6, 1fr)",
+                gap: 8, marginTop: 14, paddingTop: 14, borderTop: `1px solid ${T.border}`,
+              }}>
+                {[
+                  { label: "5s", watts: powerProfile.best_5s_watts, wkg: powerProfile.best_5s_wkg },
+                  { label: "30s", watts: powerProfile.best_30s_watts, wkg: powerProfile.best_30s_wkg },
+                  { label: "1 min", watts: powerProfile.best_1m_watts, wkg: powerProfile.best_1m_wkg },
+                  { label: "5 min", watts: powerProfile.best_5m_watts, wkg: powerProfile.best_5m_wkg },
+                  { label: "20 min", watts: powerProfile.best_20m_watts, wkg: powerProfile.best_20m_wkg },
+                  { label: "60 min", watts: powerProfile.best_60m_watts, wkg: powerProfile.best_60m_wkg },
+                ].map(d => (
+                  <StatBox
+                    key={d.label}
+                    label={d.label}
+                    value={d.watts}
+                    unit="W"
+                    sub={d.wkg ? `${d.wkg} W/kg` : undefined}
+                  />
+                ))}
+              </div>
+            </>
           ) : (
             <EmptyState message="Sync activities with power data to see your power profile." />
           )}
@@ -536,24 +620,24 @@ export default function MyStats() {
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <StatBox
                   label="HRV"
-                  value={latestMetrics?.hrv != null ? Math.round(latestMetrics.hrv) : null}
+                  value={latestRecovery?.hrv_ms != null ? Math.round(latestRecovery.hrv_ms) : null}
                   unit="ms"
                   sub={averages.hrv != null ? `30d avg: ${averages.hrv}ms` : undefined}
                 />
                 <StatBox
                   label="RHR"
-                  value={latestMetrics?.resting_hr != null ? Math.round(latestMetrics.resting_hr) : null}
+                  value={latestRecovery?.resting_hr_bpm != null ? Math.round(latestRecovery.resting_hr_bpm) : null}
                   unit="bpm"
                   sub={averages.rhr != null ? `30d avg: ${averages.rhr}bpm` : undefined}
                 />
                 <StatBox
                   label="Sleep Score"
-                  value={latestMetrics?.sleep_score}
+                  value={latestRecovery?.sleep_score}
                   sub={averages.sleepScore != null ? `30d avg: ${averages.sleepScore}` : undefined}
                 />
                 <StatBox
                   label="Sleep Duration"
-                  value={latestMetrics?.sleep_total ? formatMinutes(latestMetrics.sleep_total) : null}
+                  value={latestRecovery?.total_sleep_seconds ? formatMinutes(latestRecovery.total_sleep_seconds) : null}
                   sub={averages.sleepTotal != null ? `30d avg: ${formatMinutes(averages.sleepTotal)}` : undefined}
                 />
               </div>

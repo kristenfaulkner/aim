@@ -233,7 +233,7 @@ function DashboardMockup({ isMobile }) {
         <div style={{ width: isMobile ? 7 : 10, height: isMobile ? 7 : 10, borderRadius: "50%", background: "#ef4444" }} />
         <div style={{ width: isMobile ? 7 : 10, height: isMobile ? 7 : 10, borderRadius: "50%", background: "#f59e0b" }} />
         <div style={{ width: isMobile ? 7 : 10, height: isMobile ? 7 : 10, borderRadius: "50%", background: "#22c55e" }} />
-        {!isMobile && <div style={{ flex: 1, marginLeft: 12, background: "#e8e8e6", borderRadius: 6, padding: "5px 12px", fontSize: 11, color: T.textSoft, fontFamily: "monospace" }}>aimfitness.ai/dashboard</div>}
+        {!isMobile && <div style={{ flex: 1, marginLeft: 12, background: "#e8e8e6", borderRadius: 6, padding: "5px 12px", fontSize: 11, color: T.textSoft, fontFamily: "monospace" }}>aimfitness.ai/today</div>}
         {isMobile && <span style={{ marginLeft: 8, fontSize: 9, color: T.textDim, fontFamily: "monospace" }}>aimfitness.ai</span>}
       </div>
 
@@ -311,7 +311,7 @@ export default function Landing() {
   }, []);
 
   const ctaText = user ? "Go to Dashboard" : "Create account";
-  const ctaRoute = user ? "/dashboard" : "/signup";
+  const ctaRoute = user ? "/today" : "/signup";
   const visibleInsights = isMobile && !showAllInsights ? INSIGHTS.slice(0, 4) : INSIGHTS;
 
   const features = [
@@ -389,7 +389,7 @@ export default function Landing() {
                   {userMenuOpen && (<>
                     <div onClick={() => setUserMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 149 }} />
                     <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, padding: 4, minWidth: 170, zIndex: 150, boxShadow: "0 4px 16px rgba(0,0,0,0.08)" }}>
-                      {[{ icon: <LayoutDashboard size={14} />, label: "My Dashboard", to: "/dashboard" }, { icon: <User size={14} />, label: "Profile", to: "/profile" }, { icon: <Settings size={14} />, label: "Settings", to: "/settings" }].map(item => (
+                      {[{ icon: <LayoutDashboard size={14} />, label: "My Dashboard", to: "/today" }, { icon: <User size={14} />, label: "Profile", to: "/profile" }, { icon: <Settings size={14} />, label: "Settings", to: "/settings" }].map(item => (
                         <button key={item.to} onClick={() => { setUserMenuOpen(false); navigate(item.to); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", background: "none", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 600, color: T.text, cursor: "pointer", fontFamily: font }}>
                           {item.icon} {item.label}
                         </button>
@@ -421,7 +421,7 @@ export default function Landing() {
           <div style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 10 }}>
             {user ? (
               <>
-                <button onClick={() => { setMenuOpen(false); navigate("/dashboard"); }} style={{ ...btn(true), justifyContent: "center", width: "100%" }}>My Dashboard</button>
+                <button onClick={() => { setMenuOpen(false); navigate("/today"); }} style={{ ...btn(true), justifyContent: "center", width: "100%" }}>My Dashboard</button>
                 <button onClick={() => { setMenuOpen(false); handleSignout(); }} style={{ ...btn(false), justifyContent: "center", width: "100%", color: "#ef4444", borderColor: "rgba(239,68,68,0.2)" }}>Sign Out</button>
               </>
             ) : (

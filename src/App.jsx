@@ -40,6 +40,7 @@ export default function App() {
       <Route path="/accept-terms" element={<ProtectedRoute><AcceptTerms /></ProtectedRoute>} />
       <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
       <Route path="/connect" element={<ProtectedRoute><ConnectApps /></ProtectedRoute>} />
+      <Route path="/today" element={<ProtectedRoute><Today /></ProtectedRoute>} />
       <Route path="/dashboard" element={<ProtectedRoute><Today /></ProtectedRoute>} />
       <Route path="/dashboard-legacy" element={<ProtectedRoute><DashboardLegacy /></ProtectedRoute>} />
       <Route path="/activities" element={<ProtectedRoute><Activities /></ProtectedRoute>} />

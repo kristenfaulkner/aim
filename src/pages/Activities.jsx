@@ -132,7 +132,7 @@ function NavBar({ profile, isMobile, menuOpen, setMenuOpen, userMenuOpen, setUse
           </div>
           {!isMobile && (
             <div style={{ display: "flex", gap: 3 }}>
-              {[{ label: "Today", path: "/dashboard" }, { label: "Activities", path: "/activities" }, { label: "Performance", path: "/performance" }, { label: "My Stats", path: "/my-stats" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }].map(item => (
+              {[{ label: "Today", path: "/today" }, { label: "Activities", path: "/activities" }, { label: "Performance", path: "/performance" }, { label: "My Stats", path: "/my-stats" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }].map(item => (
                 <button key={item.label} onClick={() => navigate(item.path)} style={{
                   background: item.label === "Activities" ? T.accentDim : "none", border: "none", padding: "5px 12px", borderRadius: 7,
                   fontSize: 11, fontWeight: 600, color: item.label === "Activities" ? T.accent : T.textSoft,
@@ -184,7 +184,7 @@ function NavBar({ profile, isMobile, menuOpen, setMenuOpen, userMenuOpen, setUse
               </div>
               <span style={{ fontSize: 14, fontWeight: 600 }}>{profile?.full_name || "Athlete"}</span>
             </div>
-            {[{ label: "Today", path: "/dashboard" }, { label: "Activities", path: "/activities" }, { label: "Performance", path: "/performance" }, { label: "My Stats", path: "/my-stats" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }, { label: "Profile", path: "/profile" }, { label: "Settings", path: "/settings" }].map(item => (
+            {[{ label: "Today", path: "/today" }, { label: "Activities", path: "/activities" }, { label: "Performance", path: "/performance" }, { label: "My Stats", path: "/my-stats" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }, { label: "Profile", path: "/profile" }, { label: "Settings", path: "/settings" }].map(item => (
               <button key={item.label} onClick={() => { setMenuOpen(false); navigate(item.path); }} style={{
                 background: item.label === "Activities" ? T.accentDim : "none", border: "none", padding: "12px 14px", borderRadius: 8,
                 fontSize: 14, fontWeight: 600, color: item.label === "Activities" ? T.accent : T.textSoft,
