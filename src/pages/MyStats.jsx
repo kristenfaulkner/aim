@@ -273,15 +273,16 @@ export default function MyStats() {
   const [zoneView, setZoneView] = useState("power"); // power | hr | cp
   const [showAdjusted, setShowAdjusted] = useState(true); // true = today's adjusted zones
 
-  const { profile, powerProfile, latestMetrics, latestRecovery, latestDexa, averages, models, loading } = useMyStats();
+  const { profile, powerProfile, latestMetrics, latestRecovery, latestDexa, observedMaxHR, averages, models, loading } = useMyStats();
   const adaptiveZonesData = useAdaptiveZones();
   const durabilityData = useDurability();
 
   const handleSignout = async () => { await signout(); navigate("/"); };
 
-  // Compute zones
+  // Compute zones — use profile max HR, fallback to observed max from activities
+  const maxHR = profile?.max_hr_bpm || observedMaxHR;
   const powerZones = profile?.power_zones || (profile?.ftp_watts ? computePowerZones(profile.ftp_watts) : null);
-  const hrZones = profile?.hr_zones || (profile?.max_hr_bpm ? computeHRZones(profile.max_hr_bpm) : null);
+  const hrZones = profile?.hr_zones || (maxHR ? computeHRZones(maxHR) : null);
   const cpZones = powerProfile?.cp_watts ? computeCPZones(powerProfile.cp_watts) : null;
 
   // W/kg
@@ -399,7 +400,6 @@ export default function MyStats() {
                   <>
                     <StatBox label="CP" value={powerProfile.cp_watts} unit="W" sub={cpWkg ? `${cpWkg} W/kg` : "Aerobic Ceiling"} color="#3b82f6" large tooltip="Critical Power — your aerobic ceiling computed from your best efforts. Above CP, fatigue accumulates rapidly. More precise than FTP for pacing." />
                     <StatBox label="W'" value={powerProfile.w_prime_kj} unit="kJ" sub="Anaerobic Reserve" color="#8b5cf6" large tooltip="W-prime — your anaerobic work capacity above CP, measured in kilojoules. Determines how long you can sustain efforts above threshold before exhaustion." />
-                    <StatBox label="Pmax" value={powerProfile.pmax_watts} unit="W" sub="Sprint Power" color="#f59e0b" large tooltip="Maximum instantaneous power — your peak neuromuscular output. Important for sprint finishes, short accelerations, and closing gaps." />
                   </>
                 )}
               </div>
