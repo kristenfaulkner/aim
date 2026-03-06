@@ -22,6 +22,6 @@ export default async function handler(req, res) {
   });
 
   const authUrl = `https://cloud.ouraring.com/oauth/authorize?${params}`;
-  console.log("[oura-connect] redirect_uri:", redirectUri, "client_id:", process.env.OURA_CLIENT_ID?.slice(0, 8) + "...", "authUrl:", authUrl);
-  res.redirect(302, authUrl);
+  // DEBUG: return URL for inspection instead of redirecting
+  return res.json({ authUrl, redirect_uri: redirectUri, client_id_prefix: process.env.OURA_CLIENT_ID?.slice(0, 8), host: req.headers.host });
 }
