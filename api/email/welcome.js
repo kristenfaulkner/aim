@@ -106,6 +106,7 @@ function buildWelcomeHtml(profile) {
 </table>
 </td></tr>`).join("");
 
+  const connectUrl = `${BASE_URL}/connect`;
   const integrationsHtml = INTEGRATIONS.map(i => `
 <tr><td style="padding:6px 0;">
 <table cellpadding="0" cellspacing="0"><tr>
@@ -113,6 +114,7 @@ function buildWelcomeHtml(profile) {
 <td style="vertical-align:middle;">
 <span style="font-size:13px;font-weight:700;color:#1a1a2e;">${i.name}</span>
 <span style="font-size:12px;color:#6b6b7b;"> &mdash; ${i.desc}</span>
+<span style="font-size:11px;"> <a href="${connectUrl}" style="color:#10b981;font-weight:600;text-decoration:none;">Connect &rarr;</a></span>
 </td>
 </tr></table>
 </td></tr>`).join("");
@@ -149,11 +151,13 @@ function buildWelcomeHtml(profile) {
 <div style="color:#4a4a5a;font-size:14px;line-height:1.75;margin-top:16px;">
 <p style="margin:0 0 14px;">Thanks for signing up! I'm Kristen, and I wanted to personally welcome you to AIM.</p>
 
-<p style="margin:0 0 14px;">I started this company because I wanted to solve my own problem. As a professional cyclist, I used so many apps and devices to collect data, but it was all dispersed across different platforms &mdash; making it impossible to see the full picture. So I built this dashboard for myself, and I used it to help me prepare for and win races at the highest level.</p>
+<p style="margin:0 0 14px;">I've always been obsessed with data. In venture capital, I built models to find patterns others missed. On the bike, I did the same thing &mdash; tracking every metric I could get my hands on. Power. Sleep. HRV. Blood work. Body composition. Hormone cycles.</p>
 
-<p style="margin:0 0 14px;">In my heart, I am a builder and an entrepreneur. I love solving problems. I studied computer science in college because I loved building things. I then worked in venture capital because I wanted to support entrepreneurs who were building companies that were changing the world.</p>
+<p style="margin:0 0 14px;">The more data I collected, the more overwhelmed I became. Not because any single metric was confusing &mdash; but because the connections between them were invisible. I knew my sleep affected my power. I knew my ferritin affected my endurance. I knew my cycle affected my heart rate. But I was the only one connecting those dots, and I was exhausted from trying.</p>
 
-<p style="margin:0 0 14px;">I believe that health is our greatest asset. I love fitness and I love striving to be the best version of myself. This app gives us the data to do exactly that &mdash; to aim higher, to train smarter, to make sure that all our effort and hard work has purpose behind it.</p>
+<p style="margin:0 0 14px;">So I built the tool I wished existed. AIM is everything I learned on the way to two Olympic gold medals &mdash; the biomarker patterns, the recovery frameworks, the cross-domain analysis that actually changed how I trained and raced.</p>
+
+<p style="margin:0 0 14px;">Your health is your most valuable asset. I want every athlete to have access to this kind of intelligence &mdash; not just professionals.</p>
 
 <p style="margin:0 0 14px;">If you have any questions or feature requests, reply to this email &mdash; I read every one. We are here to serve you.</p>
 

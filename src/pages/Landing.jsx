@@ -400,7 +400,7 @@ export default function Landing() {
                 I built AIM because I wanted the cross-domain analysis I couldn't find anywhere else. The biomarker patterns, the recovery protocols, the performance boosters, the training frameworks that actually won races. Everything I learned racing at the highest level, I've put into this platform.
               </p>
               <p style={{ fontSize: isMobile ? 16 : 20, color: T.text, lineHeight: 1.7, margin: "0 0 20px", fontWeight: 500 }}>
-                Our health is our most valuable asset. I want to make world-class performance intelligence accessible to every athlete, not just those with a pro team behind them.
+                Our health is our most valuable asset. I want to make world-class performance intelligence accessible to every athlete, not just professionals.
               </p>
               <div style={{ width: 48, height: 2, background: T.gradient, marginBottom: 16 }} />
               <p style={{ fontSize: 14, fontWeight: 700, color: T.text, margin: 0 }}>Kristen Faulkner</p>
