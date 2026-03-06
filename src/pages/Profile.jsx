@@ -7,6 +7,7 @@ import { usePreferences } from "../context/PreferencesContext";
 import { useResponsive } from "../hooks/useResponsive";
 import { supabase } from "../lib/supabase";
 import { User, LogOut, Check, Loader, Menu, X, Settings, ChevronDown } from "lucide-react";
+import AthleteBio from "../components/dashboard/AthleteBio";
 import { computePowerZones, computeHRZones } from "../lib/zones";
 import { apiFetch } from "../lib/api";
 import { fromMetricWeight, fromMetricHeight, toMetricWeight, toMetricHeight } from "../lib/units";
@@ -130,7 +131,7 @@ export default function Profile() {
           </div>
           {!isMobile && (
             <div style={{ display: "flex", gap: 3 }}>
-              {[{ label: "Today", path: "/dashboard" }, { label: "Activities", path: "/activities" }, { label: "Performance", path: "/performance" }, { label: "My Stats", path: "/my-stats" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }].map(item => (
+              {[{ label: "Today", path: "/today" }, { label: "Activities", path: "/activities" }, { label: "Performance", path: "/performance" }, { label: "My Stats", path: "/my-stats" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }].map(item => (
                 <button key={item.label} onClick={() => navigate(item.path)} style={{
                   background: "none", border: "none", padding: "5px 12px", borderRadius: 7,
                   fontSize: 11, fontWeight: 600, color: T.textSoft,
@@ -182,7 +183,7 @@ export default function Profile() {
               </div>
               <span style={{ fontSize: 14, fontWeight: 600 }}>{profile?.full_name || "Athlete"}</span>
             </div>
-            {[{ label: "Today", path: "/dashboard" }, { label: "Activities", path: "/activities" }, { label: "Performance", path: "/performance" }, { label: "My Stats", path: "/my-stats" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }, { label: "Profile", path: "/profile" }, { label: "Settings", path: "/settings" }].map(item => (
+            {[{ label: "Today", path: "/today" }, { label: "Activities", path: "/activities" }, { label: "Performance", path: "/performance" }, { label: "My Stats", path: "/my-stats" }, { label: "Sleep", path: "/sleep" }, { label: "Health Lab", path: "/health-lab" }, { label: "Connect", path: "/connect" }, { label: "Profile", path: "/profile" }, { label: "Settings", path: "/settings" }].map(item => (
               <button key={item.label} onClick={() => { setMenuOpen(false); navigate(item.path); }} style={{
                 background: item.label === "Profile" ? T.accentDim : "none", border: "none", padding: "12px 14px", borderRadius: 8,
                 fontSize: 14, fontWeight: 600, color: item.label === "Profile" ? T.accent : T.textSoft,
@@ -202,6 +203,11 @@ export default function Profile() {
         <div style={{ flex: 1 }}>
           <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 8px", letterSpacing: "-0.02em" }}>Profile</h2>
           <p style={{ fontSize: 14, color: T.textSoft, margin: "0 0 32px" }}>Manage your athlete profile.</p>
+
+          {/* Athlete Bio */}
+          <div style={{ marginBottom: 24 }}>
+            <AthleteBio profile={profile} onUpdateProfile={updateProfile} isMobile={isMobile} />
+          </div>
 
           {profileError && (
             <div style={{ padding: "10px 14px", marginBottom: 14, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 10, fontSize: 13, color: "#ef4444" }}>

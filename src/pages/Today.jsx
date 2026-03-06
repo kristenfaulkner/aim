@@ -24,7 +24,6 @@ import TrainingWeekChart from "../components/dashboard/TrainingWeekChart";
 import WorkingGoals from "../components/dashboard/WorkingGoals";
 import PrescriptionCard from "../components/dashboard/PrescriptionCard";
 import TravelStatusCard from "../components/dashboard/TravelStatusCard";
-import AthleteBio from "../components/dashboard/AthleteBio";
 import TrialBanner from "../components/TrialBanner";
 
 // ── NAV BAR ──
@@ -478,9 +477,6 @@ export default function Today() {
           {/* ══════════════════════════════════════ */}
           {/* DATA PANELS — below AI section        */}
           {/* ══════════════════════════════════════ */}
-
-          {/* Athlete Bio */}
-          <AthleteBio profile={profile} onUpdateProfile={updateProfile} isMobile={isMobile} />
 
           {/* Readiness */}
           <ReadinessCard dailyMetrics={dailyMetrics} checkinData={checkinStatus} isMobile={isMobile} />
