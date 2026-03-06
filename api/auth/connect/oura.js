@@ -12,7 +12,7 @@ export default async function handler(req, res) {
   const state = crypto.randomUUID();
   await redis.set(`oauth:state:${state}`, session.userId, { ex: 600 });
 
-  const redirectUri = `https://${req.headers.host}/api/auth/callback/oura`;
+  const redirectUri = "https://aimfitness.ai/api/auth/callback/oura";
   const params = new URLSearchParams({
     client_id: process.env.OURA_CLIENT_ID,
     redirect_uri: redirectUri,
@@ -21,6 +21,5 @@ export default async function handler(req, res) {
     state,
   });
 
-  // DEBUG: return URL for inspection
-  return res.json({ authUrl: `https://cloud.ouraring.com/oauth/authorize?${params}`, redirect_uri: redirectUri, host: req.headers.host });
+  res.redirect(302, `https://cloud.ouraring.com/oauth/authorize?${params}`);
 }
