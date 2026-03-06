@@ -21,5 +21,6 @@ export default async function handler(req, res) {
     state,
   });
 
-  res.redirect(302, `https://cloud.ouraring.com/oauth/authorize?${params}`);
+  // DEBUG: return URL for inspection
+  return res.json({ authUrl: `https://cloud.ouraring.com/oauth/authorize?${params}`, redirect_uri: redirectUri, host: req.headers.host });
 }
