@@ -74,3 +74,14 @@ Full log of all completed features and implementations.
 ## Power Analytics
 - **Critical Power (CP) & W' Model** — hyperbolic fitting (P = W'/t + CP) from power profile bests (6 durations), auto-computed on every sync via `updatePowerProfile`, CPModelCard on dashboard (3-panel: CP/W'/Pmax with R² badge), AI context enrichment (system prompt Categories 8/9 + CP interpretation guide), backfill endpoint (`/api/activities/backfill-cp`), migration 011 (cp_watts, w_prime_kj, pmax_watts, cp_model_r_squared, cp_model_data on power_profiles). FTP retained as primary model — CP supplements it.
 - **My Stats page** — read-only athlete stats dashboard at `/my-stats` consolidating all computed metrics: Power Model (FTP + CP/W'/Pmax with R² badge, W/kg), Power Profile Bests (6 durations), Training Zones (tabbed Power/HR/CP views), Body Composition (weight, height, DEXA, lean W/kg), Training Load (CTL/ATL/TSB with form indicator), Recovery Baselines (HRV/RHR/Sleep with 30-day averages). Data hook `useMyStats.js` fetches in parallel. "My Stats" nav link added across all pages.
+
+### Today Page (AI-first rebuild) — March 2026
+Replaces Dashboard V2 with a single-column AI-first layout. Single centered column (700px max-width), AI narrative as primary content, three-layer insight depth (headline → takeaway → evidence), morning-to-post-ride collapse pattern, contextual data gap nudges, inline feedback with explanation.
+
+**Modes:** MORNING_WITH_PLAN (planned workout), MORNING_RECOVERY (rest day), POST_RIDE (ride completed)
+**New components:** AIBriefing, InsightCard, WorkoutCard, CollapsedMorning, AskClaude, DataGaps (in `src/components/today/`)
+**Hook:** `useTodayIntelligence` — caches AI response, auto-detects mode
+**API:** Updated `api/dashboard/intelligence.js` with new output format (briefing, insights[], contextCards[], workout, collapsedMorning, dataGaps[]), new system prompts, added working_goals query
+**Nav:** "Dashboard" renamed to "Today" across all pages
+**Legacy:** Old Dashboard preserved at `src/pages/DashboardLegacy.jsx` and route `/dashboard-legacy`
+**Tests:** 14 tests in `src/pages/__tests__/Today.test.jsx`, 18 updated routing tests in `src/App.test.jsx`

@@ -133,7 +133,31 @@ AIM replaces 5+ fragmented tools (Strava, Oura, Whoop, TrainingPeaks, MyFitnessP
 | Tablet | 768–1024px | 2 columns |
 | Desktop | > 1024px | 2-3 columns |
 
-### Dashboard Layout (Primary Template)
+### Today Page Layout (Primary Template)
+
+The primary authenticated page is the **Today** page (`src/pages/Today.jsx`), an AI-first single-column centered layout. All content flows vertically in a single column with a max-width of 700px, centered on screen.
+
+```
+Desktop & Mobile (single-column, 700px max-width, centered):
+┌──────────────────────────────────────┐
+│ Greeting + Date                      │
+├──────────────────────────────────────┤
+│ AI Intelligence Card                 │
+├──────────────────────────────────────┤
+│ Readiness / Recovery                 │
+├──────────────────────────────────────┤
+│ Last Ride Summary                    │
+├──────────────────────────────────────┤
+│ Prescription / Next Workout          │
+├──────────────────────────────────────┤
+│ Action Items                         │
+└──────────────────────────────────────┘
+```
+
+### Legacy Dashboard Layout (Two-Column)
+
+> **Note:** This two-column layout was the original Dashboard design. It has been replaced by the single-column Today page above, but is retained here for reference.
+
 ```
 Desktop (> 1024px):
 ┌────────────────────────┬──────────────┐
@@ -181,7 +205,7 @@ Desktop:
 - **Desktop:** Horizontal nav bar at top with route links
 - **Mobile:** Hamburger icon (Menu/X from Lucide) → slide-out drawer
 - **Active state:** Accent color underline or background
-- **Order:** Dashboard, Activities, Sleep, Health Lab, Workout DB, Boosters, Connect Apps, Settings
+- **Order:** Today, Activities, Performance, My Stats, Sleep, Health Lab, Connect
 
 ### Modal Patterns
 - **Full-screen modal (mobile):** `maxWidth: 100%`, `height: 100vh`, `borderRadius: 0`

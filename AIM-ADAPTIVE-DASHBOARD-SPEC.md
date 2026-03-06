@@ -1,5 +1,7 @@
 # AIM — Adaptive Dashboard Intelligence Spec
 
+> **Historical / Reference Document:** The original Dashboard has been replaced by the AI-first **Today** page (`src/pages/Today.jsx`), which uses a single-column centered layout (700px max-width). The adaptive mode logic and AI prompt templates below remain valid reference for the Today page's intelligence engine, but the UI structure described here (two-column layout, card arrangements) is no longer current.
+
 ## Overview
 
 The dashboard's AI panel and action items adapt based on the athlete's current state. There are three modes, determined automatically. The design is the same card structure — only the content changes.
@@ -15,9 +17,9 @@ function getDashboardMode(userId) {
   if (todayActivity) {
     return 'POST_RIDE'; // Already worked out today
   } else if (todayPlannedWorkout) {
-    return 'PRE_RIDE_PLANNED'; // Has a workout scheduled but hasn't done it yet
+    return 'MORNING_WITH_PLAN'; // Has a workout scheduled but hasn't done it yet
   } else {
-    return 'DAILY_COACH'; // No workout — full daily intelligence
+    return 'MORNING_RECOVERY'; // No workout — full daily intelligence
   }
 }
 ```
@@ -55,7 +57,7 @@ Post-ride analysis focused on what just happened. Use the existing analysis syst
 
 ---
 
-## Mode 2: PRE_RIDE_PLANNED (Has workout scheduled, hasn't done it yet)
+## Mode 2: MORNING_WITH_PLAN (Has workout scheduled, hasn't done it yet)
 
 ### Readiness Card
 - Readiness ring with green/yellow/red assessment
@@ -113,7 +115,7 @@ Keep it to 150 words. This is a pre-ride pep talk, not a post-ride essay.
 
 ---
 
-## Mode 3: DAILY_COACH (No workout, no plan)
+## Mode 3: MORNING_RECOVERY (No workout, no plan)
 
 This is the most important mode. This is where AIM becomes a daily training companion, not just a ride analyzer. The AI considers EVERYTHING — training, nutrition, recovery, supplements, sleep, body maintenance, long-term goals.
 
@@ -222,9 +224,9 @@ const buildDashboardContext = async (userId) => {
 
   return {
     ...base,
-    mode, // 'POST_RIDE', 'PRE_RIDE_PLANNED', or 'DAILY_COACH'
+    mode, // 'POST_RIDE', 'MORNING_WITH_PLAN', or 'MORNING_RECOVERY'
     todayActivity: mode === 'POST_RIDE' ? await getTodaysActivity(userId) : null,
-    plannedWorkout: mode === 'PRE_RIDE_PLANNED' ? await getTodaysPlannedWorkout(userId) : null,
+    plannedWorkout: mode === 'MORNING_WITH_PLAN' ? await getTodaysPlannedWorkout(userId) : null,
     weather: await getWeather(userId), // current conditions at their location
     activeBoosters: await getActiveBoosters(userId), // supplement protocols
     sleepTrend: await getSleepTrend(userId, 7), // last 7 days of sleep
@@ -284,7 +286,7 @@ CREATE INDEX idx_training_calendar_user_date ON training_calendar(user_id, date)
 
 The dashboard is ONE adaptive interface with THREE content modes:
 1. **POST_RIDE**: You rode → here's what happened → here's how to recover
-2. **PRE_RIDE_PLANNED**: You have a plan → here's the briefing → here's the fuel
-3. **DAILY_COACH**: No plan → here's what to do today across EVERY domain
+2. **MORNING_WITH_PLAN**: You have a plan → here's the briefing → here's the fuel
+3. **MORNING_RECOVERY**: No plan → here's what to do today across EVERY domain
 
 The mode switches automatically. The design stays the same. The AI prompt changes. The action items change. The user never thinks about "modes" — they just open AIM and see exactly what they need right now.
