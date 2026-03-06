@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { supabaseAdmin } from "../_lib/supabase.js";
 import { verifySession, cors } from "../_lib/auth.js";
+import { trackTokenUsage } from "../_lib/token-tracking.js";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -190,11 +191,12 @@ export default async function handler(req, res) {
     };
 
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-opus-4-6",
       max_tokens: 2000,
       system: COMPARISON_SYSTEM_PROMPT,
       messages: [{ role: "user", content: JSON.stringify(payload) }],
     });
+    trackTokenUsage(session.userId, "session_comparison", "claude-opus-4-6", response.usage);
 
     const text = response.content[0].text;
     let parsed;

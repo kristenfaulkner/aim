@@ -2,6 +2,7 @@ import { supabaseAdmin } from "../_lib/supabase.js";
 import { verifyWebhookSignature, twimlResponse } from "../_lib/twilio.js";
 import { buildAnalysisContext } from "../_lib/ai.js";
 import Anthropic from "@anthropic-ai/sdk";
+import { trackTokenUsage } from "../_lib/token-tracking.js";
 
 export const config = {
   api: { bodyParser: { sizeLimit: "1mb" } },
@@ -210,6 +211,7 @@ export default async function handler(req, res) {
       system: SMS_COACH_SYSTEM_PROMPT,
       messages,
     });
+    trackTokenUsage(userId, "sms_coaching", "claude-sonnet-4-6", response.usage);
 
     const replyText = response.content[0].text;
 

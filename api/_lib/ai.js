@@ -1,13 +1,15 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { supabaseAdmin } from "./supabase.js";
+import { trackTokenUsage } from "./token-tracking.js";
 import { generateIntervalInsights, formatInsightsForAI } from "./interval-insights.js";
 import { getPlannedVsActual } from "./planned-vs-actual.js";
-import { matchActivitiesToContext, computeAllModels, formatModelsForAI } from "./performance-models.js";
+import { formatModelsForAI } from "./performance-models.js";
 import { formatCPModelForAI } from "./cp-model.js";
 import { computeAdaptiveZones, applyReadinessAdjustment, computeZoneDelta, formatAdaptiveZonesForAI } from "./adaptive-zones.js";
 import { formatDurabilityForAI } from "./durability.js";
 import { formatWbalForAI } from "./wbal.js";
 import { formatSegmentsForAI, computeAdjustedScore, computeAthleteBaselines, enrichEffortContext } from "./segment-scoring.js";
+import { getAthleteAnalytics } from "./athlete-analytics.js";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -58,7 +60,7 @@ Or create a descriptive label that fits the insight's cross-domain connection. T
 
 The "sig" field is a short significance tag (e.g., "Season best", "90-day best", "Improving", "High load", "No concern", "Conditions", "New pattern"). Include it when meaningful, omit or set null when not applicable.
 
-Generate 4-6 insights per analysis. Fewer, deeper, more comparative insights are better than many shallow ones. Prioritize cross-domain insights (connecting 2+ data sources) over single-source observations. Every analysis should include at least one from the "dataGaps" array suggesting additional integrations that would unlock richer analysis. Choose the most relevant categories from the full 30+ category catalog based on what's most meaningful for this specific ride and athlete context — do not force insights into fixed category buckets.
+Generate 4-6 insights per analysis. Fewer, deeper, more comparative insights are better than many shallow ones. Prioritize cross-domain insights (connecting 2+ data sources) over single-source observations. **ORDER INSIGHTS BY IMPACT — the most surprising, strongest-signal, or most actionable insight MUST be first.** If one correlation is dramatically stronger than the others (e.g., r=-0.63 vs r=0.25), it leads. If one finding is a personal record or anomaly, it leads. The athlete should see the most important thing first, always. Every analysis should include at least one from the "dataGaps" array suggesting additional integrations that would unlock richer analysis. Choose the most relevant categories from the full 30+ category catalog based on what's most meaningful for this specific ride and athlete context — do not force insights into fixed category buckets.
 
 ## ANALYSIS QUALITY RULES
 
@@ -1273,7 +1275,7 @@ export async function buildAnalysisContext(userId, activityId) {
     integrationsResult,
     settingsResult,
     tagsResult,
-    nutritionResult,
+    _nutritionResult, // kept for array position; computation moved to athlete-analytics
     travelResult,
     crossTrainingResult,
     feedbackResult,
@@ -1418,13 +1420,10 @@ export async function buildAnalysisContext(userId, activityId) {
   const intervalInsights = generateIntervalInsights(activity.laps, profile.ftp_watts);
   const intervalInsightsText = formatInsightsForAI(intervalInsights);
 
-  // Compute personal performance models from 90-day history
-  const nutritionLogs = getData(nutritionResult) || [];
-  const modelPairs = matchActivitiesToContext(
-    [activity, ...allActivities], dailyMetrics, nutritionLogs, profile.weight_kg
-  );
-  const performanceModels = computeAllModels(modelPairs);
-  const performanceModelsText = formatModelsForAI(performanceModels);
+  // Use cached athlete analytics for performance models + historical patterns
+  const athleteAnalytics = await getAthleteAnalytics(userId);
+  const performanceModels = athleteAnalytics.performanceModels;
+  const performanceModelsText = athleteAnalytics.performanceModelsText || (performanceModels ? formatModelsForAI(performanceModels) : "");
   const cpModelText = formatCPModelForAI(powerProfile, profile.ftp_watts);
 
   // Adaptive zones + readiness adjustment
@@ -1549,9 +1548,10 @@ export async function buildAnalysisContext(userId, activityId) {
     plannedVsActual: plannedVsActual || undefined,
     activityWeather: activity.activity_weather || undefined,
 
-    // Layer 5: Personal performance models (pre-computed)
+    // Layer 5: Personal performance models + historical patterns (from cached analytics)
     performanceModels: performanceModels || undefined,
     performanceModelsText: performanceModelsText || undefined,
+    historicalPatterns: athleteAnalytics.historicalPatterns || undefined,
     cpModelText: cpModelText || undefined,
     adaptiveZonesText: adaptiveZonesText || undefined,
     durabilityText: durabilityText || undefined,
@@ -1607,7 +1607,7 @@ export async function buildAnalysisContext(userId, activityId) {
 /**
  * Generate AI analysis for an activity using Claude.
  */
-export async function generateAnalysis(context) {
+export async function generateAnalysis(context, userId) {
   // Append personalized feedback preferences to system prompt if available
   let systemPrompt = ANALYSIS_SYSTEM_PROMPT;
   if (context.feedbackPreferenceText) {
@@ -1615,11 +1615,12 @@ export async function generateAnalysis(context) {
   }
 
   const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
+    model: "claude-opus-4-6",
     max_tokens: 4000,
     system: systemPrompt,
     messages: [{ role: "user", content: JSON.stringify(context) }],
   });
+  trackTokenUsage(userId, "activity_analysis", "claude-opus-4-6", response.usage);
 
   const text = response.content[0].text;
 
@@ -1661,7 +1662,7 @@ export async function analyzeActivity(userId, activityId) {
   const context = await buildAnalysisContext(userId, activityId);
   if (!context) throw new Error("Activity not found");
 
-  const analysis = await generateAnalysis(context);
+  const analysis = await generateAnalysis(context, userId);
 
   // Store the structured analysis as JSONB
   await supabaseAdmin

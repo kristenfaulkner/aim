@@ -2,6 +2,7 @@ import { verifySession, cors } from "../_lib/auth.js";
 import { supabaseAdmin } from "../_lib/supabase.js";
 import { sendEmail } from "../_lib/email.js";
 import Anthropic from "@anthropic-ai/sdk";
+import { trackTokenUsage } from "../_lib/token-tracking.js";
 
 export const config = { maxDuration: 30 };
 
@@ -246,6 +247,7 @@ export async function sendWorkoutEmail(userId, activityId) {
       system: EMAIL_SYSTEM_PROMPT,
       messages: [{ role: "user", content: JSON.stringify(context) }],
     });
+    trackTokenUsage(userId, "email_analysis", "claude-sonnet-4-6", response.usage);
     innerHtml = response.content[0].text;
   } catch (err) {
     console.error("Claude email generation failed, using fallback:", err.message);

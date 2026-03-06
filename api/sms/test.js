@@ -1,6 +1,7 @@
 import { verifySession, cors } from "../_lib/auth.js";
 import { supabaseAdmin } from "../_lib/supabase.js";
 import Anthropic from "@anthropic-ai/sdk";
+import { trackTokenUsage } from "../_lib/token-tracking.js";
 
 export const config = { maxDuration: 30 };
 
@@ -115,6 +116,7 @@ export default async function handler(req, res) {
       system: SMS_SYSTEM_PROMPT,
       messages: [{ role: "user", content: JSON.stringify(context) }],
     });
+    trackTokenUsage(session.userId, "sms_summary", "claude-sonnet-4-6", response.usage);
 
     const smsText = response.content[0].text;
 

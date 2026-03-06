@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { verifySession, cors } from "../_lib/auth.js";
 import { supabaseAdmin } from "../_lib/supabase.js";
+import { trackTokenUsage } from "../_lib/token-tracking.js";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -99,6 +100,7 @@ Keep it to 2-3 sentences max. No markdown formatting.`,
       messages: [{ role: "user", content: JSON.stringify(context) }],
     });
 
+    trackTokenUsage(session.userId, "bio_generation", "claude-sonnet-4-6", response.usage);
     const bio = response.content[0].text.trim();
     return res.status(200).json({ bio });
   } catch (err) {

@@ -1,6 +1,7 @@
 import { verifySession, cors } from "../_lib/auth.js";
 import { supabaseAdmin } from "../_lib/supabase.js";
 import Anthropic from "@anthropic-ai/sdk";
+import { trackTokenUsage } from "../_lib/token-tracking.js";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -174,6 +175,7 @@ export default async function handler(req, res) {
       system: SLEEP_SUMMARY_PROMPT,
       messages: [{ role: "user", content: JSON.stringify(context) }],
     });
+    trackTokenUsage(session.userId, "sleep_summary", "claude-sonnet-4-6", response.usage);
 
     const text = response.content[0].text;
 

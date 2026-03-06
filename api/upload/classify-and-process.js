@@ -1,5 +1,6 @@
 import { verifySession, cors } from "../_lib/auth.js";
 import Anthropic from "@anthropic-ai/sdk";
+import { trackTokenUsage } from "../_lib/token-tracking.js";
 
 export const config = {
   api: { bodyParser: { sizeLimit: "10mb" } },
@@ -61,6 +62,7 @@ export default async function handler(req, res) {
       }],
     });
 
+    trackTokenUsage(session.userId, "document_classification", "claude-haiku-3-5-20241022", classifyResponse.usage);
     const classification = classifyResponse.content[0].text.trim().toLowerCase();
     console.log("File classification:", classification, "for:", fileName);
 

@@ -1,6 +1,7 @@
 import { verifySession, cors } from "../_lib/auth.js";
 import { supabaseAdmin } from "../_lib/supabase.js";
 import Anthropic from "@anthropic-ai/sdk";
+import { trackTokenUsage } from "../_lib/token-tracking.js";
 import {
   analyzeProfileGaps,
   selectWorkoutTemplate,
@@ -337,7 +338,7 @@ export default async function handler(req, res) {
 
     // Call Claude for detailed prescription
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-opus-4-6",
       max_tokens: 2000,
       system: PRESCRIPTION_SYSTEM_PROMPT,
       messages: [
@@ -347,6 +348,7 @@ export default async function handler(req, res) {
         },
       ],
     });
+    trackTokenUsage(userId, "prescription", "claude-opus-4-6", response.usage);
 
     const raw = response.content[0].text;
 

@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { verifySession, cors } from "../_lib/auth.js";
 import { supabaseAdmin } from "../_lib/supabase.js";
 import Anthropic from "@anthropic-ai/sdk";
+import { trackTokenUsage } from "../_lib/token-tracking.js";
 
 // Allow larger request bodies (base64 files) and longer execution for Claude extraction
 export const config = {
@@ -149,6 +150,7 @@ export default async function handler(req, res) {
         ],
       }],
     });
+    trackTokenUsage(session.userId, "blood_panel_extraction", "claude-sonnet-4-6", response.usage);
 
     const text = response.content[0].text;
 
@@ -278,6 +280,8 @@ Return valid JSON:
       "biomarkers": ["ferritin", "hemoglobin"]
     }
   ],
+  // ORDER insights by impact — most critical or surprising finding first, always.
+
   "actionItems": [
     "Science-based suggestion framed as 'Consider discussing X with your doctor' or 'Research suggests X may help'",
     "Another suggestion using non-prescriptive language"
@@ -285,6 +289,7 @@ Return valid JSON:
 }`,
     messages: [{ role: "user", content: JSON.stringify(context) }],
   });
+  trackTokenUsage(userId, "blood_panel_analysis", "claude-sonnet-4-6", analysisResponse.usage);
 
   const analysisText = analysisResponse.content[0].text;
   await supabaseAdmin.from("blood_panels").update({

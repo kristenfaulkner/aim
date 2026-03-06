@@ -1,6 +1,7 @@
 import { verifySession, cors } from "../_lib/auth.js";
 import { supabaseAdmin } from "../_lib/supabase.js";
 import Anthropic from "@anthropic-ai/sdk";
+import { trackTokenUsage } from "../_lib/token-tracking.js";
 
 export const config = {
   api: { bodyParser: { sizeLimit: "10mb" } },
@@ -97,6 +98,7 @@ export default async function handler(req, res) {
         ],
       }],
     });
+    trackTokenUsage(session.userId, "dexa_extraction", "claude-sonnet-4-6", response.usage);
     console.log("DEXA upload: Claude responded, stop_reason:", response.stop_reason);
 
     const text = response.content[0].text;
@@ -243,6 +245,8 @@ Return valid JSON:
       "body": "Detailed explanation connecting body composition to performance."
     }
   ],
+  // ORDER insights by impact — most critical or surprising finding first, always.
+
   "actionItems": [
     "Non-prescriptive suggestion framed as 'Consider...' or 'Research suggests...'"
   ]
@@ -250,6 +254,7 @@ Return valid JSON:
     messages: [{ role: "user", content: JSON.stringify(context) }],
   });
 
+  trackTokenUsage(userId, "dexa_analysis", "claude-sonnet-4-6", analysisResponse.usage);
   const analysisText = analysisResponse.content[0].text;
   await supabaseAdmin.from("dexa_scans").update({
     ai_analysis: analysisText,

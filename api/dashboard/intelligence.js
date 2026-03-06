@@ -2,159 +2,12 @@ import { verifySession, cors } from "../_lib/auth.js";
 import { supabaseAdmin } from "../_lib/supabase.js";
 import Anthropic from "@anthropic-ai/sdk";
 import { trackTokenUsage } from "../_lib/token-tracking.js";
-import { matchActivitiesToContext, computeAllModels, formatModelsForAI } from "../_lib/performance-models.js";
-import { extractLocationFromActivity, fetchActivityWeather, fetchWeatherForecast } from "../_lib/weather-enrich.js";
+import { extractLocationFromActivity, fetchWeatherForecast } from "../_lib/weather-enrich.js";
+import { getAthleteAnalytics } from "../_lib/athlete-analytics.js";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export const config = { maxDuration: 60 };
-
-// ── HISTORICAL PATTERN ANALYSIS ──
-// Pre-compute recovery patterns from 90 days of data so Claude can reference
-// the athlete's personal history instead of giving generic advice.
-
-function computeHistoricalPatterns(activities90d, dailyMetrics90d) {
-  if (!activities90d?.length || activities90d.length < 10) return null;
-
-  const avg = arr => arr.length ? Math.round(arr.reduce((s, v) => s + v, 0) / arr.length * 10) / 10 : null;
-
-  // Build date→metrics lookup
-  const metricsMap = {};
-  for (const m of (dailyMetrics90d || [])) metricsMap[m.date] = m;
-
-  // Group activities by ISO week (Monday start)
-  const weeklyBlocks = {};
-  for (const a of activities90d) {
-    const date = a.started_at.split("T")[0];
-    const d = new Date(date + "T00:00:00Z");
-    const day = d.getUTCDay();
-    const monday = new Date(d);
-    monday.setUTCDate(d.getUTCDate() - ((day + 6) % 7));
-    const weekKey = monday.toISOString().split("T")[0];
-
-    if (!weeklyBlocks[weekKey]) {
-      weeklyBlocks[weekKey] = { weekStart: weekKey, tss: 0, rides: 0, activityDates: new Set() };
-    }
-    weeklyBlocks[weekKey].tss += a.tss || 0;
-    weeklyBlocks[weekKey].rides += 1;
-    weeklyBlocks[weekKey].activityDates.add(date);
-  }
-
-  // Sort weeks chronologically and compute rest days + end-of-week metrics
-  const weeks = Object.values(weeklyBlocks)
-    .sort((a, b) => a.weekStart.localeCompare(b.weekStart))
-    .map(w => {
-      let restDays = 0;
-      for (let i = 0; i < 7; i++) {
-        const d = new Date(w.weekStart + "T00:00:00Z");
-        d.setUTCDate(d.getUTCDate() + i);
-        if (!w.activityDates.has(d.toISOString().split("T")[0])) restDays++;
-      }
-      const endDate = new Date(w.weekStart + "T00:00:00Z");
-      endDate.setUTCDate(endDate.getUTCDate() + 6);
-      const endMetrics = metricsMap[endDate.toISOString().split("T")[0]];
-      return {
-        week: w.weekStart,
-        tss: Math.round(w.tss),
-        rides: w.rides,
-        restDays,
-        endTSB: endMetrics?.tsb != null ? Math.round(endMetrics.tsb) : null,
-      };
-    });
-
-  // Identify high-load weeks (top quartile by TSS)
-  const tssSorted = weeks.map(w => w.tss).filter(t => t > 0).sort((a, b) => a - b);
-  const highLoadThreshold = tssSorted[Math.floor(tssSorted.length * 0.75)] || 800;
-
-  // For each high-load week, analyze what followed (recovery trajectory)
-  const highLoadRecovery = [];
-  for (let i = 0; i < weeks.length; i++) {
-    if (weeks[i].tss < highLoadThreshold) continue;
-    const nextWeek = weeks[i + 1];
-    if (!nextWeek) continue;
-
-    // Count consecutive rest days starting from end of high-load week
-    const weekEnd = new Date(weeks[i].week + "T00:00:00Z");
-    weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
-    let consecutiveRestDays = 0;
-    for (let d = 0; d < 5; d++) {
-      const checkDate = new Date(weekEnd);
-      checkDate.setUTCDate(checkDate.getUTCDate() + d);
-      const dateStr = checkDate.toISOString().split("T")[0];
-      const hadActivity = activities90d.some(a => a.started_at.startsWith(dateStr));
-      if (!hadActivity) consecutiveRestDays++;
-      else break;
-    }
-
-    // HRV trajectory in days after the high-load week
-    const hrvAfter = [];
-    for (let d = 0; d < 5; d++) {
-      const checkDate = new Date(weekEnd);
-      checkDate.setUTCDate(checkDate.getUTCDate() + d);
-      const m = metricsMap[checkDate.toISOString().split("T")[0]];
-      const hrv = m?.hrv_overnight_avg_ms || m?.hrv_ms;
-      if (hrv) hrvAfter.push({ day: d + 1, hrv: Math.round(hrv) });
-    }
-
-    highLoadRecovery.push({
-      weekOf: weeks[i].week,
-      weekTSS: weeks[i].tss,
-      restDaysAfter: consecutiveRestDays,
-      nextWeekTSS: nextWeek.tss,
-      tsbAtEnd: weeks[i].endTSB,
-      hrvRecovery: hrvAfter.length > 0 ? hrvAfter : undefined,
-    });
-  }
-
-  // HR drift correlation with rest: group rides by days off before the ride
-  const activitiesWithDrift = [...activities90d]
-    .filter(a => a.hr_drift_pct != null)
-    .sort((a, b) => a.started_at.localeCompare(b.started_at));
-
-  const driftBuckets = { consecutive: [], after1Rest: [], after2PlusRest: [] };
-  for (let i = 1; i < activitiesWithDrift.length; i++) {
-    const curr = activitiesWithDrift[i];
-    const prev = activitiesWithDrift[i - 1];
-    const daysBetween = Math.round(
-      (new Date(curr.started_at) - new Date(prev.started_at)) / 86400000
-    );
-    if (daysBetween <= 1) driftBuckets.consecutive.push(curr.hr_drift_pct);
-    else if (daysBetween === 2) driftBuckets.after1Rest.push(curr.hr_drift_pct);
-    else driftBuckets.after2PlusRest.push(curr.hr_drift_pct);
-  }
-
-  // EF (efficiency factor) correlation with rest — same bucketing
-  const efBuckets = { consecutive: [], after1Rest: [], after2PlusRest: [] };
-  const activitiesWithEF = [...activities90d]
-    .filter(a => a.efficiency_factor != null)
-    .sort((a, b) => a.started_at.localeCompare(b.started_at));
-  for (let i = 1; i < activitiesWithEF.length; i++) {
-    const curr = activitiesWithEF[i];
-    const prev = activitiesWithEF[i - 1];
-    const daysBetween = Math.round(
-      (new Date(curr.started_at) - new Date(prev.started_at)) / 86400000
-    );
-    if (daysBetween <= 1) efBuckets.consecutive.push(curr.efficiency_factor);
-    else if (daysBetween === 2) efBuckets.after1Rest.push(curr.efficiency_factor);
-    else efBuckets.after2PlusRest.push(curr.efficiency_factor);
-  }
-
-  return {
-    weeklyBlocks: weeks.slice(-12),
-    highLoadThresholdTSS: Math.round(highLoadThreshold),
-    highLoadRecovery: highLoadRecovery.length > 0 ? highLoadRecovery : undefined,
-    hrDriftByRecovery: {
-      consecutiveDays: { avg: avg(driftBuckets.consecutive), n: driftBuckets.consecutive.length },
-      after1RestDay: { avg: avg(driftBuckets.after1Rest), n: driftBuckets.after1Rest.length },
-      after2PlusRestDays: { avg: avg(driftBuckets.after2PlusRest), n: driftBuckets.after2PlusRest.length },
-    },
-    efficiencyByRecovery: {
-      consecutiveDays: { avg: avg(efBuckets.consecutive), n: efBuckets.consecutive.length },
-      after1RestDay: { avg: avg(efBuckets.after1Rest), n: efBuckets.after1Rest.length },
-      after2PlusRestDays: { avg: avg(efBuckets.after2PlusRest), n: efBuckets.after2PlusRest.length },
-    },
-  };
-}
 
 // ── NEW AI-FIRST OUTPUT FORMAT ──
 // All modes return the same shape for the Today page.
@@ -196,7 +49,7 @@ INSIGHT FORMAT RULES:
 - The "crossDomain" field should explain which data sources contributed and why this insight requires AIM. Set to null for single-source insights.
 - The "dataGap" field should ONLY appear when a missing data source would have added specific value to THIS insight.
 - Include "evidence" array with 3-5 key data points that support the insight. Use color hints: "green" for good, "red" for bad, "yellow" for caution, "dim" for reference values.
-- Limit to 3-5 insights. Rank by importance — the most actionable and cross-domain insights first.
+- Limit to 3-5 insights. **ORDER INSIGHTS BY IMPACT — the most surprising, strongest-signal, or most actionable insight MUST be first in the array.** The athlete should always see the most important finding at the top. Rank by strength of signal and novelty, not by category.
 - ALWAYS reference the personal heat model if temperature data and performanceModels are present.
 - ALWAYS connect sleep data to performance outcomes when sleep data exists.
 - The "lastNightSleep" object (if present) contains the most recent night's sleep data pre-extracted from daily_metrics. If this field exists, sleep data IS available — do NOT generate a data gap about missing sleep. Sleep may be stored under yesterday's date depending on the provider.
@@ -218,6 +71,15 @@ WEATHER & FORECAST RULES:
 - For post-ride mode, compare actual ride weather to the forecast if both are available.
 - Include a contextCard for current weather when forecast data is present.
 - When the heat model is available, predict expected EF/HR adjustments for upcoming hot days.
+
+HISTORICAL PATTERN RULES (when "historicalPatterns" is present):
+- This is the athlete's PERSONAL recovery data computed from 90 days of history. Use it to make specific, evidence-backed claims about how THIS athlete responds to training load.
+- "weeklyBlocks" shows TSS/rides/rest days per week for the last 12 weeks. Reference specific past weeks by date when comparing to the current training block.
+- "highLoadRecovery" shows what happened after each high-TSS week: how many rest days followed, what the next week's TSS was, HRV trajectory in the days after. Use this to say things like "After your 1,050 TSS week on Jan 15, your HRV took 3 days to return to baseline" or "You typically take 2 rest days after weeks above 900 TSS."
+- "hrDriftByRecovery" shows average HR drift grouped by recovery: consecutive training days vs after 1 rest day vs after 2+ rest days. Use this to show the measurable impact of rest — e.g., "Your HR drift averages 6.1% on back-to-back days but drops to 2.3% after a rest day."
+- "efficiencyByRecovery" shows EF (efficiency factor = NP/avg HR) grouped the same way. Higher EF = better aerobic efficiency. Use it to show how rest improves power output per heartbeat.
+- ALWAYS include at least one insight that references a specific historical pattern from this data. Generic recovery advice ("take a rest day") is NOT acceptable when you have the athlete's actual recovery history.
+- When recommending rest or continued training, cite the athlete's own precedent: what happened last time they were in a similar situation.
 
 GENERAL RULES:
 - When CTL, ATL, and TSB values are present in dailyMetrics, state them as computed facts, not estimates. These are calculated values (CTL = 42-day fitness, ATL = 7-day fatigue, TSB = CTL − ATL). Never say "likely", "probably", or "estimated" about values you have actual data for.
@@ -244,6 +106,7 @@ POST-RIDE SPECIFIC RULES:
 - Connect ride data to recent trends (CTL/ATL/TSB, HRV, sleep).
 - Include 2-4 contextCards showing conditions during the ride (weather, elevation, etc.).
 - Include recovery-focused takeaways: refueling, hydration, sleep targets.
+- When historicalPatterns is present, use the athlete's personal recovery data to set specific expectations: "Based on your history, after a week like this you typically need X rest days before HR drift returns to baseline" or "Your EF improves by X% after 2 rest days — plan accordingly."
 
 RIDE-TO-RIDE COMPARISON RULES (when similarSessions data is provided):
 - Include at least one comparison insight referencing the most similar past session.
@@ -301,7 +164,9 @@ MORNING RECOVERY / REST DAY SPECIFIC RULES:
 - If TSB is very negative, emphasize rest. If positive, suggest productive training.
 - Include recovery-focused insights: sleep optimization, nutrition, mobility.
 - contextCards should show current training status (TSB color, sleep trend).
-- If they should train, suggest specific workout options in insights with power targets from their FTP.`;
+- If they should train, suggest specific workout options in insights with power targets from their FTP.
+- When historicalPatterns is present, at least ONE insight MUST reference a specific past training block or recovery episode. For example: "After your 1,050 TSS week on Jan 15, it took 2 rest days before your HR drift dropped back below 4%. This week's load is similar — expect the same recovery timeline." or "Your EF averages 1.72 after 2+ rest days vs 1.58 on consecutive days — today's rest should bring a measurable efficiency boost tomorrow."
+- Compare the current weekly TSS to the athlete's historical weekly blocks. Is this their highest week in 90 days? Similar to a past block? Say so with the specific numbers.`;
 
 /**
  * Auto-detect intelligence mode based on today's data.
@@ -339,16 +204,15 @@ export default async function handler(req, res) {
     const todayEnd = new Date(new Date(today + "T00:00:00Z").getTime() + 36 * 3600000).toISOString();
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
-    // ── Step 1: Fetch all context in parallel ──
-    const ninetyDaysAgo = new Date(Date.now() - 90 * 86400000).toISOString();
+    // ── Step 1: Fetch page-specific context in parallel ──
+    // NOTE: 90-day analytics (performance models, historical patterns, sleep correlations)
+    // are handled by getAthleteAnalytics() in Step 3, not fetched here.
     const [
       profileResult,
       todayActivityResult,
       todayPlannedResult,
       dailyMetricsResult,
       recentActivitiesResult,
-      allActivitiesResult,
-      nutritionResult,
       travelResult,
       crossTrainingResult,
       goalsResult,
@@ -378,7 +242,7 @@ export default async function handler(req, res) {
         .from("daily_metrics")
         .select("date, ctl, atl, tsb, hrv_ms, hrv_overnight_avg_ms, resting_hr_bpm, resting_hr, sleep_score, recovery_score, weight_kg, total_sleep_seconds, deep_sleep_seconds, rem_sleep_seconds, life_stress_score, motivation_score, muscle_soreness_score, mood_score, checkin_completed_at, respiratory_rate, resting_spo2")
         .eq("user_id", session.userId)
-        .gte("date", new Date(Date.now() - 90 * 86400000).toISOString().split("T")[0])
+        .gte("date", sevenDaysAgo)
         .order("date", { ascending: false }),
       supabaseAdmin
         .from("activities")
@@ -386,17 +250,6 @@ export default async function handler(req, res) {
         .eq("user_id", session.userId)
         .order("started_at", { ascending: false })
         .limit(5),
-      supabaseAdmin
-        .from("activities")
-        .select("id, name, activity_type, started_at, duration_seconds, avg_power_watts, normalized_power_watts, tss, intensity_factor, efficiency_factor, hr_drift_pct, variability_index, avg_hr_bpm, max_hr_bpm, calories, work_kj, temperature_celsius, activity_weather, laps")
-        .eq("user_id", session.userId)
-        .gte("started_at", ninetyDaysAgo)
-        .order("started_at", { ascending: false }),
-      supabaseAdmin
-        .from("nutrition_logs")
-        .select("activity_id, date, totals, per_hour")
-        .eq("user_id", session.userId)
-        .gte("date", new Date(Date.now() - 90 * 86400000).toISOString().split("T")[0]),
       supabaseAdmin
         .from("travel_events")
         .select("detected_at, distance_km, timezone_shift_hours, altitude_change_m, travel_type, altitude_acclimation_day, dest_timezone")
@@ -427,8 +280,7 @@ export default async function handler(req, res) {
     const profile = getData(profileResult);
     const todayActivity = getData(todayActivityResult);
     const todayPlannedWorkout = getData(todayPlannedResult);
-    const dailyMetrics90d = getData(dailyMetricsResult) || [];
-    const dailyMetrics = dailyMetrics90d.filter(d => d.date >= sevenDaysAgo); // 7-day window for context
+    const dailyMetrics = getData(dailyMetricsResult) || [];
     const recentActivities = getData(recentActivitiesResult) || [];
     const integrations = getData(integrationsResult) || [];
 
@@ -462,7 +314,7 @@ export default async function handler(req, res) {
       // Table may not exist yet or no cache hit — continue to generate fresh
     }
 
-    // ── Step 3: Weather + performance models in parallel ──
+    // ── Step 3: Weather + cached athlete analytics in parallel ──
     let weatherLat = profile?.location_lat;
     let weatherLng = profile?.location_lng;
     if (!weatherLat || !weatherLng) {
@@ -474,30 +326,21 @@ export default async function handler(req, res) {
       }
     }
 
-    const allActivities90d = getData(allActivitiesResult) || [];
-    const nutritionLogs = getData(nutritionResult) || [];
-
-    // Run weather fetch and model computation concurrently
-    const [weatherResult, modelsResult] = await Promise.allSettled([
+    // Fetch weather + cached analytics (performance models, historical patterns, etc.) in parallel
+    const [weatherResult, analyticsResult] = await Promise.allSettled([
       weatherLat && weatherLng
         ? fetchWeatherForecast(weatherLat, weatherLng)
         : Promise.resolve(null),
-      Promise.resolve(
-        allActivities90d.length >= 5
-          ? computeAllModels(
-              matchActivitiesToContext(allActivities90d, dailyMetrics, nutritionLogs, profile?.weight_kg)
-            )
-          : null
-      ),
+      getAthleteAnalytics(session.userId),
     ]);
 
     const weatherForecast = weatherResult.status === "fulfilled" ? weatherResult.value : null;
-    const performanceModels = modelsResult.status === "fulfilled" ? modelsResult.value : null;
+    const athleteAnalytics = analyticsResult.status === "fulfilled" ? analyticsResult.value : {};
 
     // ── Step 4: Build context for Claude ──
     const firstName = profile?.full_name?.split(" ")[0] || null;
     const profileSafe = profile ? { ...profile, first_name: firstName } : {};
-    const modelsText = performanceModels ? formatModelsForAI(performanceModels) : "";
+    const modelsText = athleteAnalytics.performanceModelsText || "";
 
     const todayMetrics = dailyMetrics.find((d) => d.date === today);
     const subjectiveCheckin = todayMetrics?.life_stress_score ? {
@@ -534,9 +377,6 @@ export default async function handler(req, res) {
     const crossTrainingLog = getData(crossTrainingResult) || [];
     const workingGoals = getData(goalsResult) || [];
 
-    // Compute historical recovery patterns from 90 days of data
-    const historicalPatterns = computeHistoricalPatterns(allActivities90d, dailyMetrics90d);
-
     const context = {
       athlete: profileSafe,
       connectedIntegrations: integrations.map(i => i.provider),
@@ -550,7 +390,7 @@ export default async function handler(req, res) {
       crossTrainingLog: crossTrainingLog.length > 0 ? crossTrainingLog : undefined,
       workingGoals: workingGoals.length > 0 ? workingGoals : undefined,
       connectedSources: integrations.map((i) => i.provider),
-      historicalPatterns: historicalPatterns || undefined,
+      historicalPatterns: athleteAnalytics.historicalPatterns || undefined,
     };
 
     let systemPrompt;

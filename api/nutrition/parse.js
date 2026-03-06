@@ -1,5 +1,6 @@
 import { verifySession, cors } from "../_lib/auth.js";
 import Anthropic from "@anthropic-ai/sdk";
+import { trackTokenUsage } from "../_lib/token-tracking.js";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -56,6 +57,7 @@ export default async function handler(req, res) {
       system: NUTRITION_PARSE_PROMPT,
       messages: [{ role: "user", content: userMessage }],
     });
+    trackTokenUsage(session.userId, "nutrition_parse", "claude-sonnet-4-6", response.usage);
 
     const raw = response.content[0].text;
 

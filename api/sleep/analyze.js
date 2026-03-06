@@ -1,15 +1,8 @@
 import { verifySession, cors } from "../_lib/auth.js";
 import { supabaseAdmin } from "../_lib/supabase.js";
 import Anthropic from "@anthropic-ai/sdk";
-import {
-  matchSleepToActivities,
-  computeCorrelations,
-  computeQuartileAnalysis,
-  computeAdjustedCorrelations,
-  detectSleepPatterns,
-  findBestAndWorstRides,
-  computeDoseResponse,
-} from "../_lib/sleep-correlations.js";
+import { trackTokenUsage } from "../_lib/token-tracking.js";
+import { getAthleteAnalytics } from "../_lib/athlete-analytics.js";
 
 export const config = {
   api: { bodyParser: true },
@@ -101,7 +94,8 @@ Field values — type: "insight", "positive", "warning", or "action". category: 
 8. NEVER give medical advice. Use "research suggests...", "consider discussing with your doctor..."
 9. Be specific with numbers: "Your EF averaged 1.82 on nights with >7.5h sleep vs 1.64 on <6h nights."
 10. Generate 6-10 insights total, following the priority order above.
-11. Return ONLY valid JSON. No markdown, no code fences, no explanation outside the JSON.`;
+11. **ORDER INSIGHTS BY IMPACT — the strongest signal, most surprising finding, or highest-correlation insight MUST come first in the array.** If one correlation has r=-0.63 and another has r=0.25, the -0.63 leads regardless of which priority tier it falls in. The athlete should always see the most important finding first.
+12. Return ONLY valid JSON. No markdown, no code fences, no explanation outside the JSON.`;
 
 /**
  * POST /api/sleep/analyze
@@ -120,49 +114,42 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Parallel data fetch
-    const [profileResult, activitiesResult, metricsResult, powerResult, integrationsResult] =
+    // Fetch cached analytics + lightweight profile/integrations in parallel
+    const [analyticsResult, profileResult, integrationsResult, recentActivitiesResult, recentMetricsResult] =
       await Promise.allSettled([
+        getAthleteAnalytics(session.userId),
         supabaseAdmin.from("profiles")
           .select("full_name, ftp_watts, weight_kg, sex, max_hr_bpm")
           .eq("id", session.userId).single(),
-        supabaseAdmin.from("activities")
-          .select("name, started_at, activity_type, duration_seconds, normalized_power_watts, avg_power_watts, efficiency_factor, hr_drift_pct, intensity_factor, tss, avg_hr_bpm, max_hr_bpm, variability_index, decoupling_pct, temperature_celsius, elevation_gain_meters")
-          .eq("user_id", session.userId)
-          .order("started_at", { ascending: false })
-          .limit(365),
-        supabaseAdmin.from("daily_metrics")
-          .select("date, sleep_score, total_sleep_seconds, deep_sleep_seconds, rem_sleep_seconds, light_sleep_seconds, sleep_latency_seconds, sleep_efficiency_pct, sleep_onset_time, wake_time, bed_temperature_celsius, hrv_ms, hrv_overnight_avg_ms, resting_hr_bpm, recovery_score, daily_tss, ctl, atl, tsb, ramp_rate")
-          .eq("user_id", session.userId)
-          .order("date", { ascending: false })
-          .limit(365),
-        supabaseAdmin.from("power_profiles")
-          .select("duration_seconds, watts, watts_per_kg")
-          .eq("user_id", session.userId)
-          .order("recorded_at", { ascending: false })
-          .limit(10),
         supabaseAdmin.from("integrations")
           .select("provider, is_active")
           .eq("user_id", session.userId)
           .eq("is_active", true),
+        supabaseAdmin.from("activities")
+          .select("name, started_at, efficiency_factor, normalized_power_watts, tss")
+          .eq("user_id", session.userId)
+          .order("started_at", { ascending: false })
+          .limit(7),
+        supabaseAdmin.from("daily_metrics")
+          .select("date, total_sleep_seconds, sleep_score, hrv_ms, hrv_overnight_avg_ms")
+          .eq("user_id", session.userId)
+          .order("date", { ascending: false })
+          .limit(7),
       ]);
 
     const getData = (r) => r.status === "fulfilled" ? r.value.data : null;
+    const athleteAnalytics = analyticsResult.status === "fulfilled" ? analyticsResult.value : {};
     const profile = getData(profileResult) || {};
-    const activities = getData(activitiesResult) || [];
-    const dailyMetrics = getData(metricsResult) || [];
     const integrations = (getData(integrationsResult) || []).map(i => i.provider);
+    const sleepPerf = athleteAnalytics.sleepPerformance;
 
-    // Match sleep to activities
-    const matched = matchSleepToActivities(dailyMetrics, activities);
-
-    if (matched.length < 7) {
+    if (!sleepPerf) {
       return res.status(200).json({
         analysis: {
-          summary: `${profile.full_name?.split(" ")[0] || "Hey"}, we need at least 7 rides with matching sleep data to analyze your sleep-performance patterns. You currently have ${matched.length} matched ride${matched.length !== 1 ? "s" : ""}.`,
+          summary: `${profile.full_name?.split(" ")[0] || "Hey"}, we need at least 7 rides with matching sleep data to analyze your sleep-performance patterns.`,
           insights: [],
           dataGaps: [
-            matched.length === 0 ? "Connect a sleep tracker (Eight Sleep, Oura, or Whoop) to start tracking sleep data" : "Keep training and tracking sleep — we need a few more matched days to find patterns",
+            "Keep training and tracking sleep — we need a few more matched days to find patterns",
             !integrations.includes("eightsleep") && !integrations.includes("oura") && !integrations.includes("whoop")
               ? "Connect Eight Sleep, Oura, or Whoop for automatic sleep tracking"
               : null,
@@ -172,30 +159,22 @@ export default async function handler(req, res) {
       });
     }
 
-    // Run all correlation computations
-    const correlations = computeCorrelations(matched);
-    const quartiles = computeQuartileAnalysis(matched);
-    const adjusted = computeAdjustedCorrelations(matched);
-    const patterns = detectSleepPatterns(dailyMetrics);
-    const bestWorst = findBestAndWorstRides(matched);
-    const doseResponse = computeDoseResponse(matched);
-
-    // Recent week for context
-    const recentActivities = activities.slice(0, 7).map(a => ({
+    // Recent week for context (lightweight queries — not the heavy 365-day fetches)
+    const recentActivities = (getData(recentActivitiesResult) || []).map(a => ({
       date: a.started_at?.split("T")[0],
       name: a.name,
       ef: a.efficiency_factor,
       np: a.normalized_power_watts,
       tss: a.tss,
     }));
-    const recentSleep = dailyMetrics.slice(0, 7).map(dm => ({
+    const recentSleep = (getData(recentMetricsResult) || []).map(dm => ({
       date: dm.date,
       hours: dm.total_sleep_seconds ? Math.round(dm.total_sleep_seconds / 360) / 10 : null,
       score: dm.sleep_score,
       hrv: dm.hrv_overnight_avg_ms || dm.hrv_ms,
     }));
 
-    // Build context for Claude
+    // Build context for Claude using cached sleep-performance analytics
     const context = {
       athlete: {
         name: profile.full_name,
@@ -204,27 +183,28 @@ export default async function handler(req, res) {
         sex: profile.sex,
       },
       dataRange: {
-        totalActivities: activities.length,
-        matchedPairs: matched.length,
-        sleepNights: dailyMetrics.filter(d => d.total_sleep_seconds != null).length,
+        matchedPairs: sleepPerf.matchedPairs,
+        activityCount: athleteAnalytics.activityCount,
+        metricsCount: athleteAnalytics.metricsCount,
       },
-      correlations,
-      quartiles,
-      adjustedCorrelations: adjusted,
-      sleepPatterns: patterns,
-      bestAndWorstRides: bestWorst,
-      doseResponse,
+      correlations: sleepPerf.correlations,
+      quartiles: sleepPerf.quartiles,
+      adjustedCorrelations: sleepPerf.adjustedCorrelations,
+      sleepPatterns: sleepPerf.sleepPatterns,
+      bestAndWorstRides: sleepPerf.bestAndWorstRides,
+      doseResponse: sleepPerf.doseResponse,
       recentWeek: { activities: recentActivities, sleep: recentSleep },
       connectedSources: integrations,
     };
 
     // Send to Claude
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-opus-4-6",
       max_tokens: 4000,
       system: SLEEP_PERFORMANCE_PROMPT,
       messages: [{ role: "user", content: JSON.stringify(context) }],
     });
+    trackTokenUsage(session.userId, "sleep_analysis", "claude-opus-4-6", response.usage);
 
     const text = response.content[0].text;
 

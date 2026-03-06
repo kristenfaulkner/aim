@@ -1,6 +1,7 @@
 import { verifySession, cors } from "../_lib/auth.js";
 import { buildAnalysisContext } from "../_lib/ai.js";
 import Anthropic from "@anthropic-ai/sdk";
+import { trackTokenUsage } from "../_lib/token-tracking.js";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -60,11 +61,12 @@ export default async function handler(req, res) {
     });
 
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-opus-4-6",
       max_tokens: 1500,
       system: CHAT_SYSTEM_PROMPT,
       messages,
     });
+    trackTokenUsage(session.userId, "chat", "claude-opus-4-6", response.usage);
 
     return res.status(200).json({ reply: response.content[0].text });
   } catch (err) {

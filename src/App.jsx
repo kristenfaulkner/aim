@@ -25,6 +25,7 @@ import Performance from "./pages/Performance";
 import Pricing from "./pages/Pricing";
 import ResetPassword from "./pages/ResetPassword";
 import AcceptTerms from "./pages/AcceptTerms";
+import Admin from "./pages/Admin";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Footer from "./components/Footer";
 
@@ -59,6 +60,7 @@ export default function App() {
       <Route path="/data-processing" element={<DataProcessing />} />
       <Route path="/gdpr" element={<GDPR />} />
       <Route path="/sms-consent" element={<SmsConsent />} />
+      <Route path="/admin" element={<Admin />} />
     </Routes>
     <Footer />
     </>
