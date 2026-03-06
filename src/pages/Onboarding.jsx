@@ -272,7 +272,7 @@ export default function Onboarding() {
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={{ fontSize: 13, fontWeight: 600, color: T.textSoft, display: "flex", alignItems: "center", gap: 4, marginBottom: 6 }}>
-                    FTP (watts)
+                    FTP (watts) <span style={{ fontWeight: 400, color: T.textDim }}>(optional)</span>
                     <span
                       onMouseEnter={() => setShowFtpTooltip(true)}
                       onMouseLeave={() => setShowFtpTooltip(false)}
