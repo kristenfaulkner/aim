@@ -1,6 +1,7 @@
 import { verifySession, cors } from "../../_lib/auth.js";
 import { supabaseAdmin } from "../../_lib/supabase.js";
 import { getWithingsToken, fetchWithingsData, mapWithingsToMetrics, extractWithingsExtended, updateProfileWeight } from "../../_lib/withings.js";
+import { refreshAthleteAnalytics } from "../../_lib/athlete-analytics.js";
 
 /**
  * Sync a single day of Withings data into daily_metrics.
@@ -112,6 +113,11 @@ export async function fullWithingsSync(userId, days = 7) {
         sync_error: errors.length > 0 ? `${errors.length} day(s) failed` : null,
       })
       .eq("id", integration.id);
+
+    // Refresh cached athlete analytics (models, correlations) in background
+    if (results.length > 0) {
+      refreshAthleteAnalytics(userId).catch(() => {});
+    }
 
     return { results, errors };
   } catch (err) {

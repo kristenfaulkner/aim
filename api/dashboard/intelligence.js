@@ -82,6 +82,9 @@ HISTORICAL PATTERN RULES (when "historicalPatterns" is present):
 - ALWAYS include at least one insight that references a specific historical pattern from this data. Generic recovery advice ("take a rest day") is NOT acceptable when you have the athlete's actual recovery history.
 - When recommending rest or continued training, cite the athlete's own precedent: what happened last time they were in a similar situation.
 
+MODEL NARRATIVES:
+- When "modelNarratives" is present, these are pre-computed AI interpretations of the athlete's statistical models (sleep correlations, heat model, recovery patterns, training load, durability). USE THESE as the foundation for your insights — they are already personalized with the athlete's real numbers. Synthesize them with today's context (weather, sleep, checkin, activity) rather than re-interpreting raw model data from scratch. You may refine, combine, or extend these narratives, but do not contradict the numbers in them.
+
 GENERAL RULES:
 - The "today" field contains the athlete's current local date (YYYY-MM-DD). Use it to determine day-of-week, what counts as "this week", and whether the current week is incomplete. Do NOT count future days as rest days — only days up to and including today.
 - To determine rest days, check "recentActivities" for actual activity dates. A day is only a rest day if it has passed AND there is no activity with a started_at on that date. If an activity exists for today in recentActivities, it is NOT a rest day.
@@ -417,6 +420,8 @@ export default async function handler(req, res) {
       workingGoals: workingGoals.length > 0 ? workingGoals : undefined,
       connectedSources: integrations.map((i) => i.provider),
       historicalPatterns: athleteAnalytics.historicalPatterns || undefined,
+      // Pre-computed AI narratives — Opus can synthesize from these instead of raw model data
+      modelNarratives: athleteAnalytics.narratives || undefined,
     };
 
     let systemPrompt;

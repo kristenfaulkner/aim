@@ -26,6 +26,8 @@ import {
   findBestAndWorstRides,
   computeDoseResponse,
 } from "./sleep-correlations.js";
+import Anthropic from "@anthropic-ai/sdk";
+import { trackTokenUsage } from "./token-tracking.js";
 
 
 // ── Fingerprint: auto-invalidates when data changes ──
@@ -354,6 +356,68 @@ function computeAllAnalytics(activities, dailyMetrics, nutritionLogs, profile) {
 }
 
 
+// ── AI Narrative Generation ──
+
+const NARRATIVE_SYSTEM_PROMPT = `You are AIM's data interpreter. Given pre-computed statistical models about an endurance athlete, generate focused narratives for each domain. Each narrative should be 2-4 sentences, reference specific numbers from the data, and be written in second person ("your"). Be direct and insightful — these narratives are the athlete's primary way of understanding their models.
+
+Rules:
+- ONLY generate narratives for domains where data exists (non-null input). Set missing domains to null.
+- Use specific numbers from the data (r values, percentages, watts, temperatures).
+- Each narrative should contain at least one actionable insight.
+- NEVER give direct medical advice. Use "research suggests" or "consider" language.
+- Return ONLY valid JSON, no markdown.
+
+Return JSON:
+{
+  "sleep": "2-4 sentences interpreting sleep-performance correlations. Which sleep metrics most impact their performance? What's their optimal sleep duration/timing?",
+  "heat": "2-4 sentences about their heat model. Temperature breakpoint, EF penalty, humidity compounding. Practical thresholds for race day.",
+  "recovery": "2-4 sentences about historical recovery patterns. How they respond to high-load weeks, HR drift by rest days, EF improvements after rest.",
+  "training_load": "2-4 sentences about current training load status. CTL trend, TSB, ramp rate, comparison to recent weeks.",
+  "durability": "2-4 sentences about their durability/fatigue resistance model if available."
+}`;
+
+async function generateNarratives(userId, analytics) {
+  if (!process.env.ANTHROPIC_API_KEY) return null;
+
+  // Only generate if we have meaningful data to interpret
+  const hasData = analytics.sleepPerformance || analytics.performanceModels
+    || analytics.historicalPatterns || analytics.trainingLoad;
+  if (!hasData) return null;
+
+  try {
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const context = {};
+    if (analytics.sleepPerformance) context.sleepPerformance = analytics.sleepPerformance;
+    if (analytics.performanceModels) context.performanceModels = analytics.performanceModels;
+    if (analytics.historicalPatterns) context.historicalPatterns = analytics.historicalPatterns;
+    if (analytics.trainingLoad) context.trainingLoad = analytics.trainingLoad;
+
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 1200,
+      system: NARRATIVE_SYSTEM_PROMPT,
+      messages: [{ role: "user", content: JSON.stringify(context) }],
+    });
+    trackTokenUsage(userId, "model_narratives", "claude-sonnet-4-6", response.usage);
+
+    const raw = response.content[0].text;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      const match = raw.match(/\{[\s\S]*\}/);
+      if (match) {
+        try { return JSON.parse(match[0]); } catch { /* fall through */ }
+      }
+      return null;
+    }
+  } catch (err) {
+    console.error("[athlete-analytics] narrative generation error:", err.message);
+    return null;
+  }
+}
+
+
 // ── Public API ──
 
 /**
@@ -390,6 +454,12 @@ export async function getAthleteAnalytics(userId, { forceRefresh = false } = {})
   const analytics = computeAllAnalytics(
     raw.activities, raw.dailyMetrics, raw.nutritionLogs, raw.profile
   );
+
+  // Generate AI narratives for each model domain (Sonnet — fast + cached)
+  const narratives = await generateNarratives(userId, analytics);
+  if (narratives) {
+    analytics.narratives = narratives;
+  }
 
   // Cache result (fire-and-forget)
   supabaseAdmin
