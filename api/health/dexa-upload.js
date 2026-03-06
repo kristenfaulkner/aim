@@ -245,7 +245,7 @@ Return valid JSON:
       "body": "Detailed explanation connecting body composition to performance."
     }
   ],
-  // ORDER insights by impact — most critical or surprising finding first, always.
+  // ORDER insights by WOW FACTOR: most surprising or actionable finding first. Unexpected connections beat obvious confirmations.
 
   "actionItems": [
     "Non-prescriptive suggestion framed as 'Consider...' or 'Research suggests...'"

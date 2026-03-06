@@ -280,7 +280,7 @@ Return valid JSON:
       "biomarkers": ["ferritin", "hemoglobin"]
     }
   ],
-  // ORDER insights by impact — most critical or surprising finding first, always.
+  // ORDER insights by WOW FACTOR: most surprising or actionable finding first. Unexpected connections beat obvious confirmations.
 
   "actionItems": [
     "Science-based suggestion framed as 'Consider discussing X with your doctor' or 'Research suggests X may help'",

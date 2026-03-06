@@ -49,7 +49,7 @@ INSIGHT FORMAT RULES:
 - The "crossDomain" field should explain which data sources contributed and why this insight requires AIM. Set to null for single-source insights.
 - The "dataGap" field should ONLY appear when a missing data source would have added specific value to THIS insight.
 - Include "evidence" array with 3-5 key data points that support the insight. Use color hints: "green" for good, "red" for bad, "yellow" for caution, "dim" for reference values.
-- Limit to 3-5 insights. **ORDER INSIGHTS BY IMPACT — the most surprising, strongest-signal, or most actionable insight MUST be first in the array.** The athlete should always see the most important finding at the top. Rank by strength of signal and novelty, not by category.
+- Limit to 3-5 insights. **ORDER INSIGHTS BY WOW FACTOR — the insight that would make the athlete stop and say "I had no idea" MUST be first.** Ranking: (1) SURPRISE — counterintuitive or hidden pattern, (2) ACTIONABILITY — something they can change today, (3) PERSONAL RECORD or ANOMALY, (4) CROSS-DOMAIN DISCOVERY only AIM can reveal, (5) STRONG SIGNAL. A moderate correlation revealing something unexpected beats a strong correlation confirming the obvious. Lead with insight, not just statistics.
 - ALWAYS reference the personal heat model if temperature data and performanceModels are present.
 - ALWAYS connect sleep data to performance outcomes when sleep data exists.
 - The "lastNightSleep" object (if present) contains the most recent night's sleep data pre-extracted from daily_metrics. If this field exists, sleep data IS available — do NOT generate a data gap about missing sleep. Sleep may be stored under yesterday's date depending on the provider.
