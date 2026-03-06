@@ -368,7 +368,7 @@ export default function Landing() {
 
           {isMobile ? (
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <button onClick={() => navigate(ctaRoute)} style={{ fontSize: 12, fontWeight: 700, color: "white", background: T.gradient, borderRadius: 7, padding: "7px 14px", border: "none", cursor: "pointer", fontFamily: font }}>{user ? "Dashboard" : "Start free"}</button>
+              <button onClick={() => navigate(ctaRoute)} style={{ fontSize: 12, fontWeight: 700, color: "white", background: T.gradient, borderRadius: 7, padding: "7px 14px", border: "none", cursor: "pointer", fontFamily: font }}>{user ? "Today" : "Start free"}</button>
               <button onClick={() => setMenuOpen(!menuOpen)} style={{ background: "none", border: "none", color: T.text, cursor: "pointer", padding: 4, minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {menuOpen ? <X size={22} /> : <Menu size={22} />}
               </button>
