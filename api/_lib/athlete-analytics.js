@@ -271,7 +271,7 @@ function computeSleepPerformance(activities, dailyMetrics) {
 
 const ACTIVITY_FIELDS = "id, name, activity_type, started_at, duration_seconds, avg_power_watts, normalized_power_watts, tss, intensity_factor, efficiency_factor, hr_drift_pct, variability_index, avg_hr_bpm, max_hr_bpm, avg_cadence_rpm, calories, work_kj, temperature_celsius, activity_weather, laps, elevation_gain_meters";
 
-const DAILY_METRICS_FIELDS = "date, ctl, atl, tsb, ramp_rate, hrv_ms, hrv_overnight_avg_ms, resting_hr_bpm, resting_hr, sleep_score, recovery_score, weight_kg, total_sleep_seconds, deep_sleep_seconds, rem_sleep_seconds, light_sleep_seconds, sleep_latency_seconds, sleep_efficiency_pct, sleep_onset_time, wake_time, bed_temperature_celsius, body_fat_pct, muscle_mass_kg, life_stress_score, motivation_score, muscle_soreness_score, mood_score, checkin_completed_at, respiratory_rate, resting_spo2";
+const DAILY_METRICS_FIELDS = "date, ctl, atl, tsb, ramp_rate, hrv_ms, hrv_overnight_avg_ms, resting_hr_bpm, sleep_score, recovery_score, weight_kg, total_sleep_seconds, deep_sleep_seconds, rem_sleep_seconds, light_sleep_seconds, sleep_latency_seconds, sleep_efficiency_pct, sleep_onset_time, wake_time, bed_temperature_celsius, body_fat_pct, muscle_mass_kg, life_stress_score, motivation_score, muscle_soreness_score, mood_score, checkin_completed_at, respiratory_rate, resting_spo2";
 
 async function fetchRawData(userId) {
   const oneYearAgo = new Date(Date.now() - 365 * 86400000).toISOString();
