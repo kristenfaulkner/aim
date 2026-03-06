@@ -1,6 +1,7 @@
 import { verifySession, cors } from "../_lib/auth.js";
 import { supabaseAdmin } from "../_lib/supabase.js";
 import Anthropic from "@anthropic-ai/sdk";
+import { trackTokenUsage } from "../_lib/token-tracking.js";
 import { matchActivitiesToContext, computeAllModels, formatModelsForAI } from "../_lib/performance-models.js";
 import { extractLocationFromActivity, fetchActivityWeather, fetchWeatherForecast } from "../_lib/weather-enrich.js";
 
@@ -232,7 +233,7 @@ export default async function handler(req, res) {
         .order("date", { ascending: false }),
       supabaseAdmin
         .from("activities")
-        .select("id, activity_type, name, started_at, duration_seconds, distance_meters, tss, normalized_power_watts, avg_power_watts, avg_hr_bpm, max_hr_bpm, intensity_factor, elevation_gain_meters")
+        .select("id, activity_type, name, started_at, duration_seconds, distance_meters, tss, normalized_power_watts, avg_power_watts, avg_hr_bpm, max_hr_bpm, intensity_factor, elevation_gain_meters, start_lat, start_lng")
         .eq("user_id", session.userId)
         .order("started_at", { ascending: false })
         .limit(5),
@@ -391,6 +392,7 @@ export default async function handler(req, res) {
         content: JSON.stringify(context),
       }],
     });
+    trackTokenUsage(session.userId, "dashboard_intelligence", "claude-opus-4-6", response.usage);
 
     const raw = response.content[0].text;
 
