@@ -13,10 +13,5 @@
       "memory": 3009
     }
   },
-  "crons": [
-    {
-      "path": "/api/cron/sync-recovery",
-      "schedule": "15 * * * *"
-    }
-  ]
+  "crons": []
 }

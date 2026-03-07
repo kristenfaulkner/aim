@@ -135,19 +135,19 @@ export function AuthProvider({ children }) {
     };
   }, [user]);
 
-  // On-demand activity provider sync — once per day, non-blocking background sync.
-  // Catches any activities missed by webhooks (Strava, Wahoo).
-  const activitySyncRan = useRef(false);
+  // On-demand background sync for non-sleep providers — once per day, non-blocking.
+  // Catches missed webhooks (Strava, Wahoo) and syncs body comp (Withings).
+  const bgSyncRan = useRef(false);
   useEffect(() => {
-    if (!user || activitySyncRan.current) return;
-    activitySyncRan.current = true;
+    if (!user || bgSyncRan.current) return;
+    bgSyncRan.current = true;
 
     const today = new Date().toISOString().split("T")[0];
-    const activityProviders = INTEGRATION_PROVIDERS.filter(
-      (p) => p.tracks.includes("activity") && !p.tracks.includes("sleep")
+    const bgProviders = INTEGRATION_PROVIDERS.filter(
+      (p) => !p.tracks.includes("sleep")
     );
 
-    const needsSync = activityProviders.filter(
+    const needsSync = bgProviders.filter(
       (p) => localStorage.getItem(`aim_${p.key}_sync_date`) !== today
     );
     if (needsSync.length === 0) return;
