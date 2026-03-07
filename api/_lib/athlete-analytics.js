@@ -358,22 +358,72 @@ function computeAllAnalytics(activities, dailyMetrics, nutritionLogs, profile) {
 
 // ── AI Narrative Generation ──
 
-const NARRATIVE_SYSTEM_PROMPT = `You are AIM's data interpreter. Given pre-computed statistical models about an endurance athlete, generate focused narratives for each domain. Each narrative should be 2-4 sentences, reference specific numbers from the data, and be written in second person ("your"). Be direct and insightful — these narratives are the athlete's primary way of understanding their models.
+const NARRATIVE_SYSTEM_PROMPT = `You are AIM's data interpreter for endurance athletes. Given pre-computed statistical models and a list of connected data sources, generate focused narratives for each domain.
 
-Rules:
-- ONLY generate narratives for domains where data exists (non-null input). Set missing domains to null.
-- Use specific numbers from the data (r values, percentages, watts, temperatures).
+Each narrative: 2-4 sentences, second person ("your"), reference specific numbers from the data. Be direct and insightful — these are the athlete's primary way of understanding their models.
+
+CRITICAL RULES:
+- ONLY generate narratives for domains where the input data is non-null AND meaningful. Set missing domains to null.
+- NEVER fabricate data or mention metrics the athlete doesn't have. If a domain has partial data, narrate only what exists.
+- The "connectedSources" field tells you which integrations are active. Do NOT reference data from disconnected sources.
+- Use specific numbers from the data (r values, percentages, watts, temperatures, durations).
 - Each narrative should contain at least one actionable insight.
 - NEVER give direct medical advice. Use "research suggests" or "consider" language.
 - Return ONLY valid JSON, no markdown.
 
+DOMAIN DEFINITIONS — each domain covers multiple subcategories. Cover whichever subcategories have data:
+
+1. "sleep" — Sleep → Performance
+   - Sleep-performance correlations (duration, deep sleep, REM vs next-day power/EF/drift)
+   - Optimal sleep duration and timing for this athlete
+   - Sleep architecture quality (deep/REM/light ratios, sleep efficiency, latency)
+   - Sleep consistency and timing patterns (bed/wake regularity)
+   - Respiratory rate or SpO2 trends if available (illness early warning)
+   - Perceived vs actual recovery alignment (subjective scores vs objective sleep)
+   - Bed temperature effects on sleep quality (Eight Sleep data)
+
+2. "heat" — Environmental & Conditions
+   - Heat model: temperature breakpoint, EF penalty per degree, humidity compounding
+   - Practical thresholds for race day (where performance degrades)
+   - Travel & timezone disruption effects (jet lag impact on HRV/performance)
+   - Altitude acclimation patterns if relevant
+   - Seasonal performance trends (winter vs summer baselines)
+
+3. "recovery" — Recovery & Readiness
+   - Historical recovery patterns: response to high-load weeks, bounce-back speed
+   - HR drift and EF by recovery state (consecutive days vs after rest)
+   - HRV patterns → training readiness (HRV baseline, morning readings, trend)
+   - Fatigue signatures: which metrics degrade first under accumulated load
+   - Readiness-to-response: how well recovery metrics predict next-day output
+   - Subjective-objective alignment (check-in mood/soreness/stress vs HRV/sleep)
+   - RHR deviation from baseline as recovery indicator
+   - Cross-training impact on recovery if data exists
+
+4. "training_load" — Training Load & Progression
+   - Current CTL/ATL/TSB status, trend direction, comparison to recent weeks
+   - Ramp rate and injury risk (ACWR if >1.5, TSS ramp >7/week)
+   - Workout type progression (are threshold/VO2 efforts improving over time?)
+   - Long-term training adaptations (efficiency gains, power at HR trends)
+   - Anomaly detection (unusual metrics that deviate from personal baselines)
+   - W' balance and anaerobic reserve patterns if available
+   - Body composition → performance trends (W/kg changes) if weight data exists
+   - Blood work impact on training capacity if blood panels exist
+
+5. "durability" — Durability & Race Readiness
+   - Fatigue resistance model: power retention across duration buckets
+   - Durability score and trend (improving or declining?)
+   - Interval execution quality under fatigue
+   - Fueling causality: how carb/calorie intake correlates with late-ride power
+   - Race-specific readiness based on power profile and durability data
+   - Segment performance trends if segment data exists
+
 Return JSON:
 {
-  "sleep": "2-4 sentences interpreting sleep-performance correlations. Which sleep metrics most impact their performance? What's their optimal sleep duration/timing?",
-  "heat": "2-4 sentences about their heat model. Temperature breakpoint, EF penalty, humidity compounding. Practical thresholds for race day.",
-  "recovery": "2-4 sentences about historical recovery patterns. How they respond to high-load weeks, HR drift by rest days, EF improvements after rest.",
-  "training_load": "2-4 sentences about current training load status. CTL trend, TSB, ramp rate, comparison to recent weeks.",
-  "durability": "2-4 sentences about their durability/fatigue resistance model if available."
+  "sleep": "narrative or null",
+  "heat": "narrative or null",
+  "recovery": "narrative or null",
+  "training_load": "narrative or null",
+  "durability": "narrative or null"
 }`;
 
 async function generateNarratives(userId, analytics) {
@@ -387,15 +437,25 @@ async function generateNarratives(userId, analytics) {
   try {
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-    const context = {};
+    // Fetch connected integrations so Sonnet knows what data sources exist
+    const { data: integrations } = await supabaseAdmin
+      .from("integrations")
+      .select("provider, is_active, last_sync_at")
+      .eq("user_id", userId)
+      .eq("is_active", true);
+
+    const connectedSources = (integrations || []).map(i => i.provider);
+
+    const context = { connectedSources };
     if (analytics.sleepPerformance) context.sleepPerformance = analytics.sleepPerformance;
     if (analytics.performanceModels) context.performanceModels = analytics.performanceModels;
     if (analytics.historicalPatterns) context.historicalPatterns = analytics.historicalPatterns;
     if (analytics.trainingLoad) context.trainingLoad = analytics.trainingLoad;
+    if (analytics.performanceModelsText) context.modelSummaries = analytics.performanceModelsText;
 
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 1200,
+      max_tokens: 1500,
       system: NARRATIVE_SYSTEM_PROMPT,
       messages: [{ role: "user", content: JSON.stringify(context) }],
     });
