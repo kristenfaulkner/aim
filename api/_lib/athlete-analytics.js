@@ -454,12 +454,12 @@ async function generateNarratives(userId, analytics) {
     if (analytics.performanceModelsText) context.modelSummaries = analytics.performanceModelsText;
 
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-opus-4-6",
       max_tokens: 1500,
       system: NARRATIVE_SYSTEM_PROMPT,
       messages: [{ role: "user", content: JSON.stringify(context) }],
     });
-    trackTokenUsage(userId, "model_narratives", "claude-sonnet-4-6", response.usage);
+    trackTokenUsage(userId, "model_narratives", "claude-opus-4-6", response.usage);
 
     const raw = response.content[0].text;
     try {

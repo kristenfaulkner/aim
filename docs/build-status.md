@@ -85,3 +85,12 @@ Replaces Dashboard V2 with a single-column AI-first layout. Single centered colu
 **Nav:** "Dashboard" renamed to "Today" across all pages
 **Legacy:** Old Dashboard preserved at `src/pages/DashboardLegacy.jsx` and route `/dashboard-legacy`
 **Tests:** 14 tests in `src/pages/__tests__/Today.test.jsx`, 18 updated routing tests in `src/App.test.jsx`
+
+### Performance Page (AI-First Longitudinal Intelligence) — March 2026
+AI-powered longitudinal performance intelligence page at `/performance`. Single-column centered layout (740px max-width) with AI narrative hero, dynamic category sections with collapsible insights, and Ask Claude at bottom. Minimum 10 activities required.
+
+**API:** `api/performance/intelligence.js` — Claude Opus 4.6 with 4000 max_tokens. Fetches athlete analytics (performance models, historical patterns, sleep correlations), power profile, blood panels, races, goals, integrations. Returns structured JSON: narrative + ranked categories with insights + modelData. Cached in `intelligence_cache` table with 24h stale fallback. Uses `getAthleteAnalytics()` for cached model data.
+**Hook:** `usePerformanceIntelligence` — SWR pattern with 24h sessionStorage cache
+**Page:** `src/pages/Performance.jsx` — AI narrative hero + dynamic category sections + Ask Claude. Loading skeleton, error state with retry, empty state for <10 activities.
+**Components** (`src/components/performance/`): CategorySection (header + collapsible insights + expandable model data), InsightCard (collapsible: title at rest, expand for takeaway green box + body + source pills), ModelDataRenderer (renders stats/bins/zones/powerBests/cpModel/sparklines/quartileComparison/custom), StatCard, BinTable, ZoneCard, PowerBestsGrid, CPModelCard, SparklineRow, QuartileComparison
+**Prototype:** `prototypes/aim-performance-v4-final.jsx`

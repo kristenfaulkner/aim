@@ -32,13 +32,13 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 
 ### Frontend (`/src/`)
 
-20 route-level pages, 12+ reusable components, 10 custom hooks, shared libs. Today page (AI-first, single-column centered layout at 700px max-width). Key entry points: `App.jsx` (routes), `context/AuthContext.jsx` (auth), `hooks/useDashboardData.js` (parallel queries), `lib/api.js` (`apiFetch()` with Bearer token), `theme/tokens.js` (design tokens as `T`).
+20 route-level pages, 12+ reusable components, 11 custom hooks, shared libs. Today page (AI-first, single-column centered layout at 700px max-width). Performance page (AI-first longitudinal intelligence, 740px max-width). Key entry points: `App.jsx` (routes), `context/AuthContext.jsx` (auth), `hooks/useDashboardData.js` (parallel queries), `lib/api.js` (`apiFetch()` with Bearer token), `theme/tokens.js` (design tokens as `T`).
 
 **Full file-by-file reference:** See `docs/codebase-map.md` → Frontend section.
 
 ### Backend (`/api/`)
 
-35+ shared libraries in `_lib/` (AI engine, metrics, integrations, power analytics). Route handlers for: auth, sync, webhooks, activities, health, AI chat, SMS, email, goals, nutrition, calendar, zones, durability, feedback, check-in, cross-training, travel, prescription, races, segments.
+35+ shared libraries in `_lib/` (AI engine, metrics, integrations, power analytics). Route handlers for: auth, sync, webhooks, activities, health, AI chat, SMS, email, goals, nutrition, calendar, zones, durability, feedback, check-in, cross-training, travel, prescription, performance, races, segments.
 
 **API pattern**: Every endpoint calls `cors(res)`, checks `req.method`, calls `verifySession(req)` for auth, returns `{ error: "message" }` on failure.
 
@@ -128,7 +128,7 @@ OAuth2 flow: connect/callback file pairs in `/api/auth/`. Credential-based for E
 ### Core Principle
 Cross-domain insights are the product. Every AI insight must connect 2+ data sources and tell the athlete something they cannot learn from any single app. "Your HRV was low" is Whoop-level. "Your HRV was 38ms, which explains why cardiac drift was 8.1% today vs 3.2% on Feb 18 when HRV was 72ms" is AIM-level.
 
-### AI-Powered Features (12 total)
+### AI-Powered Features (13 total)
 1. **Post-ride analysis** — 28-category structured insights triggered after every activity sync
 2. **Email workout analysis** — Claude-formatted HTML emails via Resend with full AI analysis, sent on first analysis only (no duplicates on re-analysis or bulk import)
 3. **SMS workout summaries** — 1500-char Claude-generated texts sent via Twilio post-sync
@@ -141,6 +141,7 @@ Cross-domain insights are the product. Every AI insight must connect 2+ data sou
 10. **Athlete bio generation** — AI-generated 2-3 sentence profile description from activity history via `/api/profile/generate-bio`
 11. **Insight feedback loop** — thumbs up/down per insight, personalized category preferences injected into AI system prompt, global quality tracking via `/api/feedback/`
 12. **Training prescription engine** — power profile gap analysis (CP model comparison), readiness/TSB/race/weather/cross-training guards, Claude-generated structured workout with power targets, fueling, alternative. PrescriptionCard on Dashboard with Add to Calendar integration via `/api/prescription/next-workout`
+13. **Performance intelligence** — longitudinal AI analysis via `/api/performance/intelligence`, Claude Opus 4.6, 4000 max_tokens. Synthesizes all performance models, sleep correlations, historical patterns, blood panels, power profile, goals, and races into ranked category sections with insights + model data. Server-side cache (intelligence_cache) + 24h frontend SWR cache. Dynamic category selection based on data availability.
 
 ### 30 Insight Categories (Active) + 5 Planned
 
@@ -199,7 +200,7 @@ See `docs/build-status.md` for the full detailed log. Summary of what's built:
 **Core**: Auth (email/password/Google SSO/magic link), onboarding, Vercel deployment, mobile-responsive, testing (574 tests), SEO, legal compliance, account management
 **Integrations**: Strava (full), EightSleep (full + hourly cron), Wahoo (full sync + backfill + webhook + FIT stream processing), Garmin (scaffolded — OAuth 1.0a, webhook, sync, data mappers, awaiting API keys), TrainingPeaks (file import), Twilio SMS, Resend email, Oura (full + hourly cron), Whoop (full + hourly cron), Withings (full + hourly cron)
 **AI (12 features)**: Post-ride analysis, email summaries, SMS coach, chat coach, sleep summary, blood panel OCR, nutrition parsing, dashboard intelligence, adaptive 3-mode AI, athlete bio generation, insight feedback loop (thumbs up/down + personalized AI prompt injection), training prescription engine (power profile gap analysis → AI-generated structured workouts with readiness/weather/cross-training guards)
-**Pages**: Dashboard V2 (superseded by Today page — legacy preserved at /dashboard-legacy), Sleep Intelligence, ActivityDetail V3 (two-column AI+Data layout), HealthLab, Boosters, ConnectApps, Settings, WorkoutDatabase, Landing, Legal pages
+**Pages**: Dashboard V2 (superseded by Today page — legacy preserved at /dashboard-legacy), Sleep Intelligence, ActivityDetail V3 (two-column AI+Data layout), HealthLab, Boosters, ConnectApps, Settings, WorkoutDatabase, Landing, Legal pages, Performance (AI-first longitudinal intelligence — single-column 740px, AI narrative hero + dynamic ranked category sections with insights + expandable model data + Ask Claude)
 **Structured Workouts (5 phases)**: Interval extraction, canonical tagging (32+14 tags), weather enrichment, interval execution coaching, performance models (heat/sleep/HRV/fueling/durability), searchable workout database
 **Power Analytics**: Critical Power (CP) & W' model — hyperbolic fitting from power profile bests, auto-computed on sync, CPModelCard on dashboard, AI context enrichment, backfill endpoint. Adaptive training zones (readiness-adjusted -3% to -8%, zone evolution history, preference auto/CP/Coggan). Durability & fatigue resistance (per-activity fatigue-bucket power curves, retention scoring, aggregate durability score, race predictions, backfill endpoint). W' Balance tracking (Skiba differential reconstitution, real-time anaerobic reserve depletion/recovery, empty tank detection, WbalChart on ActivityDetail, backfill endpoint, AI Category 29). Similar Session Finder (weighted 5-dimension matching, cross-domain context enrichment, expandable comparison cards with AI analysis on ActivityDetail). Segment Comparison (auto-import from Strava sync, cross-domain adjusted performance scoring with heat/HRV/fatigue/sleep/wind penalties, PR detection, SegmentComparisonPanel on ActivityDetail with expandable effort history, AI Category 30, backfill endpoint, 27 tests)
 **Expansion (P1)**: Daily subjective check-in (4 sliders: stress/motivation/soreness/mood), activity subjective fields (GI comfort, mental focus, pre-ride recovery), travel & timezone auto-detection (GPS-based + browser geolocation, jet lag + altitude tracking, TravelStatusCard on dashboard with collapse/expand, timezone recovery bar, 14-segment altitude acclimation bar, power penalty mini chart, auto-dismiss), cross-training logger (replaced by unified LogActivityModal on Activities page: 8 activity types, file upload with FIT/GPX/TCX/CSV parsing, body region for strength, intensity 1-5, duration spinner, performance data accordion, saves to both activities + cross_training_log tables, TrainingWeekChart stacked bars), 6 new AI insight categories (23-28), 10 new workout tags
