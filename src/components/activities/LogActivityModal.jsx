@@ -8,7 +8,6 @@ import {
   Activity, Flame, Sparkles, Upload, X, Loader2,
 } from "lucide-react";
 import { usePreferences } from "../../context/PreferencesContext";
-import { tempUnitLabel } from "../../lib/units";
 
 // ── Activity Config ──
 
@@ -159,7 +158,7 @@ function DurationInput({ hours, minutes, seconds, onChange, isMobile }) {
 
 // ── Field Input ──
 
-function FieldInput({ label, value, onChange, unit, placeholder, highlight = false }) {
+function FieldInput({ label, value, onChange, unit, unitToggle, placeholder, highlight = false }) {
   const [focused, setFocused] = useState(false);
   return (
     <div>
@@ -176,7 +175,7 @@ function FieldInput({ label, value, onChange, unit, placeholder, highlight = fal
           }}
           onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
         />
-        {unit && <span style={{ fontSize: 11, color: T.textDim, fontWeight: 500, minWidth: 30 }}>{unit}</span>}
+        {unitToggle || (unit && <span style={{ fontSize: 11, color: T.textDim, fontWeight: 500, minWidth: 30 }}>{unit}</span>)}
       </div>
     </div>
   );
@@ -184,7 +183,30 @@ function FieldInput({ label, value, onChange, unit, placeholder, highlight = fal
 
 // ── Performance Fields ──
 
-function PerformanceFields({ groups, fields, setField, parsedKeys = new Set(), tempUnit }) {
+function TempUnitToggle({ value, onChange }) {
+  const opts = [{ key: "fahrenheit", label: "°F" }, { key: "celsius", label: "°C" }];
+  return (
+    <div style={{ display: "flex", borderRadius: 7, overflow: "hidden", border: `1px solid ${T.border}` }}>
+      {opts.map(o => {
+        const active = value === o.key;
+        return (
+          <button key={o.key} onClick={() => onChange(o.key)}
+            style={{
+              padding: "4px 10px", fontSize: 11, fontWeight: active ? 700 : 500,
+              background: active ? T.text : T.surface,
+              color: active ? T.card : T.textDim,
+              border: "none", cursor: "pointer", fontFamily: font,
+              transition: "all 0.15s",
+            }}>
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function PerformanceFields({ groups, fields, setField, parsedKeys = new Set(), tempUnit, onTempUnitChange }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       {groups.map(group => (
@@ -196,7 +218,10 @@ function PerformanceFields({ groups, fields, setField, parsedKeys = new Set(), t
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9 }}>
             {group.fields.map(f => (
-              <FieldInput key={f.key} label={f.label} value={fields[f.key] || ""} onChange={v => setField(f.key, v)} unit={f.unitKey === "temp" ? tempUnitLabel(tempUnit) : f.unit} placeholder={f.placeholder} highlight={parsedKeys.has(f.key)} />
+              <FieldInput key={f.key} label={f.label} value={fields[f.key] || ""} onChange={v => setField(f.key, v)}
+                unit={f.unitKey ? undefined : f.unit}
+                unitToggle={f.unitKey === "temp" ? <TempUnitToggle value={tempUnit} onChange={onTempUnitChange} /> : undefined}
+                placeholder={f.placeholder} highlight={parsedKeys.has(f.key)} />
             ))}
           </div>
         </div>
@@ -340,7 +365,8 @@ function FileUpload({ actId, onFileParsed, onFileCleared }) {
 
 export default function LogActivityModal({ isOpen, onClose, onSaved }) {
   const { isMobile } = useResponsive();
-  const { tempUnit } = usePreferences();
+  const { tempUnit: prefTempUnit } = usePreferences();
+  const [saunaTempUnit, setSaunaTempUnit] = useState(prefTempUnit);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
@@ -366,7 +392,7 @@ export default function LogActivityModal({ isOpen, onClose, onSaved }) {
     setHours(1); setMinutes(0); setSeconds(0);
     setFieldsState({}); setNotes(""); setTitle("");
     setDate(new Date().toISOString().split("T")[0]);
-    setParsedKeys(new Set());
+    setParsedKeys(new Set()); setSaunaTempUnit(prefTempUnit);
     setSaved(false); setSaving(false); setSaveError(null);
   };
 
@@ -607,7 +633,7 @@ export default function LogActivityModal({ isOpen, onClose, onSaved }) {
               {/* Expandable performance fields */}
               {act && act.groups.length > 0 && (
                 <div style={{ animation: "slideDown 0.2s ease" }}>
-                  <PerformanceFields groups={act.groups} fields={fields} setField={setField} parsedKeys={parsedKeys} tempUnit={tempUnit} />
+                  <PerformanceFields groups={act.groups} fields={fields} setField={setField} parsedKeys={parsedKeys} tempUnit={saunaTempUnit} onTempUnitChange={setSaunaTempUnit} />
                 </div>
               )}
 
