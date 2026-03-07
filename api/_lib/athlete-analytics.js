@@ -489,7 +489,7 @@ async function generateNarratives(userId, analytics) {
  * @param {boolean} [options.forceRefresh] - Skip cache and recompute
  * @returns {Promise<object>} Analytics object
  */
-export async function getAthleteAnalytics(userId, { forceRefresh = false } = {}) {
+export async function getAthleteAnalytics(userId, { forceRefresh = false, staleFallback = false } = {}) {
   const fingerprint = await computeFingerprint(userId);
 
   // Check cache (unless forced refresh)
@@ -502,6 +502,10 @@ export async function getAthleteAnalytics(userId, { forceRefresh = false } = {})
         .single();
 
       if (cached && cached.fingerprint === fingerprint) {
+        return cached.analytics;
+      }
+      // staleFallback: return stale cache rather than recomputing (used by performance-intelligence to avoid double-Opus)
+      if (cached && staleFallback) {
         return cached.analytics;
       }
     } catch {

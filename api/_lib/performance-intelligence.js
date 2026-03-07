@@ -176,7 +176,7 @@ async function assembleContext(userId) {
       .select("full_name, sex, ftp_watts, max_hr_bpm, weight_kg, weekly_hours, date_of_birth, timezone, menstrual_cycle_tracking")
       .eq("id", userId)
       .single(),
-    getAthleteAnalytics(userId),
+    getAthleteAnalytics(userId, { staleFallback: true }),
     supabaseAdmin
       .from("power_profiles")
       .select("power_bests, cp_watts, w_prime_joules, pmax_watts, cp_r_squared, durability_score, zones_history, computed_date")
@@ -490,13 +490,30 @@ export async function refreshPerformanceIntelligence(userId) {
 
 /**
  * Get cached performance intelligence for the API endpoint.
- * Returns cached data if available, or generates on-demand.
+ * Cache-first: single DB query to check for ANY cached result.
+ * Only generates on-demand if there's truly nothing cached (first-ever load).
  *
  * @param {string} userId
  * @returns {Promise<object>} { result, cached, stale }
  */
 export async function getCachedPerformanceIntelligence(userId) {
-  // Step 1: Quick activity count check
+  // Step 1: Single query — get the most recent perf cache entry (any fingerprint)
+  try {
+    const { data: cached } = await supabaseAdmin
+      .from("intelligence_cache")
+      .select("intelligence, created_at")
+      .eq("user_id", userId)
+      .like("cache_key", "perf|%")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (cached) {
+      return { result: cached.intelligence, cached: true, stale: false, generatedAt: cached.created_at };
+    }
+  } catch { /* no cache */ }
+
+  // Step 2: No cache at all — check activity count for empty state
   const { count: totalActivities } = await supabaseAdmin
     .from("activities")
     .select("id", { count: "exact", head: true })
@@ -524,54 +541,7 @@ export async function getCachedPerformanceIntelligence(userId) {
     };
   }
 
-  // Step 2: Build fingerprint for exact match
-  const { data: profile } = await supabaseAdmin
-    .from("profiles")
-    .select("ftp_watts, weight_kg")
-    .eq("id", userId)
-    .single();
-
-  const { count: bloodPanelCount } = await supabaseAdmin
-    .from("blood_panels")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId);
-
-  const fingerprint = buildFingerprint(totalActivities, profile?.ftp_watts || 0, profile?.weight_kg || 0, bloodPanelCount || 0);
-
-  // Step 3: Exact cache match
-  try {
-    const { data: cached } = await supabaseAdmin
-      .from("intelligence_cache")
-      .select("intelligence, created_at")
-      .eq("user_id", userId)
-      .eq("cache_key", fingerprint)
-      .single();
-
-    if (cached) {
-      return { result: cached.intelligence, cached: true, stale: false, generatedAt: cached.created_at };
-    }
-  } catch { /* no exact match */ }
-
-  // Step 4: Stale fallback — any perf cache < 24h
-  try {
-    const { data: staleCache } = await supabaseAdmin
-      .from("intelligence_cache")
-      .select("intelligence, created_at")
-      .eq("user_id", userId)
-      .like("cache_key", "perf|%")
-      .gte("created_at", new Date(Date.now() - 24 * 3600000).toISOString())
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (staleCache) {
-      // Trigger background regen (fire-and-forget)
-      refreshPerformanceIntelligence(userId).catch(() => {});
-      return { result: staleCache.intelligence, cached: true, stale: true, generatedAt: staleCache.created_at };
-    }
-  } catch { /* no stale cache */ }
-
-  // Step 5: No cache at all — generate on-demand (first-ever load)
+  // Step 3: No cache at all — generate on-demand (first-ever load only)
   const result = await generatePerformanceIntelligence(userId);
   if (!result) {
     return {
