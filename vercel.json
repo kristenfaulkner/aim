@@ -17,10 +17,6 @@
     {
       "path": "/api/cron/sync-recovery",
       "schedule": "15 * * * *"
-    },
-    {
-      "path": "/api/cron/sync-activities",
-      "schedule": "45 * * * *"
     }
   ]
 }
