@@ -5,7 +5,7 @@ import { supabase } from "../../lib/supabase";
 import { apiFetch } from "../../lib/api";
 import {
   Bike, Footprints, Waves, Dumbbell, Flower2, Mountain,
-  Activity, Sparkles, Upload, X, Loader2,
+  Activity, Flame, Sparkles, Upload, X, Loader2,
 } from "lucide-react";
 
 // ── Activity Config ──
@@ -91,6 +91,15 @@ const ACTIVITIES = [
     id: "pilates", label: "Pilates", icon: Activity, emoji: "\uD83E\uDD38",
     color: "#06b6d4", bg: "rgba(6,182,212,0.08)", durationDefault: [0, 50, 0],
     groups: [],
+  },
+  {
+    id: "sauna", label: "Sauna", icon: Flame, emoji: "\uD83E\uDDD6",
+    color: "#ef4444", bg: "rgba(239,68,68,0.08)", durationDefault: [0, 20, 0],
+    groups: [
+      { label: "Session Details", fields: [
+        { key: "temperature", label: "Temperature", unit: "°F", placeholder: "—" },
+      ]},
+    ],
   },
   {
     id: "other", label: "Other", icon: Sparkles, emoji: "\u2728",
