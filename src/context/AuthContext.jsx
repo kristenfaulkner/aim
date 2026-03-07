@@ -10,6 +10,8 @@ import { apiFetch } from "../lib/api";
  * endpoint: sync API route (called with ?days=2 on page load)
  */
 const INTEGRATION_PROVIDERS = [
+  { key: "strava", tracks: ["activity"], endpoint: "/integrations/sync/strava" },
+  { key: "wahoo", tracks: ["activity"], endpoint: "/integrations/sync/wahoo" },
   { key: "eightsleep", tracks: ["sleep"], endpoint: "/integrations/sync/eightsleep" },
   { key: "oura", tracks: ["sleep", "recovery", "activity"], endpoint: "/integrations/sync/oura" },
   { key: "whoop", tracks: ["sleep", "recovery"], endpoint: "/integrations/sync/whoop" },
@@ -131,6 +133,46 @@ export function AuthProvider({ children }) {
     return () => {
       sleepRetryTimers.current.forEach((t) => clearTimeout(t));
     };
+  }, [user]);
+
+  // On-demand activity provider sync — once per day, non-blocking background sync.
+  // Catches any activities missed by webhooks (Strava, Wahoo).
+  const activitySyncRan = useRef(false);
+  useEffect(() => {
+    if (!user || activitySyncRan.current) return;
+    activitySyncRan.current = true;
+
+    const today = new Date().toISOString().split("T")[0];
+    const activityProviders = INTEGRATION_PROVIDERS.filter(
+      (p) => p.tracks.includes("activity") && !p.tracks.includes("sleep")
+    );
+
+    const needsSync = activityProviders.filter(
+      (p) => localStorage.getItem(`aim_${p.key}_sync_date`) !== today
+    );
+    if (needsSync.length === 0) return;
+
+    supabase
+      .from("integrations")
+      .select("provider")
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .in("provider", needsSync.map((p) => p.key))
+      .then(({ data: connected }) => {
+        if (!connected || connected.length === 0) return;
+        const connectedKeys = new Set(connected.map((c) => c.provider));
+        const toSync = needsSync.filter((p) => connectedKeys.has(p.key));
+
+        for (const provider of toSync) {
+          apiFetch(provider.endpoint, { method: "POST" })
+            .then((result) => {
+              if (result.synced >= 0) {
+                localStorage.setItem(`aim_${provider.key}_sync_date`, today);
+              }
+            })
+            .catch(() => {});
+        }
+      });
   }, [user]);
 
   async function signup(email, password, fullName) {
