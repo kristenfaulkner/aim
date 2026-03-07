@@ -2,13 +2,13 @@
  * Tests for the Today page — mode detection, rendering, and interactions.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
-// Mock hooks and dependencies
+// Mock data
 const mockProfile = { full_name: 'Kristen Faulkner', ftp_watts: 280 };
-const mockDailyMetrics = { recovery_score: 82, hrv_ms: 121, total_sleep_seconds: 25920 };
-const mockActivity = { id: 'act-001', name: 'Morning Ride', duration_seconds: 5100, started_at: new Date().toISOString() };
+const mockDailyMetrics = { recovery_score: 82, hrv_ms: 121, total_sleep_seconds: 25920, deep_sleep_seconds: 5400, resting_hr_bpm: 47.5 };
+const mockActivity = { id: 'act-001', name: 'Morning Ride', duration_seconds: 5100, started_at: new Date().toISOString(), tss: 120 };
 
 vi.mock('../../context/AuthContext', () => ({
   useAuth: () => ({
@@ -18,6 +18,10 @@ vi.mock('../../context/AuthContext', () => ({
   }),
 }));
 
+vi.mock('../../context/PreferencesContext', () => ({
+  usePreferences: () => ({ units: 'metric', temperatureUnit: 'celsius' }),
+}));
+
 vi.mock('../../hooks/useResponsive', () => ({
   useResponsive: () => ({ isMobile: false, isTablet: false, isDesktop: true }),
 }));
@@ -25,6 +29,7 @@ vi.mock('../../hooks/useResponsive', () => ({
 let mockDashData = {
   dailyMetrics: mockDailyMetrics,
   activity: mockActivity,
+  recentActivities: [],
   checkinStatus: null,
   setCheckinStatus: vi.fn(),
   connectedIntegrations: ['strava'],
@@ -48,21 +53,46 @@ vi.mock('../../hooks/useTodayIntelligence', () => ({
   useTodayIntelligence: () => mockIntelligence,
 }));
 
-// Mock sub-components to isolate page logic
+vi.mock('../../hooks/usePrescription', () => ({
+  usePrescription: () => ({ prescription: null, loading: false, refetch: vi.fn() }),
+}));
+
+// Mock sub-components
 vi.mock('../../components/today/AIBriefing', () => ({
-  default: ({ briefing }) => <div data-testid="ai-briefing">{briefing}</div>,
+  default: ({ briefing }) => briefing ? <div data-testid="ai-briefing">{briefing}</div> : null,
 }));
 
-vi.mock('../../components/today/InsightCard', () => ({
-  default: ({ insight }) => <div data-testid="insight-card">{insight.headline}</div>,
+vi.mock('../../components/today/ReadinessHero', () => ({
+  default: ({ score, contextCards }) => <div data-testid="readiness-hero">{score}</div>,
+  ReadinessRing: ({ score }) => <div>{score}</div>,
 }));
 
-vi.mock('../../components/today/WorkoutCard', () => ({
-  default: ({ workout }) => <div data-testid="workout-card">{workout.name}</div>,
+vi.mock('../../components/today/TodayCard', () => ({
+  default: ({ mode, prepRecs, recoveryRecs, workout }) => (
+    <div data-testid="today-card" data-mode={mode}>
+      {workout && <span data-testid="workout-name">{workout.name}</span>}
+      {(prepRecs || []).map((r, i) => <span key={i} data-testid="prep-rec">{r.title}</span>)}
+      {(recoveryRecs || []).map((r, i) => <span key={i} data-testid="recovery-rec">{r.title}</span>)}
+    </div>
+  ),
+}));
+
+vi.mock('../../components/today/VitalsStrip', () => ({
+  default: ({ vitals }) => vitals ? <div data-testid="vitals-strip">vitals</div> : null,
+  computeVitals: (m) => m ? { hrv: { value: "121", unit: "ms" } } : null,
+}));
+
+vi.mock('../../components/today/ThisWeek', () => ({
+  default: ({ data }) => data ? <div data-testid="this-week">week</div> : null,
+  computeThisWeek: () => ({ days: [], total: 0, lastWeek: null }),
 }));
 
 vi.mock('../../components/today/CollapsedMorning', () => ({
-  default: ({ text }) => <div data-testid="collapsed-morning">{text}</div>,
+  default: ({ text }) => text ? <div data-testid="collapsed-morning">{text}</div> : null,
+}));
+
+vi.mock('../../components/today/RideSummary', () => ({
+  default: ({ activity }) => activity ? <div data-testid="ride-summary">{activity.name}</div> : null,
 }));
 
 vi.mock('../../components/today/AskClaude', () => ({
@@ -74,11 +104,6 @@ vi.mock('../../components/today/DataGaps', () => ({
 }));
 
 vi.mock('../../components/dashboard/CheckInModal', () => ({
-  default: () => null,
-  CheckInSummaryCard: () => null,
-}));
-
-vi.mock('../../components/dashboard/NutritionLogger', () => ({
   default: () => null,
 }));
 
@@ -102,6 +127,7 @@ describe('Today Page', () => {
     mockDashData = {
       dailyMetrics: mockDailyMetrics,
       activity: mockActivity,
+      recentActivities: [],
       checkinStatus: null,
       setCheckinStatus: vi.fn(),
       connectedIntegrations: ['strava'],
@@ -128,12 +154,6 @@ describe('Today Page', () => {
     expect(todayBtn).toBeInTheDocument();
   });
 
-  it('renders readiness ring when recovery score exists', () => {
-    renderToday();
-    expect(screen.getByText('82')).toBeInTheDocument();
-    expect(screen.getByText('Green')).toBeInTheDocument();
-  });
-
   it('shows empty state when no integrations connected', () => {
     mockDashData = { ...mockDashData, activity: null, connectedIntegrations: [] };
     renderToday();
@@ -146,7 +166,8 @@ describe('Today Page', () => {
         mode: 'POST_RIDE',
         intelligence: {
           briefing: 'Strong session today.',
-          insights: [{ type: 'positive', icon: '🟢', headline: 'EF 1.70', takeaway: 'Great work' }],
+          prepRecs: [],
+          recoveryRecs: [{ icon: '🍎', title: 'Refuel now' }],
           contextCards: [],
           collapsedMorning: 'Morning readiness was 82.',
           dataGaps: [],
@@ -161,15 +182,16 @@ describe('Today Page', () => {
     expect(screen.getByText('Strong session today.')).toBeInTheDocument();
   });
 
-  it('renders insight cards from intelligence data', () => {
+  it('renders prepRecs in morning mode', () => {
+    mockDashData = { ...mockDashData, activity: null };
     mockIntelligence = {
       data: {
-        mode: 'MORNING_RECOVERY',
+        mode: 'MORNING_NO_PLAN',
         intelligence: {
           briefing: 'Rest day guidance.',
-          insights: [
-            { type: 'positive', icon: '🟢', headline: 'HRV 121ms', takeaway: 'Good recovery' },
-            { type: 'warning', icon: '⚠️', headline: 'Sleep debt 3.2h', takeaway: 'Prioritize sleep' },
+          prepRecs: [
+            { icon: '💧', title: 'Extra 500ml with sodium' },
+            { icon: '🛏️', title: 'Lights out by 9:30' },
           ],
           contextCards: [],
           dataGaps: [],
@@ -180,21 +202,20 @@ describe('Today Page', () => {
       refetch: vi.fn(),
     };
     renderToday();
-    const cards = screen.getAllByTestId('insight-card');
-    expect(cards).toHaveLength(2);
-    expect(screen.getByText('HRV 121ms')).toBeInTheDocument();
-    expect(screen.getByText('Sleep debt 3.2h')).toBeInTheDocument();
+    const recs = screen.getAllByTestId('prep-rec');
+    expect(recs).toHaveLength(2);
   });
 
-  it('renders workout card in MORNING_WITH_PLAN mode', () => {
+  it('renders workout in MORNING_WITH_PLAN mode', () => {
+    mockDashData = { ...mockDashData, activity: null };
     mockIntelligence = {
       data: {
         mode: 'MORNING_WITH_PLAN',
         intelligence: {
           briefing: 'Ready for sweet spot.',
-          insights: [],
+          prepRecs: [],
           contextCards: [],
-          workout: { name: 'Sweet Spot 3x20', structure: '3x20min', duration_min: 85, target_power: '265W', est_tss: 142 },
+          workout: { name: 'Sweet Spot 3x20', structure: '3x20min', duration: '1h 25m', targetPower: '265W', tss: 142, hasPlannedWorkout: true },
           dataGaps: [],
         },
       },
@@ -203,7 +224,7 @@ describe('Today Page', () => {
       refetch: vi.fn(),
     };
     renderToday();
-    expect(screen.getByTestId('workout-card')).toBeInTheDocument();
+    expect(screen.getByTestId('workout-name')).toBeInTheDocument();
     expect(screen.getByText('Sweet Spot 3x20')).toBeInTheDocument();
   });
 
@@ -213,7 +234,8 @@ describe('Today Page', () => {
         mode: 'POST_RIDE',
         intelligence: {
           briefing: 'Post-ride analysis.',
-          insights: [],
+          prepRecs: [],
+          recoveryRecs: [],
           contextCards: [],
           collapsedMorning: 'This morning: readiness 82.',
           dataGaps: [],
@@ -228,13 +250,34 @@ describe('Today Page', () => {
     expect(screen.getByText('This morning: readiness 82.')).toBeInTheDocument();
   });
 
-  it('renders data gaps when present', () => {
+  it('renders ride summary in POST_RIDE mode', () => {
     mockIntelligence = {
       data: {
-        mode: 'MORNING_RECOVERY',
+        mode: 'POST_RIDE',
+        intelligence: {
+          briefing: 'Good ride.',
+          prepRecs: [],
+          recoveryRecs: [],
+          contextCards: [],
+          dataGaps: [],
+        },
+      },
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    renderToday();
+    expect(screen.getByTestId('ride-summary')).toBeInTheDocument();
+  });
+
+  it('renders data gaps when present', () => {
+    mockDashData = { ...mockDashData, activity: null };
+    mockIntelligence = {
+      data: {
+        mode: 'MORNING_NO_PLAN',
         intelligence: {
           briefing: 'Rest day.',
-          insights: [],
+          prepRecs: [],
           contextCards: [],
           dataGaps: [
             { source: 'Blood Panel', lastUpdated: '9 months ago', prompt: 'Upload new panel.' },
@@ -253,7 +296,6 @@ describe('Today Page', () => {
   it('shows loading skeletons while intelligence is loading', () => {
     mockIntelligence = { data: null, loading: true, error: null, refetch: vi.fn() };
     renderToday();
-    // Should not show briefing but should show skeleton
     expect(screen.queryByTestId('ai-briefing')).not.toBeInTheDocument();
   });
 
@@ -271,7 +313,7 @@ describe('Today Page', () => {
     mockIntelligence = {
       data: {
         mode: 'POST_RIDE',
-        intelligence: { briefing: 'Done.', insights: [], contextCards: [], dataGaps: [] },
+        intelligence: { briefing: 'Done.', prepRecs: [], recoveryRecs: [], contextCards: [], dataGaps: [] },
       },
       loading: false,
       error: null,
@@ -282,33 +324,14 @@ describe('Today Page', () => {
     expect(screen.getByText('POST_RIDE')).toBeInTheDocument();
   });
 
-  it('does not show workout card in POST_RIDE mode', () => {
-    mockIntelligence = {
-      data: {
-        mode: 'POST_RIDE',
-        intelligence: {
-          briefing: 'Post ride.',
-          insights: [],
-          contextCards: [],
-          workout: { name: 'Ignored Workout' },
-          dataGaps: [],
-        },
-      },
-      loading: false,
-      error: null,
-      refetch: vi.fn(),
-    };
-    renderToday();
-    expect(screen.queryByTestId('workout-card')).not.toBeInTheDocument();
-  });
-
   it('does not show collapsed morning in morning modes', () => {
+    mockDashData = { ...mockDashData, activity: null };
     mockIntelligence = {
       data: {
-        mode: 'MORNING_RECOVERY',
+        mode: 'MORNING_NO_PLAN',
         intelligence: {
           briefing: 'Morning.',
-          insights: [],
+          prepRecs: [],
           contextCards: [],
           collapsedMorning: 'Should not show.',
           dataGaps: [],
@@ -320,5 +343,49 @@ describe('Today Page', () => {
     };
     renderToday();
     expect(screen.queryByTestId('collapsed-morning')).not.toBeInTheDocument();
+  });
+
+  it('renders readiness hero in morning mode', () => {
+    mockDashData = { ...mockDashData, activity: null };
+    mockIntelligence = {
+      data: {
+        mode: 'MORNING_NO_PLAN',
+        intelligence: { briefing: 'Morning.', prepRecs: [], contextCards: [], dataGaps: [] },
+      },
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    renderToday();
+    expect(screen.getByTestId('readiness-hero')).toBeInTheDocument();
+  });
+
+  it('renders vitals strip in morning mode', () => {
+    mockDashData = { ...mockDashData, activity: null };
+    mockIntelligence = {
+      data: {
+        mode: 'MORNING_NO_PLAN',
+        intelligence: { briefing: 'Morning.', prepRecs: [], contextCards: [], dataGaps: [] },
+      },
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    renderToday();
+    expect(screen.getByTestId('vitals-strip')).toBeInTheDocument();
+  });
+
+  it('renders this week in both modes', () => {
+    mockIntelligence = {
+      data: {
+        mode: 'POST_RIDE',
+        intelligence: { briefing: 'Ride done.', prepRecs: [], recoveryRecs: [], contextCards: [], dataGaps: [] },
+      },
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    renderToday();
+    expect(screen.getByTestId('this-week')).toBeInTheDocument();
   });
 });

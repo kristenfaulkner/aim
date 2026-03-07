@@ -352,13 +352,14 @@ export default async function handler(req, res) {
       // No exact cache hit — continue
     }
 
-    // Stale cache fallback: return any recent intelligence (<6h old) instantly
+    // Stale cache fallback: return any recent Today intelligence (<6h old) instantly
     // The next page load will regenerate fresh data via SWR
     try {
       const { data: staleCache } = await supabaseAdmin
         .from("intelligence_cache")
         .select("mode, intelligence, created_at")
         .eq("user_id", session.userId)
+        .not("cache_key", "like", "perf|%")
         .gte("created_at", new Date(Date.now() - 6 * 3600000).toISOString())
         .order("created_at", { ascending: false })
         .limit(1)
@@ -387,7 +388,7 @@ export default async function handler(req, res) {
       weatherLat && weatherLng
         ? fetchWeatherForecast(weatherLat, weatherLng)
         : Promise.resolve(null),
-      getAthleteAnalytics(session.userId),
+      getAthleteAnalytics(session.userId, { staleFallback: true }),
     ]);
 
     const weatherForecast = weatherResult.status === "fulfilled" ? weatherResult.value : null;

@@ -13,48 +13,77 @@ The home screen. What you see every day when you open AIM. AI-first single-colum
 
 > **Note:** The old two-column Dashboard is preserved at `/dashboard-legacy` for reference.
 
-### Layout: Single-column AI-first centered layout (700px max-width)
+### Layout: Single-column AI-first centered layout (680px max-width)
 
+**Morning Mode** (no ride today):
 ```
 ┌───────────────────────────────────────────┐
-│           TODAY (centered, 700px)          │
+│           TODAY (centered, 680px)          │
 │                                           │
-│  AI INTELLIGENCE (adaptive, full-width)   │
-│  • Post-ride: analysis + insights         │
-│  • Pre-ride: briefing + fueling plan      │
-│  • No plan: AI coaching + recommendations │
+│  READINESS HERO                           │
+│  SVG ring (score) + context pills         │
+│  (sleep, weather, cycle phase)            │
 │                                           │
-│  READINESS CARD                           │
-│  Ring + headline + weather + vitals       │
+│  AI BRIEFING                              │
+│  ✦ gradient icon + 2-3 sentence narrative │
 │                                           │
-│  LAST RIDE (compact card)                 │
-│  Name, date, 8 key metrics               │
-│  "View Full Analysis →" button            │
+│  TODAY CARD                               │
+│  • WITH_PLAN: workout header + structure  │
+│    + prepRecs (3-level PrepRec cards)      │
+│  • NO_PLAN: "Get Workout" button          │
+│    + prepRecs (nutrition, hydration, etc)  │
 │                                           │
-│  WORKING GOALS                            │
-│  Active goals with progress bars          │
+│  VITALS STRIP                             │
+│  HRV | RHR | Sleep | Deep (with trends)  │
+│                                           │
+│  THIS WEEK                                │
+│  7-day TSS bar chart (Mon–Sun)            │
 │                                           │
 │  ASK CLAUDE                               │
 │  Freeform chat with full athlete context  │
 └───────────────────────────────────────────┘
 ```
 
-### AI Intelligence section:
-- Adapts by dashboard mode (see AIM-ADAPTIVE-DASHBOARD-SPEC.md)
-- POST_RIDE: Post-ride analysis, cross-domain insights, recovery actions
-- PRE_RIDE_PLANNED: Pre-ride briefing, readiness check, fueling reminders
-- DAILY_COACH: Full daily intelligence across all domains
+**Post-Ride Mode** (ride completed today):
+```
+┌───────────────────────────────────────────┐
+│           TODAY (centered, 680px)          │
+│                                           │
+│  COLLAPSED MORNING                        │
+│  Mini readiness ring + summary text       │
+│  (expands on tap for full morning view)   │
+│                                           │
+│  RIDE SUMMARY                             │
+│  Activity name, duration/distance/climb   │
+│  TSS + metric pills (EF, drift, carbs)   │
+│                                           │
+│  AI BRIEFING                              │
+│  ✦ gradient icon + post-ride narrative    │
+│                                           │
+│  TODAY CARD (Recovery Focus)              │
+│  recoveryRecs (refuel, rehydrate, sleep)  │
+│                                           │
+│  THIS WEEK                                │
+│  7-day TSS bar chart (Mon–Sun)            │
+│                                           │
+│  ASK CLAUDE                               │
+│  Freeform chat with full athlete context  │
+└───────────────────────────────────────────┘
+```
 
-### Working Goals:
-- Active goals with progress bars, sparklines, weekly checklists
-- Each goal expands to: Action Plan / Why It Matters / This Week
-- Suggested goals from AIM with "+ Start This Goal"
-- AI observations connecting compliance to results
+### Modes:
+- **POST_RIDE**: Ride completed today — collapsed morning, ride summary hero, recovery recs
+- **MORNING_WITH_PLAN**: Planned workout — readiness hero, workout card, prep recs
+- **MORNING_NO_PLAN**: Rest/recovery day — readiness hero, "Get Workout" button, prep recs
+
+### PrepRec Pattern (core intelligence delivery):
+- Three-level progressive disclosure: title (with specific numbers) → action box (WHY reasoning) → evidence with data pills
+- 4-7 recs per mode covering: nutrition, hydration, power adjustments, cycle phase, fueling, recovery, sleep
+- Replaces the old InsightCard pattern
 
 ### Ask Claude:
 - Freeform chat with full athlete context
-- Suggested questions based on recent data
-- Streaming responses
+- Mode-aware placeholder questions
 
 ---
 
