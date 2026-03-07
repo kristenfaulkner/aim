@@ -7,6 +7,7 @@ const PLACEHOLDERS = {
   MORNING_WITH_PLAN: "Should I adjust power targets today?",
   POST_RIDE: "Why was my EF high despite low sleep?",
   MORNING_RECOVERY: "What should I focus on today?",
+  MORNING_NO_PLAN: "What should I focus on today?",
 };
 
 export default function AskClaude({ mode, isMobile }) {
