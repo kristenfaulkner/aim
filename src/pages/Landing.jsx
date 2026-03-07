@@ -493,12 +493,6 @@ export default function Landing() {
               </div>
             </Reveal>
 
-            {/* Dashboard mockup */}
-            <Reveal delay={isMobile ? 0 : 0.2} y={40}>
-              <div style={{ marginTop: isMobile ? 40 : 64 }}>
-                <DashboardMockup isMobile={isMobile} />
-              </div>
-            </Reveal>
           </div>
         </section>
 
@@ -692,6 +686,16 @@ export default function Landing() {
             </Reveal>
           </div>
         </section>
+
+        {/* ═══ DASHBOARD MOCKUP (hidden for now — uncomment to restore) ═══
+        <section style={{ padding: isMobile ? "48px 20px" : "72px 40px" }}>
+          <Reveal y={40}>
+            <div style={{ maxWidth: 900, margin: "0 auto" }}>
+              <DashboardMockup isMobile={isMobile} />
+            </div>
+          </Reveal>
+        </section>
+        ═══════════════════════════════════════════════════════════════════ */}
 
         {/* ═══ PRICING ═══════════════════════════════════════════════════════ */}
         <section id="pricing" style={{ padding: isMobile ? "48px 20px" : "100px 40px" }}>
