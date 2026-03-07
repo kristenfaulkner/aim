@@ -357,7 +357,7 @@ export default function LogActivityModal({ isOpen, onClose, onSaved }) {
   const [parsedKeys, setParsedKeys] = useState(new Set());
 
   const act = ACTIVITIES.find(a => a.id === actId);
-  const canSave = actId && intensity && (hours > 0 || minutes > 0 || seconds > 0);
+  const canSave = actId && (hours > 0 || minutes > 0 || seconds > 0);
 
   const setField = (k, v) => setFieldsState(p => ({ ...p, [k]: v }));
 
@@ -573,7 +573,7 @@ export default function LogActivityModal({ isOpen, onClose, onSaved }) {
 
               {/* Intensity */}
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: T.textSoft, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Perceived Intensity</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: T.textSoft, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Perceived Intensity <span style={{ fontWeight: 400, color: T.textDim, textTransform: "none", letterSpacing: 0 }}>— optional</span></div>
                 <div style={{ display: "flex", gap: 7 }}>
                   {[1, 2, 3, 4, 5].map(i => {
                     const sel = intensity === i;
@@ -694,7 +694,7 @@ export default function LogActivityModal({ isOpen, onClose, onSaved }) {
               </div>
               {!canSave && (
                 <div style={{ fontSize: 11, color: T.textDim, textAlign: "center", marginTop: 7 }}>
-                  {!actId ? "Select an activity type" : !intensity ? "Rate your effort level" : "Add a duration"} to continue
+                  {!actId ? "Select an activity type" : "Add a duration"} to continue
                 </div>
               )}
             </div>
