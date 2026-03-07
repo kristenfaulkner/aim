@@ -364,23 +364,28 @@ async function assembleContext(userId) {
 
 
 /**
- * Call Claude Opus to generate performance intelligence from assembled context.
- * Returns the parsed result or null on failure.
+ * Call Claude to generate performance intelligence from assembled context.
+ * @param {string} userId
+ * @param {object} context - Assembled athlete context
+ * @param {object} [options]
+ * @param {string} [options.model] - "claude-opus-4-6" (background) or "claude-sonnet-4-6" (on-demand)
+ * @returns {Promise<object>} Parsed intelligence result
  */
-async function callClaude(userId, context) {
+async function callClaude(userId, context, { model = "claude-opus-4-6" } = {}) {
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error("ANTHROPIC_API_KEY not configured");
   }
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const maxTokens = model.includes("sonnet") ? 3000 : 4000;
 
   const response = await anthropic.messages.create({
-    model: "claude-opus-4-6",
-    max_tokens: 4000,
+    model,
+    max_tokens: maxTokens,
     system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: JSON.stringify(context) }],
+    messages: [{ role: "user", content: `IMPORTANT: Return ONLY valid JSON. No markdown, no explanation, no code fences.\n\n${JSON.stringify(context)}` }],
   });
-  trackTokenUsage(userId, "performance_intelligence", "claude-opus-4-6", response.usage);
+  trackTokenUsage(userId, "performance_intelligence", model, response.usage);
 
   const raw = response.content[0].text;
 
@@ -399,8 +404,8 @@ async function callClaude(userId, context) {
       }
     }
     if (!intelligence) {
-      console.error("[perf-intelligence] Claude parse failure. Raw:", raw.substring(0, 500));
-      throw new Error("Failed to parse AI response");
+      console.error(`[perf-intelligence] ${model} parse failure. Raw:`, raw.substring(0, 500));
+      throw new Error("Failed to parse AI response. Please retry.");
     }
   }
 
@@ -421,9 +426,11 @@ function buildFingerprint(totalActivities, ftp, weight, bloodPanelCount) {
  * Can be called from the API endpoint or from background refresh.
  *
  * @param {string} userId
+ * @param {object} [options]
+ * @param {string} [options.model] - Claude model to use (default: Opus for best quality)
  * @returns {Promise<object|null>} The intelligence result, or null if not enough data
  */
-export async function generatePerformanceIntelligence(userId) {
+export async function generatePerformanceIntelligence(userId, { model = "claude-opus-4-6" } = {}) {
   const assembled = await assembleContext(userId);
   if (!assembled) {
     return null; // <10 activities
@@ -432,7 +439,7 @@ export async function generatePerformanceIntelligence(userId) {
   const { context, totalActivities, dataMonths, modelCount, bloodPanelCount, ftp, weight } = assembled;
   const cacheFingerprint = buildFingerprint(totalActivities, ftp, weight, bloodPanelCount);
 
-  const intelligence = await callClaude(userId, context);
+  const intelligence = await callClaude(userId, context, { model });
 
   const result = {
     narrative: intelligence.narrative || null,
@@ -543,8 +550,8 @@ export async function getCachedPerformanceIntelligence(userId) {
   }
 
   // Step 3: No cache at all — generate on-demand (first-ever load only)
-  // This will throw if Claude fails, which the API handler catches and returns as error
-  const result = await generatePerformanceIntelligence(userId);
+  // Use Sonnet for speed on cold start; background refresh will replace with Opus
+  const result = await generatePerformanceIntelligence(userId, { model: "claude-sonnet-4-6" });
   if (!result) {
     // null means <10 activities — shouldn't happen since we checked above, but handle it
     return {
