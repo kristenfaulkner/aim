@@ -6,6 +6,7 @@ import { apiFetch } from "../../lib/api";
 import {
   Bike, Footprints, Waves, Dumbbell, Flower2, Mountain,
   Activity, Flame, Sparkles, Upload, X, Loader2,
+  Thermometer, Snowflake,
 } from "lucide-react";
 import { usePreferences } from "../../context/PreferencesContext";
 
@@ -99,6 +100,24 @@ const ACTIVITIES = [
     groups: [
       { label: "Session Details", fields: [
         { key: "temperature", label: "Temperature", unitKey: "temp", placeholder: "—" },
+      ]},
+    ],
+  },
+  {
+    id: "hot_bath", label: "Hot Bath", icon: Thermometer, emoji: "\u2668\uFE0F",
+    color: "#ef4444", bg: "rgba(239,68,68,0.08)", durationDefault: [0, 20, 0],
+    groups: [
+      { label: "Session Details", fields: [
+        { key: "temperature", label: "Temperature", unitKey: "temp", placeholder: "\u2014" },
+      ]},
+    ],
+  },
+  {
+    id: "ice_bath", label: "Ice Bath", icon: Snowflake, emoji: "\u2744\uFE0F",
+    color: "#0ea5e9", bg: "rgba(14,165,233,0.08)", durationDefault: [0, 5, 0],
+    groups: [
+      { label: "Session Details", fields: [
+        { key: "temperature", label: "Temperature", unitKey: "temp", placeholder: "\u2014" },
       ]},
     ],
   },
