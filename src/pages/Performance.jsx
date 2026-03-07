@@ -88,6 +88,18 @@ export default function Performance() {
   const dataMonths = data?.dataMonths || 0;
   const modelCount = data?.modelCount || 0;
   const isEmpty = data?.empty;
+  const generatedAt = data?.generatedAt;
+
+  const timeAgo = (iso) => {
+    if (!iso) return null;
+    const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.round(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.round(hrs / 24);
+    return `${days}d ago`;
+  };
 
   return (
     <div style={{ minHeight: "100vh", background: T.bg, fontFamily: font }}>
@@ -160,6 +172,7 @@ export default function Performance() {
             {activityCount > 0 ? `${activityCount} activities` : ""}
             {dataMonths > 0 ? ` \u00B7 ${dataMonths} months of data` : ""}
             {modelCount > 0 ? ` \u00B7 ${modelCount} personal model${modelCount !== 1 ? "s" : ""} active` : ""}
+            {generatedAt && !loading ? ` \u00B7 Updated ${timeAgo(generatedAt)}` : ""}
           </p>
         </div>
 

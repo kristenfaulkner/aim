@@ -539,10 +539,19 @@ export async function getAthleteAnalytics(userId, { forceRefresh = false } = {})
 /**
  * Force recompute analytics after new data arrives.
  * Call this from sync pipelines after processing activities.
+ * Also triggers performance intelligence pre-computation (rate-limited to 6h).
  *
  * @param {string} userId
  * @returns {Promise<object>} Fresh analytics
  */
 export async function refreshAthleteAnalytics(userId) {
-  return getAthleteAnalytics(userId, { forceRefresh: true });
+  const analytics = await getAthleteAnalytics(userId, { forceRefresh: true });
+
+  // Fire-and-forget: pre-compute Performance page intelligence (6h rate limit)
+  // Dynamic import to avoid circular dependency
+  import("./performance-intelligence.js")
+    .then(({ refreshPerformanceIntelligence }) => refreshPerformanceIntelligence(userId))
+    .catch(() => {});
+
+  return analytics;
 }

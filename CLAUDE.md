@@ -48,7 +48,7 @@ Testing uses Vitest + React Testing Library + MSW + Playwright. See `AIM-TESTING
 
 See `docs/data-flows.md` for detailed pipeline documentation (Strava sync, TrainingPeaks import, Eight Sleep cron, AI analysis, blood panel upload, SMS coach, sleep summary, metrics computation).
 
-**Summary**: OAuth connect → sync → compute metrics → dedup → upsert → fire-and-forget AI analysis + email + SMS. TrainingPeaks is file-based (ZIP + CSV). Eight Sleep syncs hourly via Vercel Cron. AI uses 3-layer smart context assembly (~60% token reduction).
+**Summary**: OAuth connect → sync → compute metrics → dedup → upsert → fire-and-forget AI analysis + email + SMS. TrainingPeaks is file-based (ZIP + CSV). Eight Sleep syncs hourly via Vercel Cron. AI uses 3-layer smart context assembly (~60% token reduction). Performance intelligence pre-computed: sync → `updateDailyMetrics()` → `refreshAthleteAnalytics()` → `refreshPerformanceIntelligence()` (fire-and-forget, 6h rate limit) — page loads from cache.
 
 ### Database (Supabase)
 
@@ -141,7 +141,7 @@ Cross-domain insights are the product. Every AI insight must connect 2+ data sou
 10. **Athlete bio generation** — AI-generated 2-3 sentence profile description from activity history via `/api/profile/generate-bio`
 11. **Insight feedback loop** — thumbs up/down per insight, personalized category preferences injected into AI system prompt, global quality tracking via `/api/feedback/`
 12. **Training prescription engine** — power profile gap analysis (CP model comparison), readiness/TSB/race/weather/cross-training guards, Claude-generated structured workout with power targets, fueling, alternative. PrescriptionCard on Dashboard with Add to Calendar integration via `/api/prescription/next-workout`
-13. **Performance intelligence** — longitudinal AI analysis via `/api/performance/intelligence`, Claude Opus 4.6, 4000 max_tokens. Synthesizes all performance models, sleep correlations, historical patterns, blood panels, power profile, goals, and races into ranked category sections with insights + model data. Server-side cache (intelligence_cache) + 24h frontend SWR cache. Dynamic category selection based on data availability.
+13. **Performance intelligence** — longitudinal AI analysis with pre-computation architecture. Core logic in `api/_lib/performance-intelligence.js`: `generatePerformanceIntelligence()` assembles context from 10 parallel DB queries + athlete analytics, calls Claude Opus 4.6 (4000 max_tokens), caches result. `refreshPerformanceIntelligence()` is a 6h rate-limited wrapper fired-and-forgotten from `refreshAthleteAnalytics()` after every sync. `getCachedPerformanceIntelligence()` is the cache-first reader (exact match → stale fallback → on-demand generation). API endpoint `api/performance/intelligence.js` is a thin wrapper around the cache reader. Pipeline: sync → `updateDailyMetrics()` → `refreshAthleteAnalytics()` → `refreshPerformanceIntelligence()` (fire-and-forget). Performance page loads instantly from cache.
 
 ### 30 Insight Categories (Active) + 5 Planned
 
