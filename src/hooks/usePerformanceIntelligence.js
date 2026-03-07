@@ -10,6 +10,8 @@ function loadCached() {
     const raw = sessionStorage.getItem(CACHE_KEY);
     if (!raw) return null;
     const { data, timestamp } = JSON.parse(raw);
+    // Don't serve cached empty states — they may be stale errors
+    if (data?.empty) return null;
     if (Date.now() - timestamp < CACHE_TTL_MS) return data;
   } catch {}
   return null;
@@ -17,6 +19,8 @@ function loadCached() {
 
 function saveCache(data) {
   try {
+    // Don't cache empty states
+    if (data?.empty) return;
     sessionStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
   } catch {}
 }
@@ -45,7 +49,8 @@ export function usePerformanceIntelligence() {
       setData(result);
       saveCache(result);
     } catch (err) {
-      if (!cached.current) {
+      // Show error if no real cached data (empty states don't count)
+      if (!cached.current || cached.current.empty) {
         setError(err.message || "Failed to load performance intelligence");
       }
     } finally {

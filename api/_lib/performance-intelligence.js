@@ -368,7 +368,9 @@ async function assembleContext(userId) {
  * Returns the parsed result or null on failure.
  */
 async function callClaude(userId, context) {
-  if (!process.env.ANTHROPIC_API_KEY) return null;
+  if (!process.env.ANTHROPIC_API_KEY) {
+    throw new Error("ANTHROPIC_API_KEY not configured");
+  }
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -398,7 +400,7 @@ async function callClaude(userId, context) {
     }
     if (!intelligence) {
       console.error("[perf-intelligence] Claude parse failure. Raw:", raw.substring(0, 500));
-      return null;
+      throw new Error("Failed to parse AI response");
     }
   }
 
@@ -431,7 +433,6 @@ export async function generatePerformanceIntelligence(userId) {
   const cacheFingerprint = buildFingerprint(totalActivities, ftp, weight, bloodPanelCount);
 
   const intelligence = await callClaude(userId, context);
-  if (!intelligence) return null;
 
   const result = {
     narrative: intelligence.narrative || null,
@@ -542,10 +543,12 @@ export async function getCachedPerformanceIntelligence(userId) {
   }
 
   // Step 3: No cache at all — generate on-demand (first-ever load only)
+  // This will throw if Claude fails, which the API handler catches and returns as error
   const result = await generatePerformanceIntelligence(userId);
   if (!result) {
+    // null means <10 activities — shouldn't happen since we checked above, but handle it
     return {
-      result: { narrative: null, modelCount: 0, activityCount: totalActivities, dataMonths: 0, categories: [], empty: true },
+      result: { narrative: null, modelCount: 0, activityCount: totalActivities || 0, dataMonths: 0, categories: [], empty: true },
       cached: false,
       stale: false,
     };
