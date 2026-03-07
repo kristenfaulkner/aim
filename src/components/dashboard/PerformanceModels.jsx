@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { T, font, mono } from "../../theme/tokens";
 import { apiFetch } from "../../lib/api";
 import { Thermometer, Heart, Zap, Flame, Moon, ChevronRight } from "lucide-react";
+import { usePreferences } from "../../context/PreferencesContext";
+import { formatTemp } from "../../lib/units";
 
 const badgeColors = {
   high: T.accent,
@@ -65,7 +67,7 @@ function ModelTile({ icon, label, headline, sub, confidence, onClick }) {
   );
 }
 
-function buildTiles(models) {
+function buildTiles(models, tempUnit) {
   if (!models) return [];
 
   const tiles = [];
@@ -74,7 +76,7 @@ function buildTiles(models) {
     const m = models.heat;
     let headline = null;
     if (m.breakpointTemp != null) {
-      headline = `${m.breakpointTemp}°C breakpoint`;
+      headline = `${formatTemp(m.breakpointTemp, tempUnit)} breakpoint`;
     } else if (m.bins) {
       const cool = m.bins["Cool (<15°C)"];
       const hot = m.bins["Hot (>25°C)"];
@@ -176,6 +178,7 @@ function buildTiles(models) {
 
 export default function PerformanceModels({ isMobile }) {
   const navigate = useNavigate();
+  const { tempUnit } = usePreferences();
   const [models, setModels] = useState(null);
   const [durabilityScore, setDurabilityScore] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -203,7 +206,7 @@ export default function PerformanceModels({ isMobile }) {
 
   // Inject durability score into models for buildTiles
   const modelsWithScore = models ? { ...models, _durabilityScore: durabilityScore } : null;
-  const tiles = buildTiles(modelsWithScore);
+  const tiles = buildTiles(modelsWithScore, tempUnit);
 
   // Don't render the card at all if loading is done and there are no models
   if (!loading && tiles.length === 0 && !models) {

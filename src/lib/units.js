@@ -64,12 +64,18 @@ export function formatHeight(cm, units = "metric") {
 }
 
 // Temperature: °C → display string
-export function formatTemp(celsius, units = "metric") {
+// Accepts tempUnit ("fahrenheit"/"celsius") or legacy units ("imperial"/"metric")
+export function formatTemp(celsius, tempUnit = "fahrenheit") {
   if (celsius == null) return "--";
-  if (units === "imperial") {
+  if (tempUnit === "fahrenheit" || tempUnit === "imperial") {
     return `${Math.round(celsius * 9/5 + 32)}°F`;
   }
   return `${Math.round(celsius)}°C`;
+}
+
+// Temperature unit label
+export function tempUnitLabel(tempUnit = "fahrenheit") {
+  return (tempUnit === "celsius" || tempUnit === "metric") ? "°C" : "°F";
 }
 
 // Distance unit label (short)

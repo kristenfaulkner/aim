@@ -11,6 +11,8 @@ import SEO from "../components/SEO";
 import SourceBadge from "../components/SourceBadge";
 import SleepAIPanel from "../components/sleep/SleepAIPanel";
 import { FormattedText } from "../lib/formatText.jsx";
+import { usePreferences } from "../context/PreferencesContext";
+import { formatTemp } from "../lib/units";
 
 // ── Helpers ──
 
@@ -149,9 +151,9 @@ function NightlyRow({ row, expanded, onToggle, isMobile }) {
             <MiniStat label="Resting HR" value={row.resting_hr_bpm != null ? `${Math.round(row.resting_hr_bpm)} bpm` : "—"} />
             <MiniStat label="Resp. Rate" value={row.respiratory_rate != null ? `${row.respiratory_rate.toFixed(1)} br/m` : "—"} />
             <MiniStat label="SpO2" value={row.blood_oxygen_pct != null ? `${row.blood_oxygen_pct}%` : "—"} />
-            {row.bed_temperature_celsius != null && <MiniStat label="Bed Temp" value={`${row.bed_temperature_celsius.toFixed(1)}°C`} />}
+            {row.bed_temperature_celsius != null && <MiniStat label="Bed Temp" value={formatTemp(row.bed_temperature_celsius, tempUnit)} />}
             {ext?.toss_and_turns != null && <MiniStat label="Toss & Turns" value={ext.toss_and_turns} />}
-            {ext?.room_temp_avg_c != null && <MiniStat label="Room Temp" value={`${ext.room_temp_avg_c.toFixed(1)}°C`} />}
+            {ext?.room_temp_avg_c != null && <MiniStat label="Room Temp" value={formatTemp(ext.room_temp_avg_c, tempUnit)} />}
             {ext?.sleep_quality_score != null && <MiniStat label="Quality Score" value={ext.sleep_quality_score} />}
             {ext?.sleep_routine_score != null && <MiniStat label="Routine Score" value={ext.sleep_routine_score} />}
             {ext?.sleep_fitness_score != null && <MiniStat label="Fitness Score" value={ext.sleep_fitness_score} />}
@@ -176,6 +178,7 @@ function MiniStat({ label, value }) {
 export default function Sleep() {
   const navigate = useNavigate();
   const { signout, profile } = useAuth();
+  const { tempUnit } = usePreferences();
   const { isMobile, isTablet } = useResponsive();
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);

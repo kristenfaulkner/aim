@@ -35,6 +35,7 @@ export default function Onboarding() {
     date_of_birth: "",
     sex: "",
     units: "imperial",
+    temp_unit: "fahrenheit",
     height: "",
     weight: "",
     riding_level: "",
@@ -107,6 +108,7 @@ export default function Onboarding() {
         supabase.from("user_settings").upsert({
           user_id: user.id,
           units: form.units,
+          temp_unit: form.temp_unit,
         }, { onConflict: "user_id" }).then(({ error: settingsErr }) => {
           if (settingsErr) console.error("Settings save failed:", settingsErr.message);
         });
@@ -227,8 +229,15 @@ export default function Onboarding() {
               <div>
                 {label("Units")}
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {selectBtn("Metric (kg, cm)", isMetric, () => set("units", "metric"))}
-                  {selectBtn("Imperial (lbs, in)", !isMetric, () => set("units", "imperial"))}
+                  {selectBtn("Metric (kg, cm)", isMetric, () => { set("units", "metric"); set("temp_unit", "celsius"); })}
+                  {selectBtn("Imperial (lbs, in)", !isMetric, () => { set("units", "imperial"); set("temp_unit", "fahrenheit"); })}
+                </div>
+              </div>
+              <div>
+                {label("Temperature")}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {selectBtn("Fahrenheit (°F)", form.temp_unit === "fahrenheit", () => set("temp_unit", "fahrenheit"))}
+                  {selectBtn("Celsius (°C)", form.temp_unit === "celsius", () => set("temp_unit", "celsius"))}
                 </div>
               </div>
               <div style={{ display: "flex", gap: 16 }}>

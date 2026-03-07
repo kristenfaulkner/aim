@@ -7,6 +7,8 @@ import {
   Bike, Footprints, Waves, Dumbbell, Flower2, Mountain,
   Activity, Flame, Sparkles, Upload, X, Loader2,
 } from "lucide-react";
+import { usePreferences } from "../../context/PreferencesContext";
+import { tempUnitLabel } from "../../lib/units";
 
 // ── Activity Config ──
 
@@ -97,7 +99,7 @@ const ACTIVITIES = [
     color: "#ef4444", bg: "rgba(239,68,68,0.08)", durationDefault: [0, 20, 0],
     groups: [
       { label: "Session Details", fields: [
-        { key: "temperature", label: "Temperature", unit: "°F", placeholder: "—" },
+        { key: "temperature", label: "Temperature", unitKey: "temp", placeholder: "—" },
       ]},
     ],
   },
@@ -182,7 +184,7 @@ function FieldInput({ label, value, onChange, unit, placeholder, highlight = fal
 
 // ── Performance Fields ──
 
-function PerformanceFields({ groups, fields, setField, parsedKeys = new Set() }) {
+function PerformanceFields({ groups, fields, setField, parsedKeys = new Set(), tempUnit }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       {groups.map(group => (
@@ -194,7 +196,7 @@ function PerformanceFields({ groups, fields, setField, parsedKeys = new Set() })
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9 }}>
             {group.fields.map(f => (
-              <FieldInput key={f.key} label={f.label} value={fields[f.key] || ""} onChange={v => setField(f.key, v)} unit={f.unit} placeholder={f.placeholder} highlight={parsedKeys.has(f.key)} />
+              <FieldInput key={f.key} label={f.label} value={fields[f.key] || ""} onChange={v => setField(f.key, v)} unit={f.unitKey === "temp" ? tempUnitLabel(tempUnit) : f.unit} placeholder={f.placeholder} highlight={parsedKeys.has(f.key)} />
             ))}
           </div>
         </div>
@@ -338,6 +340,7 @@ function FileUpload({ actId, onFileParsed, onFileCleared }) {
 
 export default function LogActivityModal({ isOpen, onClose, onSaved }) {
   const { isMobile } = useResponsive();
+  const { tempUnit } = usePreferences();
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
@@ -604,7 +607,7 @@ export default function LogActivityModal({ isOpen, onClose, onSaved }) {
               {/* Expandable performance fields */}
               {act && act.groups.length > 0 && (
                 <div style={{ animation: "slideDown 0.2s ease" }}>
-                  <PerformanceFields groups={act.groups} fields={fields} setField={setField} parsedKeys={parsedKeys} />
+                  <PerformanceFields groups={act.groups} fields={fields} setField={setField} parsedKeys={parsedKeys} tempUnit={tempUnit} />
                 </div>
               )}
 

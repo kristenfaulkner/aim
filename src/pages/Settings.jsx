@@ -40,7 +40,7 @@ export default function Settings() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, profile, signout, updateProfile, resetPassword } = useAuth();
-  const { units, setUnits } = usePreferences();
+  const { units, setUnits, tempUnit, setTempUnit } = usePreferences();
   const { isMobile, isTablet } = useResponsive();
   const initialTab = searchParams.get("tab") || "units";
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -394,8 +394,8 @@ export default function Settings() {
                 </p>
                 <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                   {[
-                    { value: "imperial", label: "Imperial", desc: "miles, mph, feet, lbs, °F" },
-                    { value: "metric", label: "Metric", desc: "km, km/h, meters, kg, °C" },
+                    { value: "imperial", label: "Imperial", desc: "miles, mph, feet, lbs" },
+                    { value: "metric", label: "Metric", desc: "km, km/h, meters, kg" },
                   ].map(opt => (
                     <button key={opt.value} onClick={() => setUnits(opt.value)}
                       style={{
@@ -407,6 +407,34 @@ export default function Settings() {
                       }}>
                       <div style={{ fontSize: 14, fontWeight: 700, color: units === opt.value ? T.accent : T.text, marginBottom: 4 }}>
                         {units === opt.value && <Check size={14} style={{ marginRight: 6, verticalAlign: "middle" }} />}
+                        {opt.label}
+                      </div>
+                      <div style={{ fontSize: 12, color: T.textDim }}>{opt.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ padding: 24, background: T.card, borderRadius: 16, border: `1px solid ${T.border}`, marginBottom: 24 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 20px", letterSpacing: "-0.01em" }}>Temperature</h3>
+                <p style={{ fontSize: 13, color: T.textSoft, margin: "0 0 16px", lineHeight: 1.5 }}>
+                  Choose how temperatures are displayed across all pages and AI analysis.
+                </p>
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                  {[
+                    { value: "fahrenheit", label: "Fahrenheit", desc: "°F" },
+                    { value: "celsius", label: "Celsius", desc: "°C" },
+                  ].map(opt => (
+                    <button key={opt.value} onClick={() => setTempUnit(opt.value)}
+                      style={{
+                        flex: 1, minWidth: 180, padding: "16px 20px", borderRadius: 12,
+                        background: tempUnit === opt.value ? T.accentDim : T.surface,
+                        border: `2px solid ${tempUnit === opt.value ? T.accent : T.border}`,
+                        cursor: "pointer", textAlign: "left", fontFamily: font,
+                        transition: "all 0.2s",
+                      }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: tempUnit === opt.value ? T.accent : T.text, marginBottom: 4 }}>
+                        {tempUnit === opt.value && <Check size={14} style={{ marginRight: 6, verticalAlign: "middle" }} />}
                         {opt.label}
                       </div>
                       <div style={{ fontSize: 12, color: T.textDim }}>{opt.desc}</div>

@@ -7,7 +7,7 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 import { useResponsive } from "../hooks/useResponsive";
 import { usePreferences } from "../context/PreferencesContext";
-import { formatDistance, formatElevation, elevationUnit } from "../lib/units";
+import { formatDistance, formatElevation, elevationUnit, formatTemp } from "../lib/units";
 import { formatActivityDate, formatActivityTime, getActivityTimezoneAbbrev } from "../lib/formatTime";
 import SessionNotes from "../components/SessionNotes.jsx";
 import WbalChart from "../components/WbalChart.jsx";
@@ -57,7 +57,7 @@ export default function ActivityDetail() {
   const [notesExpanded, setNotesExpanded] = useState(false);
   const { isMobile, isTablet } = useResponsive();
   const { signout, profile } = useAuth();
-  const { units } = usePreferences();
+  const { units, tempUnit } = usePreferences();
   const { data: wbalData, loading: wbalLoading } = useWbalData(id);
   const similarSessions = useSimilarSessions(id);
   const { data: segmentData, loading: segmentsLoading } = useSegmentEfforts(id);
@@ -225,7 +225,7 @@ export default function ActivityDetail() {
   const typeEmoji = ACTIVITY_TYPE_EMOJI[a.activity_type] || "\uD83C\uDFCB\uFE0F";
 
   // Weather temp for hero subtitle
-  const temp = a.activity_weather?.temp_c != null ? `${Math.round(a.activity_weather.temp_c * 9 / 5 + 32)}\u00B0F` : null;
+  const temp = a.activity_weather?.temp_c != null ? formatTemp(a.activity_weather.temp_c, tempUnit) : null;
 
   // Hero stats ribbon
   const heroStats = [

@@ -106,7 +106,9 @@ You receive a pre-processed context payload with three layers:
 
 12. **When HR source attribution is provided (hrSourceInfo), factor data quality into your analysis.** If exercise HR is from a chest strap (high confidence), trust it fully. If from wrist optical (low confidence), note that HR metrics like drift and EF may be less reliable. When comparing HR across days with different sources, mention the source difference: "Note: today's HR was from your Wahoo chest strap while Feb 18 used Strava's wrist optical sensor, so direct HR comparison should be interpreted with some caution."
 
-13. **NEVER HALLUCINATE. This is the most important rule.** Every number, date, metric, comparison, and claim about the athlete's PAST DATA must come directly from the data provided in the context payload. Do NOT invent numbers, fabricate past activities, make up dates, or create fictional data points. If a metric is not present in the data, do NOT pretend it is — either skip that insight entirely or explicitly state what data is missing. The athlete trusts these insights to make real training decisions — a hallucinated number could lead to injury, overtraining, or dangerous choices.
+13. **Temperature units:** The "temperatureUnit" field indicates the athlete's preferred unit ("fahrenheit" or "celsius"). ALWAYS display all temperatures in the athlete's preferred unit. If "fahrenheit", write "72°F". If "celsius", write "22°C". Convert any raw Celsius data before displaying.
+
+14. **NEVER HALLUCINATE. This is the most important rule.** Every number, date, metric, comparison, and claim about the athlete's PAST DATA must come directly from the data provided in the context payload. Do NOT invent numbers, fabricate past activities, make up dates, or create fictional data points. If a metric is not present in the data, do NOT pretend it is — either skip that insight entirely or explicitly state what data is missing. The athlete trusts these insights to make real training decisions — a hallucinated number could lead to injury, overtraining, or dangerous choices.
     - **What IS allowed:** Recommendations, estimates, and projections clearly derived from the actual data ARE encouraged. For example, estimating carb burn from real ride calories and recommending refueling ("We estimate you burned ~250g of carbs — aim to refuel with 250g in the next 60 minutes") is great. Projecting race-day FTP from real CTL trends is great. These are calculations and advice based on real data — not hallucination.
     - **What is NOT allowed:** Inventing data that doesn't exist. Saying "Your HRV was 42ms last Tuesday" when no HRV data for that date is in the payload. Referencing a past ride that isn't in the data. Making up a sleep score. If you don't have it, don't cite it.
 
@@ -1349,7 +1351,7 @@ export async function buildAnalysisContext(userId, activityId) {
     // User settings (active boosters, preferences)
     supabaseAdmin
       .from("user_settings")
-      .select("active_boosters, race_calendar, preferences")
+      .select("active_boosters, race_calendar, preferences, units, temp_unit")
       .eq("user_id", userId)
       .single(),
 
@@ -1588,6 +1590,7 @@ export async function buildAnalysisContext(userId, activityId) {
     })(),
 
     // Metadata
+    temperatureUnit: settings?.temp_unit || (settings?.units === "metric" ? "celsius" : "fahrenheit"),
     activeBoosters: settings?.active_boosters || [],
     connectedSources: integrations.map((i) => i.provider),
     cyclePhase: dailyMetrics[0]?.cycle_phase || null,

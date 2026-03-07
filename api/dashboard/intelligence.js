@@ -95,6 +95,7 @@ GENERAL RULES:
 - When performanceModels data is present, reference specific model predictions.
 - NEVER HALLUCINATE — every number about past data must come from the actual data provided.
 - NEVER give direct medical/supplement advice — use "Research suggests..." language.
+- The "temperatureUnit" field indicates the athlete's preferred temperature display unit ("fahrenheit" or "celsius"). ALWAYS display all temperatures in the athlete's preferred unit. If "fahrenheit", write "72°F". If "celsius", write "22°C". Convert any raw Celsius data before displaying.
 - Return ONLY valid JSON, no markdown or explanation.`;
 
 const POST_RIDE_PROMPT = `You are the AI coach inside AIM, a performance intelligence platform for endurance athletes built by Kristen Faulkner (2x Olympic Gold Medalist, Paris 2024).
@@ -227,6 +228,7 @@ export default async function handler(req, res) {
       crossTrainingResult,
       goalsResult,
       integrationsResult,
+      settingsResult,
     ] = await Promise.allSettled([
       supabaseAdmin
         .from("profiles")
@@ -283,6 +285,11 @@ export default async function handler(req, res) {
         .select("provider")
         .eq("user_id", session.userId)
         .eq("is_active", true),
+      supabaseAdmin
+        .from("user_settings")
+        .select("units, temp_unit")
+        .eq("user_id", session.userId)
+        .single(),
     ]);
 
     const getData = (r) => r.status === "fulfilled" ? r.value.data : null;
@@ -293,6 +300,8 @@ export default async function handler(req, res) {
     const dailyMetrics = getData(dailyMetricsResult) || [];
     const recentActivities = getData(recentActivitiesResult) || [];
     const integrations = getData(integrationsResult) || [];
+    const userSettings = getData(settingsResult);
+    const tempUnit = userSettings?.temp_unit || (userSettings?.units === "metric" ? "celsius" : "fahrenheit");
 
     // Determine mode
     let mode = requestedMode || detectMode(todayActivity, todayPlannedWorkout);
@@ -408,6 +417,7 @@ export default async function handler(req, res) {
     const context = {
       today,
       athlete: profileSafe,
+      temperatureUnit: tempUnit,
       connectedIntegrations: integrations.map(i => i.provider),
       lastNightSleep,
       dailyMetrics,
