@@ -40,7 +40,7 @@ export default function Settings() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, profile, signout, updateProfile, resetPassword } = useAuth();
-  const { units, setUnits, tempUnit, setTempUnit } = usePreferences();
+  const { units, setUnits, tempUnit, setTempUnit, timeFormat, setTimeFormat } = usePreferences();
   const { isMobile, isTablet } = useResponsive();
   const initialTab = searchParams.get("tab") || "units";
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -435,6 +435,34 @@ export default function Settings() {
                       }}>
                       <div style={{ fontSize: 14, fontWeight: 700, color: tempUnit === opt.value ? T.accent : T.text, marginBottom: 4 }}>
                         {tempUnit === opt.value && <Check size={14} style={{ marginRight: 6, verticalAlign: "middle" }} />}
+                        {opt.label}
+                      </div>
+                      <div style={{ fontSize: 12, color: T.textDim }}>{opt.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ padding: 24, background: T.card, borderRadius: 16, border: `1px solid ${T.border}`, marginBottom: 24 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 20px", letterSpacing: "-0.01em" }}>Time Format</h3>
+                <p style={{ fontSize: 13, color: T.textSoft, margin: "0 0 16px", lineHeight: 1.5 }}>
+                  Choose how times are displayed throughout the app.
+                </p>
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                  {[
+                    { value: "12h", label: "12-hour", desc: "2:30 PM" },
+                    { value: "24h", label: "24-hour", desc: "14:30" },
+                  ].map(opt => (
+                    <button key={opt.value} onClick={() => setTimeFormat(opt.value)}
+                      style={{
+                        flex: 1, minWidth: 180, padding: "16px 20px", borderRadius: 12,
+                        background: timeFormat === opt.value ? T.accentDim : T.surface,
+                        border: `2px solid ${timeFormat === opt.value ? T.accent : T.border}`,
+                        cursor: "pointer", textAlign: "left", fontFamily: font,
+                        transition: "all 0.2s",
+                      }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: timeFormat === opt.value ? T.accent : T.text, marginBottom: 4 }}>
+                        {timeFormat === opt.value && <Check size={14} style={{ marginRight: 6, verticalAlign: "middle" }} />}
                         {opt.label}
                       </div>
                       <div style={{ fontSize: 12, color: T.textDim }}>{opt.desc}</div>

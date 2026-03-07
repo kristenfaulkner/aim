@@ -36,6 +36,7 @@ export default function Onboarding() {
     sex: "",
     units: "imperial",
     temp_unit: "fahrenheit",
+    time_format: "12h",
     height: "",
     weight: "",
     riding_level: "",
@@ -109,6 +110,7 @@ export default function Onboarding() {
           user_id: user.id,
           units: form.units,
           temp_unit: form.temp_unit,
+          time_format: form.time_format,
         }, { onConflict: "user_id" }).then(({ error: settingsErr }) => {
           if (settingsErr) console.error("Settings save failed:", settingsErr.message);
         });
@@ -238,6 +240,13 @@ export default function Onboarding() {
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {selectBtn("Fahrenheit (°F)", form.temp_unit === "fahrenheit", () => set("temp_unit", "fahrenheit"))}
                   {selectBtn("Celsius (°C)", form.temp_unit === "celsius", () => set("temp_unit", "celsius"))}
+                </div>
+              </div>
+              <div>
+                {label("Time Format")}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {selectBtn("12-hour (2:30 PM)", form.time_format === "12h", () => set("time_format", "12h"))}
+                  {selectBtn("24-hour (14:30)", form.time_format === "24h", () => set("time_format", "24h"))}
                 </div>
               </div>
               <div style={{ display: "flex", gap: 16 }}>

@@ -57,7 +57,7 @@ export default function ActivityDetail() {
   const [notesExpanded, setNotesExpanded] = useState(false);
   const { isMobile, isTablet } = useResponsive();
   const { signout, profile } = useAuth();
-  const { units, tempUnit } = usePreferences();
+  const { units, tempUnit, timeFormat } = usePreferences();
   const { data: wbalData, loading: wbalLoading } = useWbalData(id);
   const similarSessions = useSimilarSessions(id);
   const { data: segmentData, loading: segmentsLoading } = useSegmentEfforts(id);
@@ -220,7 +220,7 @@ export default function ActivityDetail() {
 
   const a = activity;
   const formattedDate = formatActivityDate(a, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
-  const formattedTime = formatActivityTime(a, { hour: "numeric", minute: "2-digit" });
+  const formattedTime = formatActivityTime(a, { hour: "numeric", minute: "2-digit" }, timeFormat);
   const tzAbbrev = getActivityTimezoneAbbrev(a);
   const typeEmoji = ACTIVITY_TYPE_EMOJI[a.activity_type] || "\uD83C\uDFCB\uFE0F";
 

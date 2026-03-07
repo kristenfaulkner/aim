@@ -13,6 +13,7 @@ import SleepAIPanel from "../components/sleep/SleepAIPanel";
 import { FormattedText } from "../lib/formatText.jsx";
 import { usePreferences } from "../context/PreferencesContext";
 import { formatTemp } from "../lib/units";
+import { formatClockTime } from "../lib/formatTime";
 
 // ── Helpers ──
 
@@ -21,15 +22,6 @@ function formatSleepHours(seconds) {
   const h = Math.floor(seconds / 3600);
   const m = Math.round((seconds % 3600) / 60);
   return `${h}h ${m}m`;
-}
-
-function formatTime(timeStr) {
-  if (!timeStr) return "—";
-  const [h, m] = timeStr.split(":");
-  const hour = parseInt(h, 10);
-  const ampm = hour >= 12 ? "PM" : "AM";
-  const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-  return `${h12}:${m} ${ampm}`;
 }
 
 function scoreColor(score) {
@@ -111,7 +103,7 @@ function ChartTooltip({ active, payload, label, formatter }) {
 
 // ── Nightly Row ──
 
-function NightlyRow({ row, expanded, onToggle, isMobile }) {
+function NightlyRow({ row, expanded, onToggle, isMobile, timeFormat }) {
   const ext = row.source_data?.eightsleep_extended;
   const date = new Date(row.date + "T12:00:00");
   const dateStr = date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
@@ -145,8 +137,8 @@ function NightlyRow({ row, expanded, onToggle, isMobile }) {
             <MiniStat label="Light Sleep" value={row.light_sleep_seconds ? `${Math.round(row.light_sleep_seconds / 60)}m` : "—"} />
             <MiniStat label="Efficiency" value={row.sleep_efficiency_pct != null ? `${Math.round(row.sleep_efficiency_pct)}%` : "—"} />
             <MiniStat label="Latency" value={row.sleep_latency_seconds != null ? `${Math.round(row.sleep_latency_seconds / 60)}m` : "—"} />
-            <MiniStat label="Bedtime" value={formatTime(row.sleep_onset_time)} />
-            <MiniStat label="Wake Time" value={formatTime(row.wake_time)} />
+            <MiniStat label="Bedtime" value={formatClockTime(row.sleep_onset_time, timeFormat)} />
+            <MiniStat label="Wake Time" value={formatClockTime(row.wake_time, timeFormat)} />
             <MiniStat label="HRV" value={row.hrv_overnight_avg_ms != null ? `${Math.round(row.hrv_overnight_avg_ms)}ms` : row.hrv_ms != null ? `${Math.round(row.hrv_ms)}ms` : "—"} />
             <MiniStat label="Resting HR" value={row.resting_hr_bpm != null ? `${Math.round(row.resting_hr_bpm)} bpm` : "—"} />
             <MiniStat label="Resp. Rate" value={row.respiratory_rate != null ? `${row.respiratory_rate.toFixed(1)} br/m` : "—"} />
@@ -178,7 +170,7 @@ function MiniStat({ label, value }) {
 export default function Sleep() {
   const navigate = useNavigate();
   const { signout, profile } = useAuth();
-  const { tempUnit } = usePreferences();
+  const { tempUnit, timeFormat } = usePreferences();
   const { isMobile, isTablet } = useResponsive();
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -596,6 +588,7 @@ export default function Sleep() {
                     expanded={period === "today" ? true : expandedNight === row.date}
                     onToggle={() => setExpandedNight(expandedNight === row.date ? null : row.date)}
                     isMobile={isMobile}
+                    timeFormat={timeFormat}
                   />
                 ))}
               </div>

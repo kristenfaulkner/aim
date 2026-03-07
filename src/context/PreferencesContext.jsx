@@ -8,6 +8,7 @@ export function PreferencesProvider({ children }) {
   const { user } = useAuth();
   const [units, setUnitsState] = useState("imperial");
   const [tempUnit, setTempUnitState] = useState("fahrenheit");
+  const [timeFormat, setTimeFormatState] = useState("12h");
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -21,12 +22,13 @@ export function PreferencesProvider({ children }) {
         if (!session) return;
         const { data } = await supabase
           .from("user_settings")
-          .select("units, temp_unit")
+          .select("units, temp_unit, time_format")
           .eq("user_id", user.id)
           .single();
         if (data?.units) setUnitsState(data.units);
         if (data?.temp_unit) setTempUnitState(data.temp_unit);
         else if (data?.units === "metric") setTempUnitState("celsius");
+        if (data?.time_format) setTimeFormatState(data.time_format);
       } catch (e) {
         // default to imperial / fahrenheit
       } finally {
@@ -59,8 +61,20 @@ export function PreferencesProvider({ children }) {
     }
   };
 
+  const setTimeFormat = async (newTimeFormat) => {
+    setTimeFormatState(newTimeFormat);
+    if (!user) return;
+    try {
+      await supabase
+        .from("user_settings")
+        .upsert({ user_id: user.id, time_format: newTimeFormat }, { onConflict: "user_id" });
+    } catch (e) {
+      console.error("Failed to save time format preference:", e);
+    }
+  };
+
   return (
-    <PreferencesContext.Provider value={{ units, setUnits, tempUnit, setTempUnit, prefsLoaded: loaded }}>
+    <PreferencesContext.Provider value={{ units, setUnits, tempUnit, setTempUnit, timeFormat, setTimeFormat, prefsLoaded: loaded }}>
       {children}
     </PreferencesContext.Provider>
   );

@@ -32,10 +32,31 @@ export function formatActivityDate(activity, options = {}) {
  * Format an activity's time for display (timezone-aware).
  * @param {object} activity - Activity with started_at, and optionally start_time_local/timezone_iana
  * @param {object} [options] - Intl.DateTimeFormat options (hour, minute, etc.)
+ * @param {string} [timeFormat="12h"] - "12h" or "24h"
  * @returns {string}
  */
-export function formatActivityTime(activity, options = {}) {
-  return getLocalDate(activity).toLocaleTimeString("en-US", options);
+export function formatActivityTime(activity, options = {}, timeFormat = "12h") {
+  const is24 = timeFormat === "24h";
+  const merged = { ...options, hour12: !is24 };
+  return getLocalDate(activity).toLocaleTimeString("en-US", merged);
+}
+
+/**
+ * Format a time string like "23:15" or "07:30" for display.
+ * @param {string} timeStr - "HH:MM" format
+ * @param {string} [timeFormat="12h"] - "12h" or "24h"
+ * @returns {string}
+ */
+export function formatClockTime(timeStr, timeFormat = "12h") {
+  if (!timeStr) return "—";
+  const [h, m] = timeStr.split(":");
+  const hour = parseInt(h, 10);
+  if (timeFormat === "24h") {
+    return `${String(hour).padStart(2, "0")}:${m}`;
+  }
+  const ampm = hour >= 12 ? "PM" : "AM";
+  const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  return `${h12}:${m} ${ampm}`;
 }
 
 /**
