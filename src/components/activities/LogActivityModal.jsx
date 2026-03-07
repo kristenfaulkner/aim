@@ -21,20 +21,20 @@ const ACTIVITIES = [
         { key: "avg_speed", label: "Avg Speed", unit: "mph", placeholder: "0.0" },
       ]},
       { label: "Power", fields: [
-        { key: "avg_power", label: "Avg Power", unit: "W", placeholder: "\u2014" },
-        { key: "norm_power", label: "Norm. Power", unit: "W", placeholder: "\u2014" },
-        { key: "tss", label: "TSS", unit: "", placeholder: "\u2014" },
+        { key: "avg_power", label: "Avg Power", unit: "W", placeholder: "—" },
+        { key: "norm_power", label: "Norm. Power", unit: "W", placeholder: "—" },
+        { key: "tss", label: "TSS", unit: "", placeholder: "—" },
         { key: "if_score", label: "IF", unit: "", placeholder: "0.00" },
-        { key: "work", label: "Work", unit: "kJ", placeholder: "\u2014" },
+        { key: "work", label: "Work", unit: "kJ", placeholder: "—" },
       ]},
       { label: "Heart Rate", fields: [
-        { key: "avg_hr", label: "Avg HR", unit: "bpm", placeholder: "\u2014" },
-        { key: "max_hr", label: "Max HR", unit: "bpm", placeholder: "\u2014" },
+        { key: "avg_hr", label: "Avg HR", unit: "bpm", placeholder: "—" },
+        { key: "max_hr", label: "Max HR", unit: "bpm", placeholder: "—" },
       ]},
       { label: "Elevation & Other", fields: [
-        { key: "elev_gain", label: "Elevation Gain", unit: "ft", placeholder: "\u2014" },
-        { key: "elev_loss", label: "Elevation Loss", unit: "ft", placeholder: "\u2014" },
-        { key: "calories", label: "Calories", unit: "kcal", placeholder: "\u2014" },
+        { key: "elev_gain", label: "Elevation Gain", unit: "ft", placeholder: "—" },
+        { key: "elev_loss", label: "Elevation Loss", unit: "ft", placeholder: "—" },
+        { key: "calories", label: "Calories", unit: "kcal", placeholder: "—" },
       ]},
     ],
   },
@@ -47,11 +47,11 @@ const ACTIVITIES = [
         { key: "avg_pace", label: "Avg Pace", unit: "min/mi", placeholder: "0:00" },
       ]},
       { label: "Heart Rate & Other", fields: [
-        { key: "avg_hr", label: "Avg HR", unit: "bpm", placeholder: "\u2014" },
-        { key: "max_hr", label: "Max HR", unit: "bpm", placeholder: "\u2014" },
-        { key: "elev_gain", label: "Elevation Gain", unit: "ft", placeholder: "\u2014" },
-        { key: "calories", label: "Calories", unit: "kcal", placeholder: "\u2014" },
-        { key: "tss", label: "TSS", unit: "", placeholder: "\u2014" },
+        { key: "avg_hr", label: "Avg HR", unit: "bpm", placeholder: "—" },
+        { key: "max_hr", label: "Max HR", unit: "bpm", placeholder: "—" },
+        { key: "elev_gain", label: "Elevation Gain", unit: "ft", placeholder: "—" },
+        { key: "calories", label: "Calories", unit: "kcal", placeholder: "—" },
+        { key: "tss", label: "TSS", unit: "", placeholder: "—" },
       ]},
     ],
   },
@@ -60,11 +60,11 @@ const ACTIVITIES = [
     color: T.blue, bg: "rgba(59,130,246,0.08)", durationDefault: [0, 40, 0],
     groups: [
       { label: "Distance & Pace", fields: [
-        { key: "distance", label: "Distance", unit: "yds", placeholder: "\u2014" },
-        { key: "avg_pace", label: "Avg Pace", unit: "sec/100y", placeholder: "\u2014" },
-        { key: "avg_hr", label: "Avg HR", unit: "bpm", placeholder: "\u2014" },
-        { key: "calories", label: "Calories", unit: "kcal", placeholder: "\u2014" },
-        { key: "tss", label: "TSS", unit: "", placeholder: "\u2014" },
+        { key: "distance", label: "Distance", unit: "yds", placeholder: "—" },
+        { key: "avg_pace", label: "Avg Pace", unit: "sec/100y", placeholder: "—" },
+        { key: "avg_hr", label: "Avg HR", unit: "bpm", placeholder: "—" },
+        { key: "calories", label: "Calories", unit: "kcal", placeholder: "—" },
+        { key: "tss", label: "TSS", unit: "", placeholder: "—" },
       ]},
     ],
   },
@@ -84,7 +84,7 @@ const ACTIVITIES = [
     groups: [
       { label: "Distance & Elevation", fields: [
         { key: "distance", label: "Distance", unit: "mi", placeholder: "0.0" },
-        { key: "elev_gain", label: "Elevation Gain", unit: "ft", placeholder: "\u2014" },
+        { key: "elev_gain", label: "Elevation Gain", unit: "ft", placeholder: "—" },
       ]},
     ],
   },
@@ -271,10 +271,10 @@ function FileUpload({ actId, onFileParsed, onFileCleared }) {
         onFileParsed(result.parsed, result.activity_type_hint);
         setParsed(true);
       } else {
-        setParseError("Couldn't parse this file \u2014 you can enter data manually");
+        setParseError("Couldn't parse this file — you can enter data manually");
       }
     } catch {
-      setParseError("Couldn't parse this file \u2014 you can enter data manually");
+      setParseError("Couldn't parse this file — you can enter data manually");
     } finally {
       setParsing(false);
     }
@@ -293,7 +293,7 @@ function FileUpload({ actId, onFileParsed, onFileCleared }) {
   return (
     <div>
       <div style={{ fontSize: 11, fontWeight: 700, color: T.textSoft, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>
-        Upload File <span style={{ fontWeight: 400, color: T.textDim, textTransform: "none", letterSpacing: 0 }}>\u2014 optional</span>
+        Upload File <span style={{ fontWeight: 400, color: T.textDim, textTransform: "none", letterSpacing: 0 }}>— optional</span>
       </div>
 
       {!file ? (
@@ -338,7 +338,7 @@ function FileUpload({ actId, onFileParsed, onFileCleared }) {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: T.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{file.name}</div>
               <div style={{ fontSize: 11, marginTop: 2, fontWeight: 500, color: parsing ? T.textDim : parseError ? T.danger : T.accent }}>
-                {parsing ? "Parsing file\u2026" : parseError ? parseError : parsed ? `${fmtSize(file.size)} \u00B7 Data auto-filled below` : fmtSize(file.size)}
+                {parsing ? "Parsing file…" : parseError ? parseError : parsed ? `${fmtSize(file.size)} · Data auto-filled below` : fmtSize(file.size)}
               </div>
             </div>
             {!parsing && (
@@ -527,7 +527,7 @@ export default function LogActivityModal({ isOpen, onClose, onSaved }) {
               </div>
 
               <input type="text" value={title} onChange={e => setTitle(e.target.value)}
-                placeholder={act ? `Name this ${act.label.toLowerCase()} session\u2026` : "Session name (optional)"}
+                placeholder={act ? `Name this ${act.label.toLowerCase()} session…` : "Session name (optional)"}
                 style={{
                   width: "100%", padding: "10px 13px", borderRadius: 10,
                   border: `1.5px solid ${T.border}`, background: T.surface,
@@ -643,10 +643,10 @@ export default function LogActivityModal({ isOpen, onClose, onSaved }) {
               {/* Notes */}
               <div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: T.textSoft, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
-                  Notes <span style={{ fontWeight: 400, color: T.textDim, textTransform: "none", letterSpacing: 0 }}>\u2014 optional</span>
+                  Notes <span style={{ fontWeight: 400, color: T.textDim, textTransform: "none", letterSpacing: 0 }}>— optional</span>
                 </div>
                 <textarea value={notes} onChange={e => setNotes(e.target.value)}
-                  placeholder="How did it feel? Terrain, fatigue, nutrition, anything AIM should know\u2026"
+                  placeholder="How did it feel? Terrain, fatigue, nutrition, anything AIM should know…"
                   rows={3} style={{
                     width: "100%", padding: "11px 13px", borderRadius: 10,
                     border: `1.5px solid ${T.border}`, background: T.surface,
@@ -715,7 +715,7 @@ export default function LogActivityModal({ isOpen, onClose, onSaved }) {
                   onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; }}
                 >
                   {saving && <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />}
-                  {saving ? "Saving\u2026" : "Save Session"}
+                  {saving ? "Saving…" : "Save Session"}
                 </button>
               </div>
               {!canSave && (
@@ -737,7 +737,7 @@ export default function LogActivityModal({ isOpen, onClose, onSaved }) {
               </div>
               <div style={{ fontSize: 14, color: T.textSoft }}>
                 {`${hours}h ${String(minutes).padStart(2, "0")}m ${String(seconds).padStart(2, "0")}s`}
-                {intensity && <span style={{ marginLeft: 8, color: INTENSITY_CLR[intensity], fontWeight: 600 }}>{"\u00B7"} {INTENSITY_LBL[intensity]}</span>}
+                {intensity && <span style={{ marginLeft: 8, color: INTENSITY_CLR[intensity], fontWeight: 600 }}>{"·"} {INTENSITY_LBL[intensity]}</span>}
               </div>
             </div>
             <div style={{ width: "100%", padding: "16px 18px", background: T.accentDim, borderRadius: 14, border: `1px solid ${T.accentMid}` }}>
@@ -747,7 +747,7 @@ export default function LogActivityModal({ isOpen, onClose, onSaved }) {
               </div>
               <div style={{ fontSize: 13, color: T.text, lineHeight: 1.55 }}>
                 {actId === "strength" && bodyRegion === "Lower Body" && intensity >= 4
-                  ? "Heavy lower body session detected. Expect 24\u201348h neuromuscular recovery \u2014 AIM will reduce recommended intensity for your next ride."
+                  ? "Heavy lower body session detected. Expect 24\u201348h neuromuscular recovery — AIM will reduce recommended intensity for your next ride."
                   : actId === "cycling"
                   ? `Cycling session added to your training load.${fields.avg_power ? ` Avg power: ${fields.avg_power}W.` : ""}${fields.tss ? ` TSS: ${fields.tss}.` : ""}`
                   : actId === "running"
