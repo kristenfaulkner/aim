@@ -489,7 +489,7 @@ async function generateNarratives(userId, analytics) {
  * @param {boolean} [options.forceRefresh] - Skip cache and recompute
  * @returns {Promise<object>} Analytics object
  */
-export async function getAthleteAnalytics(userId, { forceRefresh = false, staleFallback = false } = {}) {
+export async function getAthleteAnalytics(userId, { forceRefresh = false, staleFallback = false, skipNarratives = false } = {}) {
   const fingerprint = await computeFingerprint(userId);
 
   // Check cache (unless forced refresh)
@@ -519,10 +519,13 @@ export async function getAthleteAnalytics(userId, { forceRefresh = false, staleF
     raw.activities, raw.dailyMetrics, raw.nutritionLogs, raw.profile
   );
 
-  // Generate AI narratives for each model domain (Sonnet — fast + cached)
-  const narratives = await generateNarratives(userId, analytics);
-  if (narratives) {
-    analytics.narratives = narratives;
+  // Generate AI narratives for each model domain (Opus — cached)
+  // Skip when called from performance-intelligence to avoid double-Opus on cold start
+  if (!skipNarratives) {
+    const narratives = await generateNarratives(userId, analytics);
+    if (narratives) {
+      analytics.narratives = narratives;
+    }
   }
 
   // Cache result (fire-and-forget)

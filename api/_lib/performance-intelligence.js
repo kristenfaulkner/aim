@@ -176,7 +176,7 @@ async function assembleContext(userId) {
       .select("full_name, sex, ftp_watts, max_hr_bpm, weight_kg, weekly_hours, date_of_birth, timezone, menstrual_cycle_tracking")
       .eq("id", userId)
       .single(),
-    getAthleteAnalytics(userId, { staleFallback: true }),
+    getAthleteAnalytics(userId, { staleFallback: true, skipNarratives: true }),
     supabaseAdmin
       .from("power_profiles")
       .select("power_bests, cp_watts, w_prime_joules, pmax_watts, cp_r_squared, durability_score, zones_history, computed_date")
