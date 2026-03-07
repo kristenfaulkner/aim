@@ -520,8 +520,8 @@ export async function getAthleteAnalytics(userId, { forceRefresh = false, staleF
   );
 
   // Generate AI narratives for each model domain (Opus — cached)
-  // Skip when called from performance-intelligence to avoid double-Opus on cold start
-  if (!skipNarratives) {
+  // Skip when called with staleFallback or skipNarratives to avoid double-Opus on cold start
+  if (!skipNarratives && !staleFallback) {
     const narratives = await generateNarratives(userId, analytics);
     if (narratives) {
       analytics.narratives = narratives;

@@ -8,7 +8,7 @@ import { localDate, getUserTimezone } from "../_lib/date-utils.js";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-export const config = { maxDuration: 60 };
+export const config = { maxDuration: 90 };
 
 // ── PREP REC OUTPUT FORMAT ──
 // Intelligence delivered as actionable PrepRecs, not generic insights.
@@ -388,7 +388,7 @@ export default async function handler(req, res) {
       weatherLat && weatherLng
         ? fetchWeatherForecast(weatherLat, weatherLng)
         : Promise.resolve(null),
-      getAthleteAnalytics(session.userId, { staleFallback: true }),
+      getAthleteAnalytics(session.userId, { staleFallback: true, skipNarratives: true }),
     ]);
 
     const weatherForecast = weatherResult.status === "fulfilled" ? weatherResult.value : null;
