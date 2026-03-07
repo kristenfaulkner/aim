@@ -27,7 +27,16 @@ export async function apiFetch(path, options = {}) {
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
   const res = await fetch(`/api${path}`, { ...options, headers });
-  const data = await res.json();
+
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    // Vercel timeout or non-JSON response (e.g., "An error occurred...")
+    const err = new Error(res.status === 504 ? "Request timed out. Please retry." : "Server error. Please retry.");
+    err.status = res.status;
+    throw err;
+  }
 
   if (!res.ok) {
     const err = new Error(data.error || "Request failed");
